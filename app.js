@@ -1,473 +1,807 @@
-/* FiguScan Mundial V4 - app plana para Vercel + Firebase */
-const $app = document.getElementById('app');
+/* FiguScan Mundial V5 - PWA local-first.
+   Guarda datos en localStorage. El escaneo intenta OCR real con Tesseract.js si está disponible.
+   Si el OCR no detecta, usa carga manual rápida. No simula detección falsa. */
 
-const COUNTRIES = [
-  'Argentina','Brasil','Uruguay','Chile','Paraguay','Colombia','Ecuador','Perú','Bolivia','Venezuela',
-  'México','Estados Unidos','Canadá','España','Francia','Portugal','Inglaterra','Alemania','Italia','Países Bajos',
-  'Bélgica','Croacia','Marruecos','Japón','Corea del Sur','Arabia Saudita','Australia','Senegal','Ghana','Camerún',
-  'Nigeria','Dinamarca','Suiza','Polonia','Serbia','Costa Rica','Qatar','Otro'
-];
-const YEARS = ['2026','2022','2018','2014','2010','2006','2002','1998','1994','1990','Otro'];
+const STORAGE_KEY = 'figuscan_v5_stickers';
+const USER_KEY = 'figuscan_v5_user';
+const SETTINGS_KEY = 'figuscan_v5_settings';
+
 const STATUS = {
-  tengo: { label:'LA TENGO', short:'Tengo', emoji:'✅', color:'green', help:'Ya está en mi álbum' },
-  faltante: { label:'ME FALTA', short:'Me falta', emoji:'❌', color:'red', help:'Todavía la necesito' },
-  repetida: { label:'REPETIDA', short:'Repetida', emoji:'🔁', color:'orange', help:'La puedo cambiar' }
+  have: { label: 'Tengo', long: 'La tengo', tone: 'have', whatsapp: 'Tengo la figurita N° {n}. ¿Te sirve?' },
+  missing: { label: 'Me falta', long: 'Me falta', tone: 'missing', whatsapp: 'Me falta la figurita N° {n}. ¿La tenés para cambiar?' },
+  repeated: { label: 'Repetida', long: 'Repetida', tone: 'repeated', whatsapp: 'Tengo repetida la figurita N° {n} x{q}. ¿La necesitás?' },
 };
-const FLAGS = { Argentina:'🇦🇷', Brasil:'🇧🇷', Uruguay:'🇺🇾', Chile:'🇨🇱', Paraguay:'🇵🇾', Colombia:'🇨🇴', Ecuador:'🇪🇨', Perú:'🇵🇪', Bolivia:'🇧🇴', Venezuela:'🇻🇪', México:'🇲🇽', España:'🇪🇸', Francia:'🇫🇷', Portugal:'🇵🇹', Inglaterra:'🏴', Alemania:'🇩🇪', Italia:'🇮🇹', 'Países Bajos':'🇳🇱', Bélgica:'🇧🇪', Croacia:'🇭🇷', Marruecos:'🇲🇦', Japón:'🇯🇵', 'Corea del Sur':'🇰🇷', Australia:'🇦🇺', Senegal:'🇸🇳', Ghana:'🇬🇭', Camerún:'🇨🇲', Nigeria:'🇳🇬', Dinamarca:'🇩🇰', Suiza:'🇨🇭', Polonia:'🇵🇱', Serbia:'🇷🇸', 'Estados Unidos':'🇺🇸', Canadá:'🇨🇦', Qatar:'🇶🇦' };
 
-let firebaseReady = false;
-let auth = null;
-let db = null;
-try {
-  const cfg = window.FIGUSCAN_CONFIG || {};
-  if (window.firebase && cfg.apiKey) {
-    firebase.initializeApp(cfg);
-    auth = firebase.auth();
-    db = firebase.firestore();
-    db.enablePersistence?.().catch(() => null);
-    firebaseReady = true;
-  }
-} catch (e) {
-  console.warn('Firebase no inició:', e);
-}
+const TEAMS = [
+  'Sin selección', 'Argentina', 'Brasil', 'Uruguay', 'Francia', 'España', 'Alemania', 'Italia', 'Inglaterra', 'Portugal',
+  'Países Bajos', 'Croacia', 'Marruecos', 'México', 'Estados Unidos', 'Japón', 'Corea del Sur', 'Otro'
+];
 
-const state = {
-  user: null,
-  profile: null,
-  stickers: [],
-  friends: [],
-  view: 'home',
+const icons = {
+  logo: `<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M24 4 40 10v12c0 10.5-6.5 17.5-16 22C14.5 39.5 8 32.5 8 22V10l16-6Z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M17 20h14M17 27h14M18 34h9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M24 11v28" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".55"/></svg>`,
+  home: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V10Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`,
+  scan: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  album: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 4h10a4 4 0 0 1 4 4v12H8a3 3 0 0 0-3 3V4Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M5 19h14M9 8h6M9 12h6M9 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  friends: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M16 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0Z" stroke="currentColor" stroke-width="2"/><path d="M4 21a8 8 0 0 1 16 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18 8a3 3 0 0 1 3 3M3 11a3 3 0 0 1 3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".6"/></svg>`,
+  share: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M18 8a3 3 0 1 0-2.8-4M6 14a3 3 0 1 0-2.8-4M18 20a3 3 0 1 0-2.8-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="m8.7 12.4 6.6 3.2M15.3 8.4 8.7 11.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  plus: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>`,
+  check: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4 4L19 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  x: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>`,
+  repeat: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M17 2l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 11V9a3 3 0 0 1 3-3h15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M7 22l-4-4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 13v2a3 3 0 0 1-3 3H3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  trash: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  edit: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m14 5 5 5M4 20l4.5-1 10-10a3.5 3.5 0 0 0-5-5l-10 10L4 20Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  back: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 18 9 12l6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  search: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10.5 18a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15ZM16 16l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  list: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>`,
+  cameraOff: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m3 3 18 18M9 7h4l2 3h3a2 2 0 0 1 2 2v4M7.5 7H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h11M10 14a3 3 0 0 0 4 2.8M14 12.2A3 3 0 0 0 10.2 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  card: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="2"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  user: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M16 8a4 4 0 1 0-8 0 4 4 0 0 0 8 0ZM4 21a8 8 0 0 1 16 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  download: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 20h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+};
+
+let state = {
+  screen: 'home',
   filter: 'all',
-  loading: true,
-  authMode: 'login',
-  message: '',
-  error: '',
+  search: '',
+  stickers: loadStickers(),
   selected: new Set(),
-  selectMode: false,
-  editing: null,
-  prefill: null,
-  capturedImage: '',
-  scanText: '',
-  cameraStream: null,
-  busy: false
+  selectionMode: false,
+  editingId: null,
+  scanner: { active: false, detectedNumber: null, numberInput: '', status: 'have', quantity: 1, message: 'Preparando cámara...', canOcr: false, tries: 0 },
+  manual: { number: '', team: '', status: 'have', quantity: 1 },
+  user: loadUser(),
+  toast: '',
+  modal: null,
 };
 
-function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
-function esc(s=''){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-function flag(country){ return FLAGS[country] || '⚽'; }
-function setMsg(text, isError=false){ state.message = isError ? '' : text; state.error = isError ? text : ''; render(); }
-function setView(view, filter='all'){ stopCamera(); state.view=view; state.filter=filter; state.selectMode=false; state.selected.clear(); state.editing=null; state.prefill=null; state.capturedImage=''; state.scanText=''; state.message=''; state.error=''; render(); }
-function counts(){
+let videoStream = null;
+let scanInterval = null;
+let scannerBusy = false;
+let toastTimer = null;
+
+const app = document.getElementById('app');
+
+function svgIcon(name, cls = '') {
+  return `<span class="icon ${cls}" aria-hidden="true">${icons[name] || ''}</span>`;
+}
+function escapeHtml(value = '') {
+  return String(value).replace(/[&<>'"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#039;', '"':'&quot;' }[ch]));
+}
+function uid() { return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`; }
+function now() { return new Date().toISOString(); }
+function normalizedNumber(value) { return String(value || '').replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, ''); }
+function stickerKey(number, team = '') { return `${normalizedNumber(number)}::${String(team || '').trim().toLowerCase()}`; }
+
+function loadStickers() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+}
+function saveStickers(stickers = state.stickers) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(stickers));
+}
+function loadUser() {
+  try { return JSON.parse(localStorage.getItem(USER_KEY) || '{}'); } catch { return {}; }
+}
+function saveUser(user) {
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+function loadSettings() {
+  try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch { return {}; }
+}
+function saveSettings(settings) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
+
+function getStats() {
   return {
-    tengo: state.stickers.filter(s=>s.status==='tengo').length,
-    faltante: state.stickers.filter(s=>s.status==='faltante').length,
-    repetida: state.stickers.filter(s=>s.status==='repetida').length,
-    total: state.stickers.length
+    have: state.stickers.filter(s => s.status === 'have').length,
+    missing: state.stickers.filter(s => s.status === 'missing').length,
+    repeated: state.stickers.filter(s => s.status === 'repeated').length,
+    repeatedTotal: state.stickers.filter(s => s.status === 'repeated').reduce((acc, s) => acc + Math.max(1, Number(s.repeatedCount || 1)), 0),
+    total: state.stickers.length,
   };
 }
-function localKey(name){ return `figuscan_${state.user?.uid || 'local'}_${name}`; }
-function localLoad(){ try { return JSON.parse(localStorage.getItem(localKey('stickers')) || '[]'); } catch { return []; } }
-function localSave(list){ localStorage.setItem(localKey('stickers'), JSON.stringify(list)); }
-
-async function ensureProfile(user){
-  const ref = db.collection('profiles').doc(user.uid);
-  const snap = await ref.get();
-  if (snap.exists) return { id:user.uid, ...snap.data() };
-  const profile = {
-    name: user.displayName || user.email?.split('@')[0] || 'Coleccionista',
-    email: user.email || '',
-    shareCode: makeShareCode(),
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  };
-  await ref.set(profile);
-  return { id:user.uid, ...profile };
-}
-function makeShareCode(){ return Math.random().toString(36).slice(2,8).toUpperCase(); }
-
-async function loadData(){
-  if (!state.user || !firebaseReady) return;
-  state.loading = true; render();
-  try {
-    state.profile = await ensureProfile(state.user);
-    const qs = await db.collection('stickers').where('userId','==',state.user.uid).get();
-    const cloud = qs.docs.map(d => ({ id:d.id, ...d.data() }));
-    const local = localLoad().filter(x=>x._localOnly);
-    state.stickers = [...cloud, ...local].sort((a,b)=>(b.createdAtMs||0)-(a.createdAtMs||0));
-    await loadFriends();
-    state.error = '';
-  } catch (e) {
-    console.error(e);
-    state.error = 'No pude conectar con la nube. Voy a mostrar lo guardado en este teléfono.';
-    state.stickers = localLoad();
-  } finally {
-    state.loading = false; render();
-  }
+function filteredStickers() {
+  const q = normalizedNumber(state.search);
+  return state.stickers
+    .filter(s => state.filter === 'all' || s.status === state.filter)
+    .filter(s => !q || String(s.number).includes(q))
+    .sort((a, b) => Number(a.number) - Number(b.number));
 }
 
-async function loadFriends(){
-  try {
-    const qs = await db.collection('friends').where('userId','==',state.user.uid).get();
-    const arr = [];
-    for (const d of qs.docs) {
-      const f = d.data();
-      const ps = await db.collection('profiles').doc(f.friendUserId).get();
-      arr.push({ id:d.id, ...f, profile: ps.exists ? ps.data() : { name:'Amigo', shareCode:'' } });
-    }
-    state.friends = arr;
-  } catch(e){ state.friends = []; }
-}
-
-async function signUp(name,email,password){
-  if (!firebaseReady) return setMsg('Firebase no está configurado.', true);
-  state.busy = true; render();
-  try {
-    const cred = await auth.createUserWithEmailAndPassword(email,password);
-    await cred.user.updateProfile({ displayName:name });
-    state.user = cred.user;
-    await loadData();
-  } catch(e){ setMsg(trAuth(e.code), true); }
-  finally { state.busy=false; render(); }
-}
-async function signIn(email,password){
-  if (!firebaseReady) return setMsg('Firebase no está configurado.', true);
-  state.busy = true; render();
-  try { await auth.signInWithEmailAndPassword(email,password); }
-  catch(e){ setMsg(trAuth(e.code), true); }
-  finally { state.busy=false; render(); }
-}
-function trAuth(code){
-  return ({
-    'auth/email-already-in-use':'Ese email ya tiene cuenta. Probá entrar.',
-    'auth/invalid-email':'El email está mal escrito.',
-    'auth/weak-password':'La contraseña debe tener al menos 6 caracteres.',
-    'auth/invalid-credential':'Email o contraseña incorrectos.',
-    'auth/wrong-password':'Contraseña incorrecta.',
-    'auth/network-request-failed':'Sin conexión a internet.'
-  })[code] || 'No se pudo entrar. Revisá los datos.';
-}
-async function logout(){ stopCamera(); await auth.signOut(); }
-
-async function saveSticker(data){
-  if (!state.user) return setMsg('Primero entrá con tu usuario.', true);
-  state.busy = true; render();
-  const payload = {
-    userId: state.user.uid,
-    year: data.year || '2026',
-    country: data.country || 'Argentina',
-    number: String(data.number || '').trim(),
-    player: String(data.player || '').trim(),
-    status: data.status || 'tengo',
-    quantity: data.status === 'repetida' ? Number(data.quantity || 2) : 1,
-    image: data.image || '',
-    updatedAtMs: Date.now()
-  };
-  if (!payload.number) { state.busy=false; return setMsg('Falta poner el número de la figurita.', true); }
-  try {
-    if (state.editing) {
-      await db.collection('stickers').doc(state.editing.id).update({ ...payload, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-      state.stickers = state.stickers.map(s => s.id === state.editing.id ? { ...s, ...payload } : s);
-      setMsg('Figurita actualizada.');
-    } else {
-      const doc = await db.collection('stickers').add({ ...payload, createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp(), createdAtMs: Date.now() });
-      state.stickers.unshift({ id:doc.id, ...payload, createdAtMs: Date.now() });
-      setMsg('Figurita guardada.');
-    }
-    state.editing=null; state.prefill=null; state.capturedImage=''; state.scanText=''; state.view='home';
-  } catch(e) {
-    console.error(e);
-    const local = localLoad();
-    const localSticker = { id: state.editing?.id || uid(), ...payload, _localOnly:true, createdAtMs: Date.now() };
-    if (state.editing) {
-      const next = local.map(s => s.id === state.editing.id ? localSticker : s);
-      localSave(next); state.stickers = state.stickers.map(s => s.id === state.editing.id ? localSticker : s);
-    } else {
-      local.unshift(localSticker); localSave(local); state.stickers.unshift(localSticker);
-    }
-    state.view='home';
-    setMsg('Guardé la figurita en este teléfono. La nube no respondió.', true);
-  } finally { state.busy=false; render(); }
-}
-async function deleteSticker(id){
-  if (!confirm('¿Eliminar esta figurita?')) return;
-  try {
-    const s = state.stickers.find(x=>x.id===id);
-    if (s?._localOnly) {
-      localSave(localLoad().filter(x=>x.id!==id));
-    } else {
-      await db.collection('stickers').doc(id).delete();
-    }
-    state.stickers = state.stickers.filter(s=>s.id!==id);
-    setMsg('Figurita eliminada.');
-  } catch(e){ setMsg('No se pudo eliminar. Revisá las reglas de Firebase.', true); }
-}
-async function bulkStatus(status){
-  const ids = [...state.selected];
-  if (!ids.length) return;
-  const qty = status==='repetida' ? 2 : 1;
-  try {
-    await Promise.all(ids.map(id => {
-      const s = state.stickers.find(x=>x.id===id);
-      if (s?._localOnly) return Promise.resolve();
-      return db.collection('stickers').doc(id).update({ status, quantity: qty, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAtMs: Date.now() });
-    }));
-    state.stickers = state.stickers.map(s => ids.includes(s.id) ? { ...s, status, quantity:qty } : s);
-    const local = localLoad().map(s => ids.includes(s.id) ? { ...s, status, quantity:qty } : s); localSave(local);
-    state.selected.clear(); state.selectMode=false; setMsg('Listo. Cambié las figuritas seleccionadas.');
-  } catch(e){ setMsg('No pude cambiar esas figuritas.', true); }
-}
-async function bulkDelete(){
-  const ids = [...state.selected];
-  if (!ids.length) return;
-  if (!confirm(`¿Eliminar ${ids.length} figuritas?`)) return;
-  try {
-    await Promise.all(ids.map(id => {
-      const s = state.stickers.find(x=>x.id===id);
-      if (s?._localOnly) return Promise.resolve();
-      return db.collection('stickers').doc(id).delete();
-    }));
-    state.stickers = state.stickers.filter(s => !ids.includes(s.id));
-    localSave(localLoad().filter(s=>!ids.includes(s.id)));
-    state.selected.clear(); state.selectMode=false; setMsg('Figuritas eliminadas.');
-  } catch(e){ setMsg('No pude eliminar todas. Revisá conexión o reglas.', true); }
-}
-
-function filteredStickers(){
-  let arr = [...state.stickers];
-  if (state.filter !== 'all') arr = arr.filter(s=>s.status===state.filter);
-  return arr.sort((a,b) => String(a.country).localeCompare(String(b.country)) || Number(a.number)-Number(b.number));
-}
-
-function render(){
-  if (state.loading && !state.user) return $app.innerHTML = splash();
-  if (!state.user) return renderAuth();
-  const html = `${topbar()}<main class="page">${messages()}${viewHtml()}</main>${nav()}${bulkbar()}`;
-  $app.innerHTML = html;
-  bindCommon();
-  bindView();
-}
-function splash(){ return `<div class="splash"><div class="logo-ball">⚽</div><h1>FiguScan Mundial</h1><p>Cargando app...</p></div>`; }
-function topbar(){
-  return `<header class="topbar"><div class="topbar-row"><div class="brand"><div class="brand-logo">⚽</div><div><h1>FiguScan</h1><p>${esc(state.profile?.name || state.user?.email || 'Mi álbum')}</p></div></div><button class="icon-btn" data-action="logout" title="Salir">⏻</button></div></header>`;
-}
-function messages(){ return `${state.message?`<div class="notice good">${esc(state.message)}</div>`:''}${state.error?`<div class="notice bad">${esc(state.error)}</div>`:''}`; }
-function nav(){
-  const items = [['home','🏠','Inicio'],['scan','📷','Escanear'],['album','🧩','Álbum'],['friends','👥','Amigos'],['share','📲','Compartir']];
-  return `<nav class="nav">${items.map(([v,e,l])=>`<button data-nav="${v}" class="${state.view===v?'active':''}"><span>${e}</span>${l}</button>`).join('')}</nav>`;
-}
-function bulkbar(){
-  if (!state.selectMode) return '';
-  const n = state.selected.size;
-  return `<div class="bulkbar"><strong>${n} seleccionada${n===1?'':'s'}</strong><div class="bulkrow"><button class="green" data-bulk="tengo">Tengo</button><button class="red" data-bulk="faltante">Me falta</button><button class="orange" data-bulk="repetida">Repetida</button><button class="ghost" data-bulk="delete">Eliminar</button></div></div>`;
-}
-function viewHtml(){
-  if (state.view==='home') return homeHtml();
-  if (state.view==='scan') return scanHtml();
-  if (state.view==='album') return listHtml('Mi álbum', 'Todas tus figuritas');
-  if (state.view==='add') return manualHtml();
-  if (state.view==='friends') return friendsHtml();
-  if (state.view==='share') return shareHtml();
-  if (state.view==='profile') return profileHtml();
-  return homeHtml();
-}
-function homeHtml(){
-  const c=counts();
-  return `<section class="hero-card"><h2 class="hero-title">Tu álbum, tus repetidas y tus cambios en un solo lugar.</h2><p class="hero-sub">Sacá foto, cargá figuritas y compartí con amigos por WhatsApp.</p><div class="cta-grid"><button class="cta primary" data-nav="scan"><span>📷</span><strong>Escanear figurita</strong><small>Con recuadro guía</small></button><button class="cta dark" data-nav="add"><span>✍️</span><strong>Cargar manual</strong><small>Rápido y seguro</small></button></div></section>
-  <div class="stats"><button class="stat green" data-list="tengo"><span class="emoji">✅</span><span class="label">Tengo</span><span class="num">${c.tengo}</span></button><button class="stat red" data-list="faltante"><span class="emoji">❌</span><span class="label">Me faltan</span><span class="num">${c.faltante}</span></button><button class="stat orange" data-list="repetida"><span class="emoji">🔁</span><span class="label">Repetidas</span><span class="num">${c.repetida}</span></button></div>
-  <h2 class="section-title">Accesos rápidos</h2><div class="cta-grid"><button class="cta green" data-nav="album"><span>🧩</span><strong>Ver álbum</strong><small>${c.total} figuritas</small></button><button class="cta orange" data-nav="friends"><span>👥</span><strong>Intercambios</strong><small>Con amigos</small></button></div>`;
-}
-function listHtml(title, subtitle){
-  const arr = filteredStickers();
-  const filterTitle = state.filter==='tengo'?'Tengo':state.filter==='faltante'?'Me faltan':state.filter==='repetida'?'Repetidas':title;
-  return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><h2 class="section-title">${esc(filterTitle)}</h2><p class="section-sub">${esc(subtitle)} · ${arr.length} resultado${arr.length===1?'':'s'}</p></div><button class="btn inline secondary" data-action="toggleSelect">${state.selectMode?'Cancelar':'Marcar'}</button></div>
-  <div class="filters"><button class="chip ${state.filter==='all'?'active':''}" data-filter="all">Todas</button><button class="chip ${state.filter==='tengo'?'active':''}" data-filter="tengo">✅ Tengo</button><button class="chip ${state.filter==='faltante'?'active':''}" data-filter="faltante">❌ Me faltan</button><button class="chip ${state.filter==='repetida'?'active':''}" data-filter="repetida">🔁 Repetidas</button></div>
-  ${arr.length?`<div class="list">${arr.map(stickerCard).join('')}</div>`:emptyHtml('Todavía no hay figuritas acá','Cargá o escaneá tu primera figurita.')}`;
-}
-function stickerCard(s){
-  const cfg=STATUS[s.status]||STATUS.tengo;
-  const selected=state.selected.has(s.id);
-  return `<article class="sticker ${cfg.color}" data-id="${s.id}">${state.selectMode?`<button class="select-check ${selected?'on':''}" data-select="${s.id}">${selected?'✓':''}</button>`:''}<div class="sticker-img">${s.image?`<img src="${s.image}" alt="Figurita ${esc(s.number)}">`:`<div class="placeholder"><span>${flag(s.country)}</span><b>#${esc(s.number)}</b></div>`}<span class="badge ${cfg.color}">${cfg.emoji} ${s.status==='repetida'?'x'+(s.quantity||2):cfg.short}</span></div><div class="sticker-body"><div class="sticker-title">${flag(s.country)} #${esc(s.number)} ${esc(s.country)}</div><div class="sticker-meta">${esc(s.player||'Sin jugador')} · ${esc(s.year||'')}</div><div class="sticker-actions"><button class="mini" data-edit="${s.id}">Editar</button><button class="mini red" data-delete="${s.id}">Eliminar</button></div></div></article>`;
-}
-function emptyHtml(t,s){ return `<div class="empty"><div class="big">🧩</div><h3>${esc(t)}</h3><p>${esc(s)}</p><button class="btn" data-nav="add">Cargar figurita</button></div>`; }
-
-function manualHtml(prefill={}){
-  const s = state.editing || state.prefill || prefill || {};
-  const status = s.status || 'tengo';
-  const image = state.capturedImage || s.image || '';
-  return `<h2 class="section-title">${state.editing?'Editar figurita':'Guardar figurita'}</h2><p class="section-sub">Elegí los datos. Las opciones importantes están grandes y con color.</p>${image?`<div class="preview"><img src="${image}" alt="Foto de figurita"></div><br>`:''}<section class="card"><form class="form" id="stickerForm"><input type="hidden" name="image" value="${esc(image)}"><div class="field"><label>Año del Mundial</label><select name="year">${YEARS.map(y=>`<option ${String(s.year||'2026')===y?'selected':''}>${y}</option>`).join('')}</select></div><div class="field"><label>Selección / País</label><select name="country">${COUNTRIES.map(c=>`<option ${String(s.country||'Argentina')===c?'selected':''}>${c}</option>`).join('')}</select></div><div class="field"><label>Número de figurita</label><input name="number" inputmode="numeric" placeholder="Ej: 10" value="${esc(s.number||'')}"></div><div class="field"><label>Jugador o nombre</label><input name="player" placeholder="Ej: Messi" value="${esc(s.player||'')}"></div><div class="field"><label>Estado de la figurita</label><div class="status-grid">${Object.entries(STATUS).map(([key,c])=>`<button type="button" class="status-option ${c.color} ${status===key?'active':''}" data-status="${key}"><span class="ico">${c.emoji}</span><span><strong>${c.label}</strong><small>${c.help}</small></span></button>`).join('')}</div><input type="hidden" name="status" value="${status}"></div><div class="field qty-field ${status==='repetida'?'':'hidden'}"><label>¿Cuántas repetidas tenés?</label><div class="qty-row">${[2,3,4,5,6].map(n=>`<button type="button" class="qty ${Number(s.quantity||2)===n?'active':''}" data-qty="${n}">${n}</button>`).join('')}</div><input type="hidden" name="quantity" value="${s.quantity||2}"></div><button class="btn green" type="submit" ${state.busy?'disabled':''}>💾 Guardar figurita</button><button class="btn secondary" type="button" data-nav="home">Cancelar</button></form></section>`;
-}
-function scanHtml(){
-  if (state.capturedImage) {
-    return `<h2 class="section-title">Foto lista</h2><p class="section-sub">La recorté para que quede como figurita.</p><div class="preview"><img src="${state.capturedImage}" alt="Figurita recortada"></div><br>${state.scanText?`<div class="scan-status ${state.scanText.includes('Encontré')?'scan-ok':''}">${esc(state.scanText)}</div><br>`:''}<button class="btn green" data-action="useCaptured">Guardar con esta foto</button><br><button class="btn secondary" data-action="retake">Volver a sacar</button>`;
-  }
-  return `<h2 class="section-title">Escanear figurita</h2><p class="section-sub">Poné la figurita dentro del recuadro amarillo.</p><div class="camera-box"><video class="camera" id="cameraVideo" autoplay playsinline muted></video><div class="guide"></div></div><br><button class="btn" data-action="startCamera">📷 Abrir cámara</button><br><button class="btn green" data-action="capturePhoto">✅ Sacar foto</button><br><label class="btn secondary">🖼️ Elegir foto<input type="file" accept="image/*" capture="environment" id="fileInput" class="hidden"></label><br><div class="notice">Si el reconocimiento no encuentra los datos, igual vas a poder cargarlos a mano.</div>`;
-}
-function friendsHtml(){
-  return `<h2 class="section-title">Amigos</h2><p class="section-sub">Agregá amigos por código y buscá intercambios.</p><section class="share-card"><h3>Tu código</h3><p>Compartilo con tus amigos.</p><div class="code">${esc(state.profile?.shareCode||'------')}</div><br><button class="btn secondary" data-action="shareCode">Compartir mi código</button></section><br><section class="card"><form id="friendForm" class="form"><div class="field"><label>Código de amigo</label><input name="code" placeholder="Ej: ABC123" maxlength="10"></div><button class="btn" type="submit">Agregar amigo</button></form></section><h2 class="section-title">Mis amigos</h2>${state.friends.length?state.friends.map(friendCard).join(''):emptyHtml('No agregaste amigos','Compartí tu código o agregá el de otra persona.')}`;
-}
-function friendCard(f){ return `<section class="card" style="margin-bottom:10px"><strong style="font-size:20px">👤 ${esc(f.profile?.name||'Amigo')}</strong><p class="section-sub">Código: ${esc(f.profile?.shareCode||'')}</p><button class="btn green" data-compare="${f.friendUserId}">Ver intercambios</button></section>`; }
-function shareHtml(){
-  return `<h2 class="section-title">Compartir</h2><p class="section-sub">Mandá tus listas por WhatsApp con mejor presentación.</p><section class="share-card"><h3>⚽ FiguScan Mundial</h3><p>Elegí qué querés compartir.</p><button class="btn green" data-share="repetida">🔁 Mis repetidas</button><br><button class="btn red" data-share="faltante">❌ Mis faltantes</button><br><button class="btn secondary" data-action="shareImage">🖼️ Compartir imagen resumen</button></section><br><div class="notice">WhatsApp no siempre deja adjuntar una imagen automáticamente desde el navegador. Si tu celular lo permite, se abrirá el menú para enviar la imagen con el logo.</div>`;
-}
-function profileHtml(){ return `<h2 class="section-title">Perfil</h2><section class="card"><p><b>Usuario:</b> ${esc(state.profile?.name||'')}</p><p><b>Email:</b> ${esc(state.user?.email||'')}</p><p><b>Código:</b> ${esc(state.profile?.shareCode||'')}</p><button class="btn red" data-action="logout">Cerrar sesión</button></section>`; }
-
-function renderAuth(){
-  $app.innerHTML = `<div class="auth-wrap"><div class="auth-logo"><div class="brand-logo">⚽</div><h1>FiguScan Mundial</h1><p>Tu álbum de figuritas para compartir.</p></div><section class="auth-card">${messages()}<div class="toggle"><button class="${state.authMode==='login'?'active':''}" data-authmode="login">Entrar</button><button class="${state.authMode==='signup'?'active':''}" data-authmode="signup">Crear cuenta</button></div><form id="authForm" class="form">${state.authMode==='signup'?`<div class="field"><label>Nombre</label><input name="name" placeholder="Tu nombre" required></div>`:''}<div class="field"><label>Email</label><input name="email" type="email" placeholder="tu@email.com" required></div><div class="field"><label>Contraseña</label><input name="password" type="password" minlength="6" placeholder="mínimo 6 caracteres" required></div><button class="btn" ${state.busy?'disabled':''}>${state.authMode==='login'?'Entrar':'Crear mi cuenta'}</button></form></section></div>`;
-  document.querySelectorAll('[data-authmode]').forEach(b=>b.onclick=()=>{state.authMode=b.dataset.authmode; renderAuth();});
-  document.getElementById('authForm').onsubmit = (e)=>{e.preventDefault(); const f=new FormData(e.target); const email=f.get('email'), pass=f.get('password'); if(state.authMode==='signup') signUp(f.get('name'),email,pass); else signIn(email,pass);};
-}
-
-function bindCommon(){
-  document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>setView(b.dataset.nav));
-  document.querySelectorAll('[data-list]').forEach(b=>b.onclick=()=>setView('album',b.dataset.list));
-  document.querySelectorAll('[data-action="logout"]').forEach(b=>b.onclick=logout);
-  document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{state.filter=b.dataset.filter; render();});
-  const toggle = document.querySelector('[data-action="toggleSelect"]');
-  if(toggle) toggle.onclick=()=>{state.selectMode=!state.selectMode; state.selected.clear(); render();};
-  document.querySelectorAll('[data-bulk]').forEach(b=>b.onclick=()=>{ const a=b.dataset.bulk; if(a==='delete') bulkDelete(); else bulkStatus(a); });
-}
-function bindView(){
-  document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=(e)=>{e.stopPropagation(); deleteSticker(b.dataset.delete);});
-  document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=(e)=>{e.stopPropagation(); state.editing=state.stickers.find(s=>s.id===b.dataset.edit); state.view='add'; render();});
-  document.querySelectorAll('[data-select]').forEach(b=>b.onclick=(e)=>{e.stopPropagation(); const id=b.dataset.select; state.selected.has(id)?state.selected.delete(id):state.selected.add(id); render();});
-  const form = document.getElementById('stickerForm');
-  if(form){
-    form.querySelectorAll('[data-status]').forEach(btn=>btn.onclick=()=>{ form.status.value=btn.dataset.status; form.querySelectorAll('[data-status]').forEach(x=>x.classList.remove('active')); btn.classList.add('active'); form.querySelector('.qty-field').classList.toggle('hidden', btn.dataset.status!=='repetida'); });
-    form.querySelectorAll('[data-qty]').forEach(btn=>btn.onclick=()=>{ form.quantity.value=btn.dataset.qty; form.querySelectorAll('[data-qty]').forEach(x=>x.classList.remove('active')); btn.classList.add('active'); });
-    form.onsubmit=(e)=>{e.preventDefault(); const f=new FormData(form); saveSticker(Object.fromEntries(f.entries()));};
-  }
-  const start = document.querySelector('[data-action="startCamera"]'); if(start) start.onclick=startCamera;
-  const cap = document.querySelector('[data-action="capturePhoto"]'); if(cap) cap.onclick=capturePhoto;
-  const retake = document.querySelector('[data-action="retake"]'); if(retake) retake.onclick=()=>{state.capturedImage=''; state.scanText=''; render();};
-  const useCap = document.querySelector('[data-action="useCaptured"]'); if(useCap) useCap.onclick=()=>{state.view='add'; render();};
-  const file = document.getElementById('fileInput'); if(file) file.onchange=async(e)=>{ const img=await fileToData(e.target.files[0]); await handleImage(img); };
-  const friendForm = document.getElementById('friendForm'); if(friendForm) friendForm.onsubmit=addFriend;
-  document.querySelectorAll('[data-share]').forEach(b=>b.onclick=()=>shareText(b.dataset.share));
-  const shareImg=document.querySelector('[data-action="shareImage"]'); if(shareImg) shareImg.onclick=shareImageSummary;
-  const shareCode=document.querySelector('[data-action="shareCode"]'); if(shareCode) shareCode.onclick=()=>sharePlain(`⚽ FiguScan Mundial\nMi código para intercambiar figuritas es: ${state.profile?.shareCode}\nAbrí la app y agregame como amigo.`);
-  document.querySelectorAll('[data-compare]').forEach(b=>b.onclick=()=>compareFriend(b.dataset.compare));
-}
-
-async function startCamera(){
-  try {
-    stopCamera();
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'environment' }, audio:false });
-    state.cameraStream = stream;
-    const video = document.getElementById('cameraVideo');
-    if(video) video.srcObject = stream;
-  } catch(e){ setMsg('No pude abrir la cámara. Usá “Elegir foto”.', true); }
-}
-function stopCamera(){ if(state.cameraStream){ state.cameraStream.getTracks().forEach(t=>t.stop()); state.cameraStream=null; } }
-async function capturePhoto(){
-  const video = document.getElementById('cameraVideo');
-  if(!video || !video.videoWidth) return setMsg('Primero tocá “Abrir cámara”.', true);
-  const data = cropMedia(video, video.videoWidth, video.videoHeight);
-  await handleImage(data);
-  stopCamera();
-}
-function cropMedia(source,w,h){
-  const ratio = 3/4;
-  let sx=0, sy=0, sw=w, sh=h;
-  const current = w/h;
-  if(current > ratio){ sw = h*ratio; sx = (w-sw)/2; } else { sh = w/ratio; sy = (h-sh)/2; }
-  const canvas=document.createElement('canvas'); canvas.width=540; canvas.height=720;
-  const ctx=canvas.getContext('2d'); ctx.drawImage(source,sx,sy,sw,sh,0,0,canvas.width,canvas.height);
-  return canvas.toDataURL('image/jpeg',0.72);
-}
-function fileToData(file){ return new Promise((resolve,reject)=>{ if(!file) return reject(); const reader=new FileReader(); reader.onload=()=>{ const img=new Image(); img.onload=()=>resolve(cropMedia(img,img.width,img.height)); img.src=reader.result; }; reader.readAsDataURL(file); }); }
-async function handleImage(data){
-  state.capturedImage=data; state.scanText='Estoy intentando reconocer la figurita...'; render();
-  const res = await recognizeSticker(data);
-  if(res && (res.number || res.country || res.player)){
-    state.scanText = 'Encontré algunos datos. Revisalos antes de guardar.';
-    state.editing = null;
-    state.prefill = res;
-  } else {
-    state.scanText = 'No pude reconocerla con seguridad. Cargala manualmente, la foto queda guardada.';
-  }
+function showToast(message) {
+  state.toast = message;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { state.toast = ''; render(); }, 2500);
   render();
 }
-async function recognizeSticker(img){
-  try {
-    if(!window.Tesseract) return {};
-    const out = await Tesseract.recognize(img, 'eng+spa', { logger: () => {} });
-    const text = out?.data?.text || '';
-    const upper = text.toUpperCase();
-    const country = COUNTRIES.find(c => upper.includes(c.toUpperCase())) || '';
-    const year = (upper.match(/20(26|22|18|14|10|06|02)/)||[])[0] || '2026';
-    const nums = [...upper.matchAll(/\b(\d{1,3})\b/g)].map(m=>m[1]).filter(n=>Number(n)>0 && Number(n)<700);
-    const number = nums[0] || '';
-    const lines = text.split(/\n+/).map(x=>x.trim()).filter(Boolean);
-    const player = lines.find(l => l.length>3 && !/\d/.test(l) && (!country || l.toUpperCase()!==country.toUpperCase())) || '';
-    return { country, year, number, player, status:'tengo', image:img };
-  } catch(e){ return {}; }
+
+function setScreen(screen, opts = {}) {
+  stopCamera();
+  state.screen = screen;
+  state.selected.clear();
+  state.selectionMode = false;
+  if (opts.filter) state.filter = opts.filter;
+  if (screen === 'scanner') {
+    state.scanner = { active: false, detectedNumber: null, numberInput: '', status: 'have', quantity: 1, message: 'Preparando cámara...', canOcr: false, tries: 0 };
+  }
+  if (screen === 'manual' && !opts.keepManual) {
+    state.manual = { number: '', team: '', status: 'have', quantity: 1 };
+    state.editingId = null;
+  }
+  render();
+  if (screen === 'scanner') startCameraSoon();
 }
 
-async function addFriend(e){
-  e.preventDefault();
-  const code = new FormData(e.target).get('code').toString().trim().toUpperCase();
-  if(!code) return;
-  try {
-    const qs = await db.collection('profiles').where('shareCode','==',code).get();
-    if(qs.empty) return setMsg('No encontré ese código.', true);
-    const doc=qs.docs[0];
-    if(doc.id===state.user.uid) return setMsg('Ese es tu propio código.', true);
-    await db.collection('friends').doc(`${state.user.uid}_${doc.id}`).set({ userId:state.user.uid, friendUserId:doc.id, status:'active', createdAt:firebase.firestore.FieldValue.serverTimestamp() });
-    await loadFriends(); setMsg('Amigo agregado.');
-  } catch(err){ setMsg('No pude agregar el amigo.', true); }
-}
-async function compareFriend(friendUserId){
-  try {
-    const qs = await db.collection('stickers').where('userId','==',friendUserId).get();
-    const fs = qs.docs.map(d=>({id:d.id,...d.data()}));
-    const myDup = state.stickers.filter(s=>s.status==='repetida');
-    const myMiss = state.stickers.filter(s=>s.status==='faltante');
-    const friendDup = fs.filter(s=>s.status==='repetida');
-    const friendMiss = fs.filter(s=>s.status==='faltante');
-    const give = myDup.filter(a=>friendMiss.some(b=>sameSticker(a,b)));
-    const receive = friendDup.filter(a=>myMiss.some(b=>sameSticker(a,b)));
-    alert(`Intercambios posibles:\n\nVos podés dar: ${give.length}\nTu amigo puede darte: ${receive.length}`);
-  } catch(e){ setMsg('No pude comparar con ese amigo.', true); }
-}
-function sameSticker(a,b){ return String(a.country).toLowerCase()===String(b.country).toLowerCase() && String(a.number)===String(b.number); }
-function shareText(type){
-  const list = state.stickers.filter(s=>s.status===type);
-  const title = type==='repetida'?'repetidas':'faltantes';
-  const lines = list.length ? list.map(s=>`- ${s.country} #${s.number}${s.player?' - '+s.player:''}`).join('\n') : '- Todavía no cargué ninguna';
-  sharePlain(`⚽ FiguScan Mundial\n\nEstas son mis figuritas ${title}:\n${lines}\n\n¿Intercambiamos? Mi código: ${state.profile?.shareCode || ''}`);
-}
-function sharePlain(text){
-  if(navigator.share){ navigator.share({ title:'FiguScan Mundial', text }).catch(()=>openWhats(text)); }
-  else openWhats(text);
-}
-function openWhats(text){ window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,'_blank'); }
-async function shareImageSummary(){
-  const blob = await makeSummaryImage();
-  const file = new File([blob], 'figuscan-mundial.png', { type:'image/png' });
-  const text = `⚽ FiguScan Mundial\nMi resumen de figuritas. Código: ${state.profile?.shareCode || ''}`;
-  if(navigator.canShare && navigator.canShare({files:[file]})){
-    try { await navigator.share({ files:[file], title:'FiguScan Mundial', text }); return; } catch(e){}
+function upsertSticker(input, options = {}) {
+  const number = normalizedNumber(input.number);
+  if (!number) {
+    showToast('Ingresá un número de figurita.');
+    return false;
   }
-  const url = URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download='figuscan-mundial.png'; a.click();
-  openWhats(text + '\n\nTe descargué una imagen resumen para adjuntar.');
+  const status = input.status || 'have';
+  const repeatedCount = status === 'repeated' ? Math.max(1, Number(input.repeatedCount || input.quantity || 1)) : 1;
+  const team = String(input.team || '').trim();
+  const existingIndex = state.stickers.findIndex(s => stickerKey(s.number, s.team) === stickerKey(number, team));
+  const payload = {
+    number,
+    team,
+    status,
+    repeatedCount,
+    updatedAt: now(),
+  };
+  if (options.editingId) {
+    state.stickers = state.stickers.map(s => s.id === options.editingId ? { ...s, ...payload } : s);
+    saveStickers();
+    showToast(`Figurita N° ${number} actualizada.`);
+    return true;
+  }
+  if (existingIndex >= 0 && !options.forceUpdate) {
+    openModal({
+      title: `La N° ${number} ya existe`,
+      message: '¿Querés actualizar su estado con los datos nuevos?',
+      confirmText: 'Actualizar',
+      cancelText: 'Cancelar',
+      danger: false,
+      onConfirm: () => {
+        state.stickers[existingIndex] = { ...state.stickers[existingIndex], ...payload };
+        saveStickers();
+        showToast(`Figurita N° ${number} actualizada.`);
+      }
+    });
+    return false;
+  }
+  state.stickers = [{ id: uid(), createdAt: now(), ...payload }, ...state.stickers];
+  saveStickers();
+  showToast(`Figurita N° ${number} guardada.`);
+  return true;
 }
-function makeSummaryImage(){
-  return new Promise(resolve=>{
-    const c=counts(); const canvas=document.createElement('canvas'); canvas.width=900; canvas.height=1300; const ctx=canvas.getContext('2d');
-    const g=ctx.createLinearGradient(0,0,900,1300); g.addColorStop(0,'#0b5cff'); g.addColorStop(1,'#061b53'); ctx.fillStyle=g; ctx.fillRect(0,0,900,1300);
-    ctx.fillStyle='rgba(255,255,255,.12)'; ctx.beginPath(); ctx.arc(790,140,170,0,7); ctx.fill();
-    ctx.font='bold 86px system-ui'; ctx.fillStyle='white'; ctx.fillText('⚽ FiguScan',70,150);
-    ctx.font='bold 48px system-ui'; ctx.fillStyle='#dbeafe'; ctx.fillText('Mundial',72,215);
-    const boxes=[['✅ Tengo',c.tengo,'#16a34a'],['❌ Me faltan',c.faltante,'#dc2626'],['🔁 Repetidas',c.repetida,'#f97316']];
-    boxes.forEach((b,i)=>{ const y=300+i*150; ctx.fillStyle='white'; roundRect(ctx,70,y,760,115,34,true); ctx.fillStyle=b[2]; ctx.font='bold 38px system-ui'; ctx.fillText(b[0],110,y+70); ctx.font='bold 56px system-ui'; ctx.textAlign='right'; ctx.fillText(String(b[1]),790,y+76); ctx.textAlign='left'; });
-    ctx.fillStyle='white'; ctx.font='bold 42px system-ui'; ctx.fillText('Mis repetidas principales',70,820);
-    ctx.font='30px system-ui'; ctx.fillStyle='#e0ecff'; const reps=state.stickers.filter(s=>s.status==='repetida').slice(0,8); (reps.length?reps:[{country:'Sin repetidas',number:'-'}]).forEach((s,i)=>ctx.fillText(`${i+1}. ${s.country} #${s.number}${s.player?' - '+s.player:''}`,90,880+i*46));
-    ctx.font='bold 34px system-ui'; ctx.fillStyle='#facc15'; ctx.fillText(`Código: ${state.profile?.shareCode||''}`,70,1230);
-    canvas.toBlob(resolve,'image/png');
+
+function deleteSticker(id) {
+  const sticker = state.stickers.find(s => s.id === id);
+  if (!sticker) return;
+  openModal({
+    title: `Eliminar figurita N° ${sticker.number}`,
+    message: '¿Seguro que querés eliminarla? Esta acción no se puede deshacer.',
+    confirmText: 'Eliminar',
+    cancelText: 'Cancelar',
+    danger: true,
+    onConfirm: () => {
+      state.stickers = state.stickers.filter(s => s.id !== id);
+      state.selected.delete(id);
+      saveStickers();
+      showToast(`Figurita N° ${sticker.number} eliminada.`);
+    }
   });
 }
-function roundRect(ctx,x,y,w,h,r,fill){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); if(fill)ctx.fill(); }
+function bulkDelete() {
+  const count = state.selected.size;
+  if (!count) return;
+  openModal({
+    title: `Eliminar ${count} figuritas`,
+    message: '¿Seguro que querés eliminar todas las figuritas seleccionadas?',
+    confirmText: 'Eliminar',
+    cancelText: 'Cancelar',
+    danger: true,
+    onConfirm: () => {
+      state.stickers = state.stickers.filter(s => !state.selected.has(s.id));
+      state.selected.clear();
+      state.selectionMode = false;
+      saveStickers();
+      showToast(`${count} figuritas eliminadas.`);
+    }
+  });
+}
+function bulkSetStatus(status) {
+  const ids = Array.from(state.selected);
+  if (!ids.length) return;
+  state.stickers = state.stickers.map(s => ids.includes(s.id) ? { ...s, status, repeatedCount: status === 'repeated' ? Math.max(1, s.repeatedCount || 1) : 1, updatedAt: now() } : s);
+  state.selected.clear();
+  state.selectionMode = false;
+  saveStickers();
+  showToast(`${ids.length} figuritas actualizadas.`);
+  render();
+}
+function editSticker(id) {
+  const s = state.stickers.find(x => x.id === id);
+  if (!s) return;
+  state.editingId = id;
+  state.manual = { number: s.number, team: s.team || '', status: s.status, quantity: s.repeatedCount || 1 };
+  setScreen('manual', { keepManual: true });
+}
+function toggleSelected(id) {
+  if (state.selected.has(id)) state.selected.delete(id); else state.selected.add(id);
+  state.selectionMode = state.selected.size > 0;
+  render();
+}
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js').catch(()=>null);
-if (firebaseReady) auth.onAuthStateChanged(async user => { state.user=user; if(user) await loadData(); else { state.loading=false; render(); } });
-else { state.loading=false; render(); }
+function openModal({ title, message, confirmText = 'Aceptar', cancelText = 'Cancelar', danger = false, onConfirm }) {
+  state.modal = { title, message, confirmText, cancelText, danger, onConfirm };
+  render();
+}
+function closeModal() { state.modal = null; render(); }
+function confirmModal() {
+  const cb = state.modal?.onConfirm;
+  state.modal = null;
+  if (typeof cb === 'function') cb();
+  render();
+}
+
+function buildSingleStickerMessage(sticker) {
+  const n = sticker.number;
+  const q = Math.max(1, sticker.repeatedCount || 1);
+  const base = STATUS[sticker.status]?.whatsapp || 'Tengo la figurita N° {n}. ¿Te sirve?';
+  const team = sticker.team ? ` (${sticker.team})` : '';
+  return `FiguScan Mundial\n\n${base.replace('{n}', n).replace('{q}', q)}${team}\n\nOrganizado con FiguScan.`;
+}
+function buildWhatsAppMessage() {
+  const have = state.stickers.filter(s => s.status === 'have').sort((a,b)=>Number(a.number)-Number(b.number));
+  const missing = state.stickers.filter(s => s.status === 'missing').sort((a,b)=>Number(a.number)-Number(b.number));
+  const repeated = state.stickers.filter(s => s.status === 'repeated').sort((a,b)=>Number(a.number)-Number(b.number));
+  const fmtNums = arr => arr.length ? arr.map(s => `${s.number}${s.team ? ` (${s.team})` : ''}`).join(', ') : 'Sin figuritas cargadas';
+  const fmtRep = arr => arr.length ? arr.map(s => `${s.number}${s.team ? ` (${s.team})` : ''} x${Math.max(1, s.repeatedCount || 1)}`).join('\n') : 'Sin figuritas cargadas';
+  return `Mi álbum FiguScan:\n\n✅ Tengo:\n${fmtNums(have)}\n\n❌ Me faltan:\n${fmtNums(missing)}\n\n🔁 Repetidas:\n${fmtRep(repeated)}\n\n¿Hacemos cambios?`;
+}
+function openWhatsApp(text) {
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
+}
+async function shareSticker(sticker) {
+  const text = buildSingleStickerMessage(sticker);
+  try {
+    const blob = await createStickerShareImage(sticker);
+    const file = new File([blob], `figuscan-${sticker.number}.png`, { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ title: 'FiguScan Mundial', text, files: [file] });
+      return;
+    }
+  } catch (err) {}
+  openWhatsApp(text);
+}
+async function shareSummary() {
+  const text = buildWhatsAppMessage();
+  try {
+    const blob = await createSummaryShareImage();
+    const file = new File([blob], 'figuscan-resumen.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ title: 'FiguScan Mundial', text, files: [file] });
+      return;
+    }
+  } catch (err) {}
+  openWhatsApp(text);
+}
+
+function roundedRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function canvasBlob(canvas) {
+  return new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.92));
+}
+function drawLogo(ctx, x, y, size) {
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  roundedRect(ctx, x, y, size, size, size * .25); ctx.fill();
+  ctx.strokeStyle = '#0B1B4D'; ctx.lineWidth = size * .07;
+  ctx.beginPath();
+  ctx.moveTo(x + size*.5, y + size*.18);
+  ctx.lineTo(x + size*.75, y + size*.28);
+  ctx.lineTo(x + size*.75, y + size*.55);
+  ctx.quadraticCurveTo(x + size*.75, y + size*.78, x + size*.5, y + size*.88);
+  ctx.quadraticCurveTo(x + size*.25, y + size*.78, x + size*.25, y + size*.55);
+  ctx.lineTo(x + size*.25, y + size*.28);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + size*.36, y + size*.44); ctx.lineTo(x + size*.64, y + size*.44); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + size*.36, y + size*.58); ctx.lineTo(x + size*.64, y + size*.58); ctx.stroke();
+  ctx.restore();
+}
+function statusColor(status) { return status === 'have' ? '#0F9F6E' : status === 'missing' ? '#E23535' : '#F28A1A'; }
+async function createStickerShareImage(sticker) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080; canvas.height = 1350;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, 1080, 1350);
+  gradient.addColorStop(0, '#0B1B4D'); gradient.addColorStop(1, '#1E6BFF');
+  ctx.fillStyle = gradient; ctx.fillRect(0,0,1080,1350);
+  ctx.fillStyle = 'rgba(255,255,255,.08)';
+  for (let i=0;i<7;i++){ ctx.beginPath(); ctx.arc(100+i*170, 1140, 90, 0, Math.PI*2); ctx.fill(); }
+  drawLogo(ctx, 80, 80, 120);
+  ctx.fillStyle = '#fff'; ctx.font = '900 56px system-ui'; ctx.fillText('FiguScan Mundial', 230, 160);
+  ctx.fillStyle = '#D8E8FF'; ctx.font = '700 30px system-ui'; ctx.fillText('Figurita para cambiar', 230, 210);
+  roundedRect(ctx, 90, 310, 900, 760, 64); ctx.fillStyle = '#fff'; ctx.fill();
+  roundedRect(ctx, 160, 390, 760, 420, 48); ctx.fillStyle = '#EEF5FF'; ctx.fill();
+  ctx.fillStyle = '#0B1B4D'; ctx.font = '950 250px system-ui'; ctx.textAlign = 'center'; ctx.fillText(sticker.number, 540, 670);
+  ctx.textAlign = 'left';
+  ctx.fillStyle = statusColor(sticker.status); roundedRect(ctx, 230, 870, 620, 90, 45); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = '900 44px system-ui'; ctx.textAlign = 'center';
+  const label = sticker.status === 'repeated' ? `REPETIDA x${Math.max(1, sticker.repeatedCount || 1)}` : STATUS[sticker.status].long.toUpperCase();
+  ctx.fillText(label, 540, 930);
+  ctx.textAlign = 'center'; ctx.fillStyle = '#334155'; ctx.font = '700 36px system-ui';
+  ctx.fillText(sticker.team || 'Álbum de figuritas', 540, 1035);
+  ctx.fillStyle = '#fff'; ctx.font = '800 38px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText('¿Te sirve para intercambiar?', 540, 1230);
+  return canvasBlob(canvas);
+}
+async function createSummaryShareImage() {
+  const stats = getStats();
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080; canvas.height = 1350;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, 1080, 1350);
+  gradient.addColorStop(0, '#0B1B4D'); gradient.addColorStop(1, '#1740A8');
+  ctx.fillStyle = gradient; ctx.fillRect(0,0,1080,1350);
+  drawLogo(ctx, 80, 80, 120);
+  ctx.fillStyle = '#fff'; ctx.font = '900 60px system-ui'; ctx.fillText('Mi álbum FiguScan', 230, 160);
+  ctx.fillStyle = '#D8E8FF'; ctx.font = '700 32px system-ui'; ctx.fillText('Resumen para cambios', 230, 212);
+  const cards = [
+    ['Tengo', stats.have, '#0F9F6E'], ['Me faltan', stats.missing, '#E23535'], ['Repetidas', stats.repeatedTotal, '#F28A1A']
+  ];
+  cards.forEach((c, i) => {
+    const x = 80 + i*320;
+    roundedRect(ctx, x, 310, 280, 190, 38); ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.fillStyle = c[2]; ctx.font = '950 74px system-ui'; ctx.textAlign = 'center'; ctx.fillText(String(c[1]), x+140, 405);
+    ctx.fillStyle = '#334155'; ctx.font = '800 30px system-ui'; ctx.fillText(c[0], x+140, 455);
+  });
+  ctx.textAlign = 'left';
+  roundedRect(ctx, 80, 570, 920, 600, 50); ctx.fillStyle = '#fff'; ctx.fill();
+  const have = state.stickers.filter(s=>s.status==='have').map(s=>s.number).sort((a,b)=>a-b).slice(0,18).join(', ') || 'Sin figuritas cargadas';
+  const missing = state.stickers.filter(s=>s.status==='missing').map(s=>s.number).sort((a,b)=>a-b).slice(0,18).join(', ') || 'Sin figuritas cargadas';
+  const repeated = state.stickers.filter(s=>s.status==='repeated').sort((a,b)=>a.number-b.number).slice(0,12).map(s=>`${s.number} x${s.repeatedCount || 1}`).join('  ·  ') || 'Sin figuritas cargadas';
+  const rows = [['Tengo', have, '#0F9F6E'], ['Me faltan', missing, '#E23535'], ['Repetidas', repeated, '#F28A1A']];
+  rows.forEach((row, i) => {
+    const y = 660 + i*165;
+    ctx.fillStyle = row[2]; ctx.font = '900 38px system-ui'; ctx.fillText(row[0], 140, y);
+    ctx.fillStyle = '#0F172A'; ctx.font = '700 31px system-ui'; wrapText(ctx, row[1], 140, y+48, 800, 40, 2);
+  });
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = '800 36px system-ui'; ctx.fillText('¿Hacemos cambios?', 540, 1260);
+  return canvasBlob(canvas);
+}
+function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines=3) {
+  const words = String(text).split(' '); let line = ''; let lines = 0;
+  for (let n=0; n<words.length; n++) {
+    const test = line + words[n] + ' ';
+    if (ctx.measureText(test).width > maxWidth && n > 0) {
+      ctx.fillText(line.trim(), x, y); line = words[n] + ' '; y += lineHeight; lines++;
+      if (lines >= maxLines) return;
+    } else line = test;
+  }
+  ctx.fillText(line.trim(), x, y);
+}
+
+function startCameraSoon() { setTimeout(startCamera, 120); }
+async function startCamera() {
+  stopCamera(false);
+  const video = document.getElementById('cameraVideo');
+  if (!video) return;
+  try {
+    videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 1920 } }, audio: false });
+    video.srcObject = videoStream;
+    await video.play();
+    const hasTesseract = typeof window.Tesseract !== 'undefined';
+    state.scanner.active = true;
+    state.scanner.canOcr = hasTesseract;
+    state.scanner.message = hasTesseract ? 'Buscando número dentro del recuadro...' : 'Escaneo asistido listo.';
+    renderScannerStatus();
+    if (hasTesseract) {
+      scanInterval = setInterval(analyzeVideoFrame, 2800);
+      setTimeout(() => {
+        if (state.screen === 'scanner' && !state.scanner.detectedNumber && state.scanner.tries >= 2) {
+          state.scanner.message = 'No pude detectar la figurita. Podés cargar el número manualmente.';
+          renderScannerStatus();
+        }
+      }, 9500);
+    }
+  } catch (err) {
+    state.scanner.active = false;
+    state.scanner.message = 'No pude abrir la cámara. Usá la carga manual rápida.';
+    render();
+  }
+}
+function stopCamera(renderAfter = true) {
+  if (scanInterval) clearInterval(scanInterval);
+  scanInterval = null;
+  scannerBusy = false;
+  if (videoStream) {
+    videoStream.getTracks().forEach(t => t.stop());
+    videoStream = null;
+  }
+  if (renderAfter && state.screen === 'scanner') render();
+}
+function renderScannerStatus() {
+  const el = document.getElementById('scanStatus');
+  if (el) el.innerHTML = `${escapeHtml(state.scanner.message)}${state.scanner.canOcr ? '<small>Si no detecta, usá cargar número</small>' : '<small>OCR no disponible en este navegador</small>'}`;
+}
+async function analyzeVideoFrame() {
+  if (scannerBusy || state.screen !== 'scanner' || state.scanner.detectedNumber) return;
+  const video = document.getElementById('cameraVideo');
+  if (!video || !video.videoWidth || typeof window.Tesseract === 'undefined') return;
+  scannerBusy = true;
+  state.scanner.tries += 1;
+  state.scanner.message = 'Analizando el número...';
+  renderScannerStatus();
+  try {
+    const canvas = document.createElement('canvas');
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    const cropW = Math.floor(vw * 0.62);
+    const cropH = Math.floor(vh * 0.28);
+    const sx = Math.floor((vw - cropW) / 2);
+    const sy = Math.floor(vh * 0.34);
+    canvas.width = cropW; canvas.height = cropH;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, sx, sy, cropW, cropH, 0, 0, cropW, cropH);
+    // Alto contraste simple
+    const img = ctx.getImageData(0, 0, cropW, cropH);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const avg = (img.data[i] + img.data[i+1] + img.data[i+2]) / 3;
+      const v = avg > 130 ? 255 : 0;
+      img.data[i] = img.data[i+1] = img.data[i+2] = v;
+    }
+    ctx.putImageData(img, 0, 0);
+    const res = await window.Tesseract.recognize(canvas, 'eng', {
+      tessedit_char_whitelist: '0123456789',
+    });
+    const text = res?.data?.text || '';
+    const matches = text.match(/\d{1,4}/g) || [];
+    const candidates = matches.map(n => Number(n)).filter(n => n > 0 && n < 1000);
+    if (candidates.length) {
+      const detected = String(candidates[0]);
+      state.scanner.detectedNumber = detected;
+      state.scanner.numberInput = detected;
+      state.scanner.message = `Figurita detectada: N° ${detected}`;
+      stopCamera(false);
+      render();
+    } else {
+      state.scanner.message = state.scanner.tries >= 3 ? 'No pude detectar la figurita. Cargá el número manualmente.' : 'Sigo buscando el número...';
+      renderScannerStatus();
+    }
+  } catch (err) {
+    state.scanner.message = 'No pude leer el número. Usá cargar número.';
+    renderScannerStatus();
+  } finally {
+    scannerBusy = false;
+  }
+}
+
+function render() {
+  const top = state.screen === 'home' ? renderTopBar() : '';
+  app.innerHTML = `<main class="app-shell">${top}${renderScreen()}</main>${renderBottomNav()}${renderModal()}${state.toast ? `<div class="toast">${escapeHtml(state.toast)}</div>` : ''}`;
+  attachEvents();
+}
+function renderTopBar() {
+  return `<div class="app-top">
+    <div class="brand"><div class="brand-mark">${icons.logo}</div><div class="brand-text"><strong>FiguScan Mundial</strong><span>Álbum, repetidas y cambios</span></div></div>
+    <button class="profile-pill" data-action="profile">${svgIcon('user')}<span>${escapeHtml(state.user.name || 'Perfil')}</span></button>
+  </div>`;
+}
+function renderScreenHeader(title, subtitle) {
+  return `<header class="screen-header">
+    <div class="back-row"><button class="back-btn" data-screen="home" aria-label="Volver">${svgIcon('back')}</button><div><h1>${escapeHtml(title)}</h1>${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ''}</div></div>
+  </header>`;
+}
+function renderScreen() {
+  switch (state.screen) {
+    case 'scanner': return renderScanner();
+    case 'manual': return renderManual();
+    case 'album': return renderAlbum();
+    case 'friends': return renderFriends();
+    case 'share': return renderShare();
+    case 'profile': return renderProfile();
+    default: return renderHome();
+  }
+}
+function renderHome() {
+  const stats = getStats();
+  return `<section class="hero">
+      <div class="hero-kicker">${svgIcon('logo')} Álbum mundialista</div>
+      <h1>Organizá tu álbum en segundos</h1>
+      <p>Escaneá figuritas, marcá repetidas y compartí tus cambios por WhatsApp.</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary" data-screen="scanner">${svgIcon('scan')} Escanear ahora</button>
+        <button class="btn btn-secondary" data-screen="manual">${svgIcon('plus')} Agregar manualmente</button>
+      </div>
+    </section>
+    <div class="section-title"><h2>Tu progreso</h2><span>${stats.total} cargadas</span></div>
+    <div class="stats-grid">
+      ${statsCard('have', stats.have, 'Tengo', 'check')}
+      ${statsCard('missing', stats.missing, 'Me faltan', 'x')}
+      ${statsCard('repeated', stats.repeatedTotal, 'Repetidas', 'repeat')}
+    </div>
+    <div class="section-title"><h2>Accesos rápidos</h2><span>2 toques máximo</span></div>
+    <div class="quick-grid">
+      ${quickCard('album', 'Mi álbum', 'Ver todas tus figuritas', 'album', 'all')}
+      ${quickCard('friends', 'Cambios con amigos', 'Compartí tus listas por WhatsApp', 'friends')}
+      ${quickCard('album', 'Repetidas', 'Las que tenés para cambiar', 'repeat', 'repeated')}
+      ${quickCard('album', 'Me faltan', 'Las que estás buscando', 'search', 'missing')}
+    </div>`;
+}
+function statsCard(tone, count, label, icon) {
+  const filter = tone === 'have' ? 'have' : tone === 'missing' ? 'missing' : 'repeated';
+  return `<button class="stats-card stats-${tone}" data-screen="album" data-filter="${filter}">
+    <span class="stats-icon">${svgIcon(icon)}</span><strong>${count}</strong><span>${label}</span>
+  </button>`;
+}
+function quickCard(screen, title, subtitle, icon, filter = '') {
+  return `<button class="quick-card" data-screen="${screen}" ${filter ? `data-filter="${filter}"` : ''}>
+    <span class="quick-icon">${svgIcon(icon)}</span><strong>${escapeHtml(title)}</strong><span>${escapeHtml(subtitle)}</span>
+  </button>`;
+}
+
+function renderScanner() {
+  const detected = state.scanner.detectedNumber;
+  return `${renderScreenHeader('Escanear ahora', 'Apuntá al número de la figurita dentro del recuadro.')}
+    ${detected ? renderPostScanCard(detected) : `<section class="camera-shell">
+      <video id="cameraVideo" class="camera-video" playsinline muted autoplay></video>
+      <div class="camera-overlay"><div class="scan-frame"></div></div>
+      <div class="scan-hint">Apuntá al número de la figurita</div>
+      <div class="camera-actions">
+        <div id="scanStatus" class="scan-status">${escapeHtml(state.scanner.message)}<small>Si no detecta, usá cargar número</small></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <button class="btn btn-secondary" data-action="retry-scan">Intentar de nuevo</button>
+          <button class="btn btn-primary" data-action="manual-number">Cargar número</button>
+        </div>
+      </div>
+    </section>
+    <section class="panel detect-card" id="manualNumberBox" style="display:none">
+      <div class="field"><label>Número de figurita</label><input class="input input-big" id="scannerNumberInput" inputmode="numeric" pattern="[0-9]*" placeholder="24" value="${escapeHtml(state.scanner.numberInput)}"></div>
+      <button class="btn btn-primary btn-block" data-action="confirm-number">Continuar</button>
+    </section>`}`;
+}
+function renderPostScanCard(number) {
+  return `<section class="panel detect-card">
+    <div class="detect-number"><span>Figurita detectada</span><strong>N° ${escapeHtml(number)}</strong></div>
+    <p style="margin:0 0 12px;color:var(--muted);font-weight:800;text-align:center">¿Qué querés marcar?</p>
+    ${renderStatusSelector(state.scanner.status, 'scanner')}
+    ${state.scanner.status === 'repeated' ? renderQtyStepper(state.scanner.quantity, 'scanner') : ''}
+    <div style="display:grid;gap:10px;margin-top:14px">
+      <button class="btn btn-primary btn-block" data-action="save-scan">Guardar</button>
+      <button class="btn btn-ghost btn-block" data-action="scan-another">Escanear otra</button>
+      <button class="btn btn-secondary btn-block" data-screen="album">Ir al álbum</button>
+    </div>
+  </section>`;
+}
+function renderStatusSelector(current, prefix) {
+  return `<div class="status-grid" data-prefix="${prefix}">
+    ${statusButton('have', current, prefix, 'check', 'La tengo', 'Ya está en mi álbum')}
+    ${statusButton('missing', current, prefix, 'x', 'Me falta', 'La estoy buscando')}
+    ${statusButton('repeated', current, prefix, 'repeat', 'Repetida', 'La tengo para cambiar')}
+  </div>`;
+}
+function statusButton(status, current, prefix, icon, title, subtitle) {
+  return `<button class="status-card ${STATUS[status].tone} ${current === status ? 'selected' : ''}" data-status-target="${prefix}" data-status="${status}">
+    <span class="status-icon">${svgIcon(icon)}</span><span><strong>${escapeHtml(title)}</strong><span>${escapeHtml(subtitle)}</span></span>
+  </button>`;
+}
+function renderQtyStepper(value, prefix) {
+  return `<div class="field" style="margin-top:14px"><label>Cantidad repetidas</label><div class="qty-stepper" data-qty-target="${prefix}">
+    <button data-qty="-1" aria-label="Restar">-</button><output>${Math.max(1, Number(value || 1))}</output><button data-qty="1" aria-label="Sumar">+</button>
+  </div></div>`;
+}
+
+function renderManual() {
+  const isEdit = !!state.editingId;
+  return `${renderScreenHeader(isEdit ? 'Editar figurita' : 'Agregar figurita', 'Carga rápida, clara y sin vueltas.')}
+  <section class="panel">
+    <div class="field"><label>Número de figurita</label><input id="manualNumber" class="input input-big" inputmode="numeric" pattern="[0-9]*" placeholder="24" value="${escapeHtml(state.manual.number)}"></div>
+    <div class="field"><label>Selección / país opcional</label><select id="manualTeam" class="select">${TEAMS.map(t => `<option value="${escapeHtml(t === 'Sin selección' ? '' : t)}" ${state.manual.team === (t === 'Sin selección' ? '' : t) ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}</select></div>
+    <div class="field"><label>Estado</label>${renderStatusSelector(state.manual.status, 'manual')}</div>
+    ${state.manual.status === 'repeated' ? renderQtyStepper(state.manual.quantity, 'manual') : ''}
+    <div style="display:grid;gap:10px;margin-top:16px">
+      <button class="btn btn-primary btn-block" data-action="save-manual">Guardar</button>
+      ${!isEdit ? `<button class="btn btn-ghost btn-block" data-action="save-manual-another">Guardar y cargar otra</button>` : ''}
+      <button class="btn btn-secondary btn-block" data-screen="home">Cancelar</button>
+    </div>
+  </section>`;
+}
+
+function renderAlbum() {
+  const stickers = filteredStickers();
+  const title = state.filter === 'have' ? 'Tengo' : state.filter === 'missing' ? 'Me faltan' : state.filter === 'repeated' ? 'Repetidas' : 'Mi álbum';
+  return `${renderScreenHeader(title, 'Buscá, filtrá, editá, eliminá o compartí tus figuritas.')}
+    <section class="toolbar">
+      <div class="search-row"><input class="input" id="searchInput" inputmode="numeric" placeholder="Buscar número" value="${escapeHtml(state.search)}"><button class="btn btn-ghost btn-small" data-action="toggle-select">${state.selectionMode ? 'Cancelar' : 'Seleccionar'}</button></div>
+      <div class="filter-chips">
+        ${filterChip('all', 'Todas')}${filterChip('have', 'Tengo')}${filterChip('missing', 'Me faltan')}${filterChip('repeated', 'Repetidas')}
+      </div>
+    </section>
+    ${stickers.length ? `<section class="album-grid">${stickers.map(renderStickerCard).join('')}</section>` : renderEmptyAlbum()}
+    ${state.selected.size ? renderBulkBar() : ''}`;
+}
+function filterChip(filter, label) {
+  return `<button class="chip ${state.filter === filter ? 'active' : ''}" data-filter-chip="${filter}">${escapeHtml(label)}</button>`;
+}
+function renderStickerCard(s) {
+  const selected = state.selected.has(s.id);
+  return `<article class="sticker-card ${STATUS[s.status].tone} ${selected ? 'selected' : ''}">
+    ${state.selectionMode ? `<button class="check-dot" data-select="${s.id}" aria-label="Seleccionar">${selected ? svgIcon('check') : ''}</button>` : ''}
+    <div class="sticker-face" ${state.selectionMode ? `data-select="${s.id}"` : ''}><div class="sticker-number">${escapeHtml(s.number)}</div><div class="sticker-team">${escapeHtml(s.team || 'Figurita')}</div></div>
+    <div class="sticker-body">
+      <span class="status-badge ${STATUS[s.status].tone}">${svgIcon(s.status === 'have' ? 'check' : s.status === 'missing' ? 'x' : 'repeat')}${escapeHtml(s.status === 'repeated' ? `Repetida x${Math.max(1, s.repeatedCount || 1)}` : STATUS[s.status].long)}</span>
+      <div class="card-actions">
+        <button class="card-action" data-action="edit" data-id="${s.id}" aria-label="Editar">${svgIcon('edit')}</button>
+        <button class="card-action" data-action="share-one" data-id="${s.id}" aria-label="WhatsApp">${svgIcon('share')}</button>
+        <button class="card-action danger" data-action="delete" data-id="${s.id}" aria-label="Eliminar">${svgIcon('trash')}</button>
+      </div>
+    </div>
+  </article>`;
+}
+function renderEmptyAlbum() {
+  return `<section class="panel empty-state"><div class="empty-icon">${svgIcon('album')}</div><strong>No hay figuritas acá</strong><p>Agregá una manualmente o abrí el escáner para empezar.</p><button class="btn btn-primary btn-block" data-screen="scanner">${svgIcon('scan')} Escanear ahora</button></section>`;
+}
+function renderBulkBar() {
+  return `<section class="bulk-bar"><strong>${state.selected.size} seleccionadas</strong><div class="bulk-row">
+    <button class="bulk-have" data-bulk="have">Tengo</button>
+    <button class="bulk-missing" data-bulk="missing">Faltan</button>
+    <button class="bulk-repeated" data-bulk="repeated">Repetidas</button>
+    <button class="bulk-delete" data-action="bulk-delete">Eliminar</button>
+  </div></section>`;
+}
+
+function renderFriends() {
+  return `${renderScreenHeader('Cambios con amigos', 'Compartí tus repetidas o faltantes y coordiná por WhatsApp.')}
+    <section class="panel">
+      <div class="empty-state" style="padding-top:12px"><div class="empty-icon">${svgIcon('friends')}</div><strong>Compartí tus cambios</strong><p>Por ahora esta versión usa WhatsApp para intercambiar. No inventa coincidencias: manda tu lista real.</p></div>
+      <div style="display:grid;gap:10px">
+        <button class="btn btn-primary btn-block" data-action="share-repeated">Compartir repetidas</button>
+        <button class="btn btn-ghost btn-block" data-action="share-missing">Compartir faltantes</button>
+        <button class="btn btn-secondary btn-block" data-screen="share">Compartir resumen completo</button>
+      </div>
+    </section>`;
+}
+function renderShare() {
+  const stats = getStats();
+  return `${renderScreenHeader('Compartir resumen', 'Enviá tu álbum con formato prolijo por WhatsApp.')}
+    <section class="share-preview">
+      <div class="brand-mark" style="background:white;color:var(--blue-900);box-shadow:none">${icons.logo}</div>
+      <h2>Mi álbum FiguScan</h2><p>Resumen listo para compartir y hacer cambios.</p>
+      <div class="summary-list">
+        <div class="summary-item"><strong>Tengo</strong><span>${stats.have} figuritas</span></div>
+        <div class="summary-item"><strong>Me faltan</strong><span>${stats.missing} figuritas</span></div>
+        <div class="summary-item"><strong>Repetidas</strong><span>${stats.repeatedTotal} disponibles para cambiar</span></div>
+      </div>
+    </section>
+    <div style="display:grid;gap:10px;margin-top:14px">
+      <button class="btn btn-primary btn-block" data-action="share-summary">${svgIcon('share')} Compartir resumen</button>
+      <button class="btn btn-ghost btn-block" data-action="copy-summary">Copiar texto</button>
+    </div>`;
+}
+function renderProfile() {
+  return `${renderScreenHeader('Perfil', 'Nombre simple para personalizar la app.')}
+    <section class="panel">
+      <div class="field"><label>Tu nombre</label><input class="input" id="profileName" placeholder="Lucas" value="${escapeHtml(state.user.name || '')}"></div>
+      <button class="btn btn-primary btn-block" data-action="save-profile">Guardar nombre</button>
+      <div class="section-title"><h2>Datos guardados</h2></div>
+      <p style="color:var(--muted);line-height:1.4;margin:0 0 12px">La app guarda tus figuritas en este dispositivo. Si cerrás y volvés a entrar, siguen estando.</p>
+      <button class="btn btn-ghost btn-block" data-action="export-json">${svgIcon('download')} Descargar copia de seguridad</button>
+    </section>`;
+}
+function renderBottomNav() {
+  return `<nav class="bottom-nav"><div class="nav-grid">
+    ${navItem('home', 'Inicio', 'home')}
+    ${navItem('scanner', 'Escanear', 'scan')}
+    ${navItem('album', 'Álbum', 'album')}
+    ${navItem('friends', 'Amigos', 'friends')}
+    ${navItem('share', 'Compartir', 'share')}
+  </div></nav>`;
+}
+function navItem(screen, label, icon) {
+  const active = state.screen === screen || (screen === 'album' && state.screen === 'album');
+  return `<button class="nav-item ${active ? 'active' : ''}" data-screen="${screen}">${svgIcon(icon)}<span>${escapeHtml(label)}</span></button>`;
+}
+function renderModal() {
+  if (!state.modal) return '';
+  return `<div class="modal-backdrop"><section class="modal"><h3>${escapeHtml(state.modal.title)}</h3><p>${escapeHtml(state.modal.message)}</p><div class="modal-actions"><button class="btn btn-secondary" data-action="modal-cancel">${escapeHtml(state.modal.cancelText)}</button><button class="btn ${state.modal.danger ? 'btn-danger' : 'btn-primary'}" data-action="modal-confirm">${escapeHtml(state.modal.confirmText)}</button></div></section></div>`;
+}
+
+function attachEvents() {
+  document.querySelectorAll('[data-screen]').forEach(el => el.addEventListener('click', () => setScreen(el.dataset.screen, { filter: el.dataset.filter })));
+  document.querySelectorAll('[data-filter-chip]').forEach(el => el.addEventListener('click', () => { state.filter = el.dataset.filterChip; state.selected.clear(); state.selectionMode = false; render(); }));
+  document.querySelectorAll('[data-status]').forEach(el => el.addEventListener('click', () => {
+    const target = el.dataset.statusTarget; const status = el.dataset.status;
+    if (target === 'manual') state.manual.status = status;
+    if (target === 'scanner') state.scanner.status = status;
+    render();
+  }));
+  document.querySelectorAll('[data-qty]').forEach(el => el.addEventListener('click', () => {
+    const wrap = el.closest('[data-qty-target]'); const target = wrap?.dataset.qtyTarget; const delta = Number(el.dataset.qty);
+    if (target === 'manual') state.manual.quantity = Math.max(1, Number(state.manual.quantity || 1) + delta);
+    if (target === 'scanner') state.scanner.quantity = Math.max(1, Number(state.scanner.quantity || 1) + delta);
+    render();
+  }));
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) searchInput.addEventListener('input', e => { state.search = e.target.value; render(); });
+  const manualNumber = document.getElementById('manualNumber');
+  if (manualNumber) manualNumber.addEventListener('input', e => state.manual.number = e.target.value);
+  const manualTeam = document.getElementById('manualTeam');
+  if (manualTeam) manualTeam.addEventListener('change', e => state.manual.team = e.target.value);
+  document.querySelectorAll('[data-select]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); toggleSelected(el.dataset.select); }));
+  document.querySelectorAll('[data-bulk]').forEach(el => el.addEventListener('click', () => bulkSetStatus(el.dataset.bulk)));
+  document.querySelectorAll('[data-action]').forEach(el => el.addEventListener('click', () => handleAction(el.dataset.action, el.dataset.id)));
+}
+
+function handleAction(action, id) {
+  if (action === 'profile') return setScreen('profile');
+  if (action === 'modal-cancel') return closeModal();
+  if (action === 'modal-confirm') return confirmModal();
+  if (action === 'toggle-select') { state.selectionMode = !state.selectionMode; if (!state.selectionMode) state.selected.clear(); return render(); }
+  if (action === 'bulk-delete') return bulkDelete();
+  if (action === 'edit') return editSticker(id);
+  if (action === 'delete') return deleteSticker(id);
+  if (action === 'share-one') { const s = state.stickers.find(x => x.id === id); if (s) return shareSticker(s); }
+  if (action === 'save-manual') return saveManual(false);
+  if (action === 'save-manual-another') return saveManual(true);
+  if (action === 'retry-scan') { state.scanner.detectedNumber = null; state.scanner.message = 'Preparando cámara...'; return render(), startCameraSoon(); }
+  if (action === 'manual-number') { const box = document.getElementById('manualNumberBox'); if (box) box.style.display = 'block'; const inp = document.getElementById('scannerNumberInput'); if (inp) inp.focus(); return; }
+  if (action === 'confirm-number') { const inp = document.getElementById('scannerNumberInput'); const n = normalizedNumber(inp?.value); if (!n) return showToast('Ingresá un número.'); state.scanner.detectedNumber = n; state.scanner.numberInput = n; stopCamera(false); return render(); }
+  if (action === 'save-scan') return saveScan();
+  if (action === 'scan-another') { state.scanner = { active: false, detectedNumber: null, numberInput: '', status: 'have', quantity: 1, message: 'Preparando cámara...', canOcr: false, tries: 0 }; render(); return startCameraSoon(); }
+  if (action === 'share-summary') return shareSummary();
+  if (action === 'copy-summary') return navigator.clipboard?.writeText(buildWhatsAppMessage()).then(() => showToast('Resumen copiado.')).catch(() => showToast('No pude copiar.'));
+  if (action === 'share-repeated') return shareByStatus('repeated');
+  if (action === 'share-missing') return shareByStatus('missing');
+  if (action === 'save-profile') return saveProfile();
+  if (action === 'export-json') return exportJson();
+}
+function saveManual(again) {
+  const number = normalizedNumber(document.getElementById('manualNumber')?.value);
+  const team = document.getElementById('manualTeam')?.value || '';
+  state.manual.number = number; state.manual.team = team;
+  const ok = upsertSticker({ number, team, status: state.manual.status, repeatedCount: state.manual.quantity }, { editingId: state.editingId });
+  if (!ok) return;
+  state.editingId = null;
+  if (again) {
+    state.manual = { number: '', team, status: state.manual.status, quantity: 1 };
+    render();
+  } else setScreen('album', { filter: 'all' });
+}
+function saveScan() {
+  const ok = upsertSticker({ number: state.scanner.detectedNumber || state.scanner.numberInput, status: state.scanner.status, repeatedCount: state.scanner.quantity, team: '' });
+  if (ok) setScreen('album', { filter: state.scanner.status });
+}
+function shareByStatus(status) {
+  const list = state.stickers.filter(s => s.status === status).sort((a,b)=>Number(a.number)-Number(b.number));
+  const title = status === 'repeated' ? 'Mis repetidas FiguScan' : 'Mis faltantes FiguScan';
+  const body = list.length ? list.map(s => status === 'repeated' ? `N° ${s.number} x${s.repeatedCount || 1}${s.team ? ` (${s.team})` : ''}` : `N° ${s.number}${s.team ? ` (${s.team})` : ''}`).join('\n') : 'Sin figuritas cargadas';
+  openWhatsApp(`${title}:\n\n${body}\n\n¿Hacemos cambios?`);
+}
+function saveProfile() {
+  const name = document.getElementById('profileName')?.value?.trim() || '';
+  state.user = { ...state.user, name };
+  saveUser(state.user);
+  showToast('Nombre guardado.');
+}
+function exportJson() {
+  const blob = new Blob([JSON.stringify({ stickers: state.stickers, user: state.user, exportedAt: now() }, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'figuscan-copia.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js').catch(() => {}));
+}
+window.addEventListener('beforeunload', () => stopCamera(false));
+render();

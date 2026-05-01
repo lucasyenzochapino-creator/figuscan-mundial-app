@@ -1,4 +1,8 @@
 {
+  "version": 2,
+  "installCommand": "echo Sin dependencias",
+  "buildCommand": "echo App estatica lista",
+  "outputDirectory": ".",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],
