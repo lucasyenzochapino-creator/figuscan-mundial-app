@@ -618,18 +618,18 @@ function quickCycle(id){
 function scannerScreen(){
   return `<main class="screen scanner-screen">
     ${topbar(`<button class="pill" onclick="setView('home')">Inicio</button>`)}
-    <section class="hero scanner-hero"><div class="logo">${icons.scan}</div><h1>Escaneo automático</h1><p>Acercá la cámara como si fuera un QR. La app intenta leer la figurita sola. También podés tocar el marco para escanear.</p></section>
+    <section class="hero scanner-hero"><div class="logo">${icons.scan}</div><h1>Foto de figurita</h1><p>Encadrá la figurita completa, sacá una foto prolija y guardala con imagen en tu álbum.</p></section>
     ${entryModeSwitch('scanner')}
     <section class="section scan-section scan-section-full">
       <div class="scanner-wrap scanner-wrap-xl" onclick="scanFrame(true)">
         <video id="video" class="video video-xl" autoplay playsinline muted></video>
-        <div class="scan-overlay"><div class="scan-text">Acercá la figurita al marco</div><div class="scan-frame scan-frame-xl"><span>Tocá acá para escanear</span></div></div>
-        <div class="auto-scan-badge ${state.scanBusy?'working':''}">${state.scanBusy ? 'Leyendo...' : 'Escaneo automático activo'}</div>
+        <div class="scan-overlay"><div class="scan-text">Centrar la figurita completa en el marco</div><div class="scan-frame scan-frame-xl"><span>Tocá el marco para sacar foto</span></div></div>
+        <div class="auto-scan-badge ${state.scanBusy?'working':''}">${state.scanBusy ? 'Mejorando imagen...' : 'Cámara lista'}</div>
         ${state.cameraError ? cameraFallback() : ''}
       </div>
       <div class="scan-controls scan-controls-grid">
-        <button class="btn btn-primary full" onclick="scanFrame(true)">${icons.scan} Escanear ahora</button>
-        <button class="btn btn-ghost full" onclick="setView('manual',{manualDefault:'have'})">Cargar una manual</button>
+        <button class="btn btn-primary full" onclick="scanFrame(true)">${icons.image} Sacar foto y guardar imagen</button>
+        <button class="btn btn-ghost full" onclick="setView('manual',{manualDefault:'have'})">Cargar sin foto</button>
       </div>
       <div id="detectedBox">${state.scanCandidate ? detectedBox() : ''}</div>
     </section>
@@ -655,18 +655,18 @@ function retryCamera(){
 function detectedBox(){
   const c = state.scanCandidate || { number:'', player:'', country:'general', countryName:'General', image:'' };
   return `<div class="detected scan-success scan-card-save"><div class="particles"><i></i><i></i><i></i><i></i><i></i></div>
-    <div class="muted">Figurita detectada</div>
+    <div class="muted">Foto lista para guardar</div>
     ${c.image ? `<img class="scan-preview" src="${c.image}" alt="Vista de figurita">` : ''}
-    <div class="field"><label>Número detectado</label><input class="input" id="detectedNum" inputmode="numeric" value="${escapeHtml(c.number)}" placeholder="Ej: 24"></div>
-    <div class="field"><label>Jugador detectado</label><input class="input" id="detectedPlayer" value="${escapeHtml(c.player || '')}" placeholder="Escribí el jugador si falta"></div>
+    <div class="field"><label>Número de figurita</label><input class="input" id="detectedNum" inputmode="numeric" value="${escapeHtml(c.number)}" placeholder="Ej: 24"></div>
+    <div class="field"><label>Nombre del jugador</label><input class="input" id="detectedPlayer" value="${escapeHtml(c.player || '')}" placeholder="Ej: Messi"></div>
     <div class="field"><label>Selección / país</label><input class="input" id="detectedCountry" list="countryListScan" value="${escapeHtml(c.countryName || countryLabel(c.country || 'general'))}" placeholder="Ej: Argentina"><datalist id="countryListScan">${countryOptions(c.country || 'general')}</datalist></div>
-    <p class="tiny">Si el reconocimiento no es perfecto, corregilo acá. La imagen queda guardada con la figurita.</p>
+    <p class="tiny">La app guarda esta imagen mejorada con la figurita. Completá los datos y elegí el estado.</p>
     <div class="state-grid" style="margin-top:12px">
       <button class="state-option have" onclick="saveDetected('have')">${icons.check} La tengo</button>
       <button class="state-option repeated" onclick="saveDetected('repeated')">${icons.repeat} Repetida</button>
       <button class="state-option missing" onclick="saveDetected('missing')">${icons.x} Me falta</button>
     </div>
-    <button class="btn btn-primary full" style="margin-top:12px" onclick="state.scanCandidate=null; state.detectedNumber=''; state.autoScanPaused=false; render(); setTimeout(startCamera,50)">Seguir escaneando</button>
+    <button class="btn btn-primary full" style="margin-top:12px" onclick="state.scanCandidate=null; state.detectedNumber=''; state.autoScanPaused=false; render(); setTimeout(startCamera,50)">Sacar otra foto</button>
   </div>`;
 }
 function saveDetected(status){
@@ -744,7 +744,6 @@ async function startCamera(manual=false){
     video.muted = true;
 
     try { await video.play(); } catch(playErr) { /* algunos navegadores arrancan igual */ }
-    startAutoScan();
 
     state.cameraStarting = false;
     state.cameraError = '';
@@ -763,12 +762,8 @@ function stopCamera(){
   state.cameraStarting = false;
 }
 function startAutoScan(){
+  // Desactivado: las figuritas no se comportan como QR. Ahora sacamos foto a demanda.
   stopAutoScan();
-  state.autoScanTimer = setInterval(()=>{
-    if(state.view !== 'scanner') return;
-    if(state.scanBusy || state.autoScanPaused || state.scanCandidate) return;
-    scanFrame(false);
-  }, 2600);
 }
 function stopAutoScan(){
   if(state.autoScanTimer){ clearInterval(state.autoScanTimer); state.autoScanTimer=null; }
@@ -778,43 +773,44 @@ async function scanFrame(manualTap=false){
   const video = document.getElementById('video');
   if(!video || !video.videoWidth){ toast('La cámara todavía no está lista.', 'warn'); return; }
   state.scanBusy = true;
-  if(manualTap) toast('Escaneando figurita...', 'warn');
+  toast('Sacando foto y mejorando imagen...', 'warn');
   try{
     const image = captureStickerImage(video);
-    const ocrImage = cropVideoCenter(video);
-    let text = '';
-    if(window.Tesseract){
-      const result = await Tesseract.recognize(ocrImage, 'eng', { logger:()=>{} });
-      text = result?.data?.text || '';
-    }
-    const info = analyzeStickerText(text);
-    if(info.number || manualTap){
-      state.autoScanPaused = true;
-      state.detectedNumber = info.number || '';
-      state.scanCandidate = {
-        number: info.number || '',
-        player: info.player || '',
-        country: info.country || 'general',
-        countryName: info.countryName || 'General',
-        image,
-        rawText: text
-      };
-      if(info.number) toast(`Detecté la N° ${info.number}. Revisá y guardá.`, 'success');
-      else toast('No pude leer datos claros. Completá y guardá.', 'warn');
-      haptic('success');
-    } else if(manualTap) {
-      toast('No pude detectar. Completá manualmente.', 'warn');
-    }
-  }catch(e){ if(manualTap) toast('No pude leer la imagen. Probá cargar manual.', 'warn'); }
-  state.scanBusy = false; render(); setTimeout(startCamera,50);
+    state.autoScanPaused = true;
+    state.scanCandidate = {
+      number: '',
+      player: '',
+      country: 'general',
+      countryName: 'General',
+      image,
+      rawText: ''
+    };
+    toast('Foto lista. Completá los datos y guardá.', 'success');
+    haptic('success');
+  }catch(e){
+    toast('No pude sacar la foto. Probá de nuevo o cargá manual.', 'warn');
+  }
+  state.scanBusy = false;
+  render();
+  setTimeout(startCamera,50);
 }
 function captureStickerImage(video){
   const vw=video.videoWidth, vh=video.videoHeight;
-  const cw = Math.floor(vw*.82), ch = Math.floor(vh*.62);
-  const sx = Math.max(0, Math.floor((vw-cw)/2)), sy = Math.max(0, Math.floor((vh-ch)/2));
-  const c=document.createElement('canvas'); c.width=520; c.height=Math.round(520*ch/cw);
-  const ctx=c.getContext('2d'); ctx.drawImage(video,sx,sy,cw,ch,0,0,c.width,c.height);
-  return c.toDataURL('image/jpeg', .72);
+  // Recorte vertical, parecido a una figurita. Toma el centro del marco.
+  const targetRatio = 3 / 4;
+  let ch = Math.floor(vh * .78);
+  let cw = Math.floor(ch * targetRatio);
+  if(cw > vw * .88){ cw = Math.floor(vw * .88); ch = Math.floor(cw / targetRatio); }
+  const sx = Math.max(0, Math.floor((vw-cw)/2));
+  const sy = Math.max(0, Math.floor((vh-ch)/2));
+  const c=document.createElement('canvas');
+  c.width=720;
+  c.height=Math.round(720*ch/cw);
+  const ctx=c.getContext('2d');
+  // Mejora simple: más contraste, un poco más de luz y color.
+  ctx.filter='contrast(1.18) brightness(1.08) saturate(1.16)';
+  ctx.drawImage(video,sx,sy,cw,ch,0,0,c.width,c.height);
+  return c.toDataURL('image/jpeg', .86);
 }
 function cropVideoCenter(video){
   const vw=video.videoWidth, vh=video.videoHeight;

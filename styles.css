@@ -109,3 +109,12 @@ html,body{background:#05070D;color:#F8FAFC;}
 .sticker-photo{height:116px;border-radius:18px;overflow:hidden;margin:10px 0 8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
 .sticker-photo img{width:100%;height:100%;object-fit:cover;display:block}
 @media(max-width:420px){.scanner-wrap-xl{min-height:62vh}.video-xl{height:62vh;min-height:460px}.scan-frame-xl{width:88%;height:60%}}
+
+/* V22: captura de foto encuadrada y guardado con imagen */
+.scanner-screen .scanner-wrap-xl{min-height:560px}
+.scanner-screen .video-xl{height:560px}
+.scanner-screen .scan-frame-xl{width:66%;height:72%;border-radius:30px}
+.scanner-screen .scan-frame-xl span{font-size:15px;text-align:center;padding:8px 12px;background:rgba(0,0,0,.42);border-radius:999px;color:#fff;border:1px solid rgba(255,255,255,.18)}
+.scanner-screen .scan-text{font-size:16px}
+.scan-preview{max-height:420px;object-fit:contain;background:#05070d}
+.sticker-photo{height:150px}
