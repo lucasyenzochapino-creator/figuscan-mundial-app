@@ -420,3 +420,193 @@ html,body{background:#05070D;color:#F8FAFC;}
 @media(max-width:430px){
   .flash-fab{top:132px!important;right:16px!important;}
 }
+
+/* V36: modal para borrar cantidad de repetidas */
+.delete-qty-box{
+  display:grid;
+  gap:12px;
+  margin:14px 0 18px;
+  padding:14px;
+  border-radius:22px;
+  background:#FFF7EA;
+  border:1px solid #FFD9A1;
+}
+.delete-qty-box span{
+  font-weight:950;
+  color:#7A3A00;
+}
+.qty-picker{
+  display:grid;
+  grid-template-columns:58px 1fr 58px;
+  gap:10px;
+  align-items:center;
+}
+.qty-picker button{
+  height:52px;
+  border-radius:17px;
+  background:#7A1E1E;
+  color:white;
+  font-size:28px;
+  font-weight:1000;
+  box-shadow:0 8px 16px rgba(122,30,30,.18);
+}
+.qty-picker strong{
+  display:grid;
+  place-items:center;
+  min-height:52px;
+  border-radius:17px;
+  background:white;
+  color:#061947;
+  font-size:28px;
+  font-weight:1000;
+  border:1px solid #FFE0B5;
+}
+.btn.mini{min-height:44px;font-size:14px;border-radius:16px;}
+
+
+/* V37: modal de borrado de repetidas claro, legible y apto mobile */
+.modal-back{
+  position:fixed!important;
+  inset:0!important;
+  z-index:9999!important;
+  display:grid!important;
+  place-items:end center!important;
+  padding:16px!important;
+  background:rgba(2,6,23,.72)!important;
+  backdrop-filter:blur(6px)!important;
+}
+.modal{
+  width:min(520px,100%)!important;
+  max-height:calc(100dvh - 42px)!important;
+  overflow:auto!important;
+  border-radius:30px!important;
+  padding:22px!important;
+  background:linear-gradient(180deg,#ffffff 0%,#fff7ea 100%)!important;
+  border:2px solid rgba(212,175,55,.78)!important;
+  color:#071126!important;
+  box-shadow:0 -8px 34px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.85)!important;
+}
+.modal h3{
+  color:#071126!important;
+  font-size:26px!important;
+  line-height:1.05!important;
+  font-weight:1000!important;
+  margin:0 0 10px!important;
+  letter-spacing:-.7px!important;
+}
+.modal p{
+  color:#334155!important;
+  font-size:17px!important;
+  line-height:1.35!important;
+  font-weight:900!important;
+  margin:0 0 16px!important;
+}
+.delete-qty-box{
+  display:grid!important;
+  gap:14px!important;
+  margin:14px 0 18px!important;
+  padding:16px!important;
+  border-radius:24px!important;
+  background:#0b1220!important;
+  border:2px solid #d4af37!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 12px 24px rgba(2,6,23,.16)!important;
+}
+.delete-qty-label{
+  color:#fff1a8!important;
+  font-size:15px!important;
+  line-height:1!important;
+  font-weight:1000!important;
+  text-transform:uppercase!important;
+  letter-spacing:.7px!important;
+}
+.delete-qty-row{
+  display:grid!important;
+  grid-template-columns:64px 1fr 64px!important;
+  gap:12px!important;
+  align-items:center!important;
+}
+.delete-step{
+  height:62px!important;
+  border-radius:20px!important;
+  background:linear-gradient(180deg,#ffffff,#ffe2a3)!important;
+  color:#071126!important;
+  border:2px solid #d4af37!important;
+  font-size:34px!important;
+  font-weight:1000!important;
+  box-shadow:0 9px 18px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.8)!important;
+}
+.delete-step:active{transform:translateY(2px) scale(.98)!important;}
+.delete-count{
+  min-height:62px!important;
+  display:grid!important;
+  place-items:center!important;
+  border-radius:20px!important;
+  background:#ffffff!important;
+  color:#071126!important;
+  border:3px solid #d4af37!important;
+  font-size:36px!important;
+  font-weight:1000!important;
+  box-shadow:inset 0 2px 8px rgba(15,23,42,.10)!important;
+}
+.delete-qty-hint{
+  color:#e2e8f0!important;
+  font-size:15px!important;
+  line-height:1.25!important;
+  font-weight:850!important;
+}
+.delete-all-btn{
+  min-height:54px!important;
+  border-radius:18px!important;
+  background:linear-gradient(180deg,#7f1d1d,#450a0a)!important;
+  color:#ffffff!important;
+  border:2px solid rgba(255,255,255,.25)!important;
+  font-size:17px!important;
+  font-weight:1000!important;
+  box-shadow:0 10px 22px rgba(127,29,29,.28)!important;
+}
+.modal-actions{
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  gap:12px!important;
+  margin-top:8px!important;
+}
+.modal-actions .btn{
+  min-height:58px!important;
+  border-radius:20px!important;
+  font-size:17px!important;
+  font-weight:1000!important;
+  opacity:1!important;
+  filter:none!important;
+}
+.modal-cancel{
+  background:#ffffff!important;
+  color:#071126!important;
+  border:2px solid #cbd5e1!important;
+  box-shadow:0 8px 18px rgba(15,23,42,.10)!important;
+}
+.modal-confirm,
+.modal-actions .btn-danger{
+  background:linear-gradient(180deg,#1f2937,#020617)!important;
+  color:#ffffff!important;
+  border:2px solid #d4af37!important;
+  box-shadow:0 10px 22px rgba(2,6,23,.28)!important;
+}
+@media(max-width:380px){
+  .modal{padding:18px!important;border-radius:26px!important;}
+  .modal h3{font-size:23px!important;}
+  .delete-qty-row{grid-template-columns:58px 1fr 58px!important;gap:8px!important;}
+  .delete-step,.delete-count{min-height:56px!important;height:56px!important;}
+  .modal-actions{grid-template-columns:1fr!important;}
+}
+
+
+/* V38: cantidad por país sin porcentaje y buscador de país más estable en móvil */
+.country-progress.simple-count{grid-template-columns:auto 1fr auto;}
+.country-progress.simple-count i,
+.country-progress.simple-count em{display:none!important;}
+.country-progress.simple-count b,
+.country-tile b{position:static;display:grid;place-items:center;min-width:34px;height:34px;border-radius:999px;background:rgba(255,224,138,.18);border:1px solid rgba(255,224,138,.38);color:#FFE08A;font-size:15px;font-weight:1000;}
+.country-tile i,
+.album-country-title i{display:none!important;}
+.country-tile{padding-right:13px;}
+.country-search-wrap .search{touch-action:manipulation;}

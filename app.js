@@ -1,4 +1,4 @@
-/* FiguScan Mundial V36 - fondo real reducido, foto estable y borrado parcial de repetidas */
+/* FiguScan Mundial V37 - modal de repetidas claro y foto estable */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 const APP_URL = 'https://figuscan-mundial-app.vercel.app/';
@@ -3923,7 +3923,7 @@ function homeScreen(){
     </section>
 
     <section class="section progress-section">
-      <div class="section-title"><h2>Progreso por selección</h2><span class="muted">motivación</span></div>
+      <div class="section-title"><h2>Cantidad por selección</h2><span class="muted">sin porcentaje</span></div>
       ${countryProgressHtml()}
     </section>
   </main>`;
@@ -3931,8 +3931,11 @@ function homeScreen(){
 
 function countryProgressHtml(){
   const rows = countryStats();
-  if(!rows.length) return `<p class="muted">Cuando cargues figuritas, vas a ver el avance por selección.</p>`;
-  return `<div class="country-progress-list">${rows.map(row=>{ const c=countryById(row.id); const pct=progressPercent(row); return `<button class="country-progress" onclick="selectCountry('${row.id}')"><span class="flag">${c.flag}</span><span><strong>${c.name}</strong><small>${row.have}/${row.total} obtenidas</small></span><b>${pct}%</b><i><em style="width:${pct}%"></em></i></button>`; }).join('')}</div>`;
+  if(!rows.length) return `<p class="muted">Cuando cargues figuritas, vas a ver la cantidad por selección.</p>`;
+  return `<div class="country-progress-list">${rows.map(row=>{
+    const c=countryById(row.id);
+    return `<button class="country-progress simple-count" onclick="selectCountry('${row.id}')"><span class="flag">${c.flag}</span><span><strong>${c.name}</strong><small>${row.total} figuritas cargadas</small></span><b>${row.total}</b></button>`;
+  }).join('')}</div>`;
 }
 function selectCountry(id){
   state.countryFilter = id || 'all';
@@ -3946,15 +3949,15 @@ function countryCarouselHtml(){
   const rows = countryStats();
   const allActive = state.countryFilter === 'all' && !state.countrySearch.trim();
   const total = state.stickers.length;
-  const items = [`<button class="country-tile ${allActive?'active':''}" onclick="selectCountry('all')"><span class="tile-flag">${icons.album}</span><strong>Ver todo</strong><small>${total} figuritas</small><i><em style="width:100%"></em></i></button>`];
+  const items = [`<button class="country-tile ${allActive?'active':''}" onclick="selectCountry('all')"><span class="tile-flag">${icons.album}</span><strong>Ver todo</strong><small>${total} figuritas</small><b>${total}</b></button>`];
   const seen = new Set(rows.map(r=>r.id));
   rows.forEach(row=>{
-    const c = countryById(row.id); const pct = progressPercent(row); const active = state.countryFilter === row.id;
-    items.push(`<button class="country-tile ${active?'active':''}" onclick="selectCountry('${row.id}')"><span class="tile-flag">${c.flag}</span><strong>${c.name}</strong><small>${row.have}/${row.total} tengo</small><b>${pct}%</b><i><em style="width:${pct}%"></em></i></button>`);
+    const c = countryById(row.id); const active = state.countryFilter === row.id;
+    items.push(`<button class="country-tile ${active?'active':''}" onclick="selectCountry('${row.id}')"><span class="tile-flag">${c.flag}</span><strong>${c.name}</strong><small>${row.total} figuritas</small><b>${row.total}</b></button>`);
   });
   availableCountries().filter(c=>!seen.has(c.id)).slice(0,8).forEach(c=>{
     const active = state.countryFilter === c.id;
-    items.push(`<button class="country-tile ${active?'active':''}" onclick="selectCountry('${c.id}')"><span class="tile-flag">${c.flag}</span><strong>${c.name}</strong><small>Sin progreso</small><i><em style="width:0%"></em></i></button>`);
+    items.push(`<button class="country-tile ${active?'active':''}" onclick="selectCountry('${c.id}')"><span class="tile-flag">${c.flag}</span><strong>${c.name}</strong><small>0 figuritas</small><b>0</b></button>`);
   });
   return `<div class="country-carousel">${items.join('')}</div>`;
 }
@@ -4072,9 +4075,8 @@ function albumCountryHeaderHtml(){
   const list = state.stickers.filter(s => id ? stickerCountry(s)===id : normalizeText(s.countryName || countryLabel(stickerCountry(s))).includes(normalizeText(name)));
   const have = list.filter(s=>s.status==='have').length;
   const total = list.length;
-  const pct = total ? Math.round((have/total)*100) : 0;
   const meta = id ? countryById(id) : {flag:'⚑', name};
-  return `<div class="album-country-title active-country"><div><span class="country-big-flag">${meta.flag}</span><span>${escapeHtml(name)}</span></div><small>${have}/${total} tengo · ${pct}%</small><i><em style="width:${pct}%"></em></i></div>`;
+  return `<div class="album-country-title active-country"><div><span class="country-big-flag">${meta.flag}</span><span>${escapeHtml(name)}</span></div><small>${total} figuritas · ${have} tengo</small></div>`;
 }
 
 function albumScreen(){
@@ -4090,7 +4092,7 @@ function albumScreen(){
       <div class="album-search-grid">
         <input class="search" placeholder="Buscar número o jugador" value="${escapeHtml(state.search)}" oninput="state.search=this.value; render()">
         <div class="country-search-wrap">
-          <input class="search" list="albumCountryList" placeholder="Buscar país" value="${escapeHtml(state.countrySearch)}" oninput="state.countrySearch=this.value; render()">
+          <input class="search" id="albumCountrySearchInput" list="albumCountryList" placeholder="Buscar país" value="${escapeHtml(state.countrySearch)}" autocomplete="off" autocapitalize="words" oninput="handleAlbumCountrySearch(this)">
           <datalist id="albumCountryList">${availableCountries().map(c=>`<option value="${escapeHtml(c.name)}"></option>`).join('')}</datalist>
         </div>
       </div>
@@ -4101,7 +4103,7 @@ function albumScreen(){
       <div class="album-actions">
         <button class="btn btn-primary" onclick="setView('manual',{manualDefault:'${defaultAdd}'})">${icons.plus} Agregar ${state.albumFilter==='missing'?'faltante':state.albumFilter==='repeated'?'repetida':state.albumFilter==='have'?'tengo':'manual'}</button>
         <button class="btn btn-ghost" onclick="state.selected = new Set(); render()">Limpiar selección</button>
-        <button class="btn btn-line" onclick="state.search=''; state.countrySearch=''; state.countryFilter='all'; render()">Limpiar búsqueda</button>
+        <button class="btn btn-line" onclick="clearAlbumSearch()">Limpiar búsqueda</button>
       </div>
     </section>
     ${state.selected.size ? bulkBar() : ''}
@@ -4111,7 +4113,36 @@ function albumScreen(){
   </main>`;
 }
 function filterChip(key,label){ return `<button class="chip ${state.albumFilter===key?'active':''}" onclick="state.albumFilter='${key}'; state.search=''; state.selected=new Set(); render()">${label}</button>`; }
-function countryChip(key,label){ const meta = key==='all' ? null : countryById(key); return `<button class="chip country ${state.countryFilter===key?'active':''}" onclick="state.countryFilter='${key}'; state.selected=new Set(); render()">${key==='all'?'':meta.flag+' '}${key==='all'?label:(meta.short || label)}</button>`; }
+function countryChip(key,label){ const meta = key==='all' ? null : countryById(key); return `<button class="chip country ${state.countryFilter===key?'active':''}" onclick="state.countryFilter='${key}'; state.countrySearch=''; state.selected=new Set(); render()">${key==='all'?'':meta.flag+' '}${key==='all'?label:(meta.short || label)}</button>`; }
+let albumCountrySearchTimer = null;
+function handleAlbumCountrySearch(input){
+  state.countrySearch = input?.value || '';
+  state.countryFilter = 'all';
+  state.selected = new Set();
+  clearTimeout(albumCountrySearchTimer);
+  albumCountrySearchTimer = setTimeout(()=>{
+    const value = state.countrySearch;
+    render();
+    setTimeout(()=>{
+      const el = document.getElementById('albumCountrySearchInput');
+      if(el){
+        el.value = value;
+        try { el.focus({preventScroll:true}); } catch(e) { el.focus(); }
+        const pos = el.value.length;
+        try { el.setSelectionRange(pos, pos); } catch(e) {}
+      }
+    }, 0);
+  }, 240);
+}
+function clearAlbumSearch(){
+  state.search='';
+  state.countrySearch='';
+  state.countryFilter='all';
+  state.selected = new Set();
+  clearTimeout(albumCountrySearchTimer);
+  render();
+}
+
 function bulkBar(){
   return `<section class="bulkbar"><strong>${state.selected.size} seleccionadas</strong><div class="row"><button class="btn btn-green" onclick="bulkStatus('have')">Tengo</button><button class="btn btn-danger" onclick="bulkStatus('missing')">Me falta</button></div><div class="row"><button class="btn btn-orange" onclick="bulkStatus('repeated')">Repetida</button><button class="btn btn-danger" onclick="bulkDelete()">Eliminar</button></div></section>`;
 }
@@ -5150,9 +5181,19 @@ function modalHtml(){
   if(!state.modal) return '';
   const m = state.modal;
   const extra = m.kind === 'deleteRepeated'
-    ? `<div class="delete-qty-box"><span>Cantidad a borrar</span><div class="qty-picker danger"><button onclick="changeDeleteQty(-1)">−</button><strong>${Number(m.qty)||1}</strong><button onclick="changeDeleteQty(1)">+</button></div><button class="btn btn-line mini" onclick="setDeleteAllRepeated()">Borrar todas (${Number(m.maxQty)||1})</button></div>`
+    ? `<div class="delete-qty-box">
+        <div class="delete-qty-label">Cantidad a borrar</div>
+        <div class="delete-qty-row" aria-label="Elegir cantidad a borrar">
+          <button type="button" class="delete-step" onclick="changeDeleteQty(-1)">−</button>
+          <strong class="delete-count">${Number(m.qty)||1}</strong>
+          <button type="button" class="delete-step" onclick="changeDeleteQty(1)">+</button>
+        </div>
+        <div class="delete-qty-hint">Vas a borrar ${Number(m.qty)||1} de ${Number(m.maxQty)||1} repetidas.</div>
+        <button type="button" class="delete-all-btn" onclick="setDeleteAllRepeated()">Borrar todas (${Number(m.maxQty)||1})</button>
+      </div>`
     : '';
-  return `<div class="modal-back"><div class="modal"><h3>${escapeHtml(m.title)}</h3><p>${escapeHtml(m.text)}</p>${extra}<div class="modal-actions"><button class="btn btn-line" onclick="state.modal=null; render()">${escapeHtml(m.cancel||'Cancelar')}</button><button class="btn ${m.danger?'btn-danger':'btn-primary'}" onclick="confirmModal()">${escapeHtml(m.confirm||'Confirmar')}</button></div></div></div>`;
+  const confirmText = m.kind === 'deleteRepeated' ? `Borrar ${Number(m.qty)||1}` : escapeHtml(m.confirm||'Confirmar');
+  return `<div class="modal-back"><div class="modal"><h3>${escapeHtml(m.title)}</h3><p>${escapeHtml(m.text)}</p>${extra}<div class="modal-actions"><button type="button" class="btn btn-line modal-cancel" onclick="state.modal=null; render()">${escapeHtml(m.cancel||'Cancelar')}</button><button type="button" class="btn ${m.danger?'btn-danger':'btn-primary'} modal-confirm" onclick="confirmModal()">${confirmText}</button></div></div></div>`;
 }
 function confirmModal(){ const fn = state.modal?.onConfirm; if(fn) fn(); }
 function toastHtml(){ return ''; }
@@ -5178,7 +5219,7 @@ function render(){
   }
 }
 
-window.changeDeleteQty=changeDeleteQty; window.setDeleteAllRepeated=setDeleteAllRepeated; window.confirmDeleteRepeated=confirmDeleteRepeated; window.handleScannerFrameTap=handleScannerFrameTap; window.attachCameraStream=attachCameraStream; window.openStickerViewer=openStickerViewer; window.closeStickerViewer=closeStickerViewer; window.moveViewer=moveViewer; window.removeScanPhoto=removeScanPhoto; window.stepDetectedNumber=stepDetectedNumber; window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.toggleTorch=toggleTorch; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.render=render;
+window.handleAlbumCountrySearch=handleAlbumCountrySearch; window.clearAlbumSearch=clearAlbumSearch; window.changeDeleteQty=changeDeleteQty; window.setDeleteAllRepeated=setDeleteAllRepeated; window.confirmDeleteRepeated=confirmDeleteRepeated; window.handleScannerFrameTap=handleScannerFrameTap; window.attachCameraStream=attachCameraStream; window.openStickerViewer=openStickerViewer; window.closeStickerViewer=closeStickerViewer; window.moveViewer=moveViewer; window.removeScanPhoto=removeScanPhoto; window.stepDetectedNumber=stepDetectedNumber; window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.toggleTorch=toggleTorch; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.render=render;
 
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('/service-worker.js').catch(()=>{}); }
 render();
