@@ -102,6 +102,9 @@ let state = {
   cameraError: '',
   scanBusy: false,
   detectedNumber: '',
+  scanCandidate: null,
+  autoScanTimer: null,
+  autoScanPaused: false,
   shareMode: 'summary',
   batchStatus: 'have'
 };
@@ -139,6 +142,8 @@ function setView(view, opts={}){
   if(opts.editingId !== undefined) state.editingId = opts.editingId;
   state.selected = new Set();
   state.detectedNumber = '';
+  state.scanCandidate = null;
+  state.autoScanPaused = false;
   if(view === 'scanner') state.cameraError = '';
   render();
 }
@@ -175,7 +180,7 @@ function formatSticker(s){
   return `N° ${s.number}${name}`;
 }
 
-function addOrUpdateSticker({ number, status, repeatedCount=1, player='', country='general', countryName='', forceMissing=false }){
+function addOrUpdateSticker({ number, status, repeatedCount=1, player='', country='general', countryName='', image='', forceMissing=false }){
   number = normalizeNumber(number);
   if(!number){ toast('Ingresá un número de figurita.', 'warn'); return false; }
   if(!['have','missing','repeated'].includes(status)) status = 'have';
@@ -191,6 +196,7 @@ function addOrUpdateSticker({ number, status, repeatedCount=1, player='', countr
     if(cleanPlayer) existing.player = cleanPlayer;
     if(cleanCountry) existing.country = cleanCountry;
     if(cleanCountryName) existing.countryName = cleanCountryName;
+    if(image) existing.image = image;
     existing.updatedAt = stamp;
 
     if(status === 'have'){
@@ -257,6 +263,7 @@ function addOrUpdateSticker({ number, status, repeatedCount=1, player='', countr
     player: cleanPlayer,
     country: cleanCountry,
     countryName: cleanCountryName,
+    image: image || '',
     status,
     repeatedCount: status === 'repeated' ? qty : 0,
     createdAt: stamp,
@@ -589,6 +596,7 @@ function stickerCard(s){
     <button class="select-box ${selected?'on':''}" onclick="toggleSelect('${s.id}')">${selected ? icons.check : ''}</button>
     <div style="padding-left:26px">
       <div class="sticker-top"><div class="number">#${s.number}</div><span class="status-badge ${s.status}">${statusIcon(s.status)} ${STATUS[s.status].label}${s.status==='repeated'?` x${s.repeatedCount||1}`:''}</span></div>
+      ${s.image ? `<div class="sticker-photo"><img src="${s.image}" alt="Figurita ${escapeHtml(s.number)}" loading="lazy"></div>` : ''}
       <div class="country-line"><span>${countryById(stickerCountry(s)).flag}</span> ${escapeHtml(s.countryName || countryLabel(stickerCountry(s)))}</div>
       <div class="player">${escapeHtml(s.player || 'Sin jugador')}</div>
       <div class="card-actions">
@@ -610,24 +618,24 @@ function quickCycle(id){
 function scannerScreen(){
   return `<main class="screen scanner-screen">
     ${topbar(`<button class="pill" onclick="setView('home')">Inicio</button>`)}
-    <section class="hero scanner-hero"><div class="logo">${icons.scan}</div><h1>Escaneo rápido</h1><p>Centrás la figurita, leés el número y seguís con la siguiente. También podés cargar varias de una vez.</p></section>
+    <section class="hero scanner-hero"><div class="logo">${icons.scan}</div><h1>Escaneo automático</h1><p>Acercá la cámara como si fuera un QR. La app intenta leer la figurita sola. También podés tocar el marco para escanear.</p></section>
     ${entryModeSwitch('scanner')}
-    <section class="section scan-section">
-      <div class="scanner-wrap scanner-wrap-large">
-        <video id="video" class="video video-large" autoplay playsinline muted></video>
-        <div class="scan-overlay"><div class="scan-text">Centrar la figurita en el marco</div><div class="scan-frame scan-frame-large"></div></div>
+    <section class="section scan-section scan-section-full">
+      <div class="scanner-wrap scanner-wrap-xl" onclick="scanFrame(true)">
+        <video id="video" class="video video-xl" autoplay playsinline muted></video>
+        <div class="scan-overlay"><div class="scan-text">Acercá la figurita al marco</div><div class="scan-frame scan-frame-xl"><span>Tocá acá para escanear</span></div></div>
+        <div class="auto-scan-badge ${state.scanBusy?'working':''}">${state.scanBusy ? 'Leyendo...' : 'Escaneo automático activo'}</div>
         ${state.cameraError ? cameraFallback() : ''}
       </div>
       <div class="scan-controls scan-controls-grid">
-        <button class="btn btn-primary full" onclick="scanFrame()">${icons.scan} Leer número</button>
+        <button class="btn btn-primary full" onclick="scanFrame(true)">${icons.scan} Escanear ahora</button>
         <button class="btn btn-ghost full" onclick="setView('manual',{manualDefault:'have'})">Cargar una manual</button>
       </div>
-      <div id="detectedBox">${state.detectedNumber ? detectedBox(state.detectedNumber) : ''}</div>
+      <div id="detectedBox">${state.scanCandidate ? detectedBox() : ''}</div>
     </section>
     ${batchQuickSection()}
   </main>`;
 }
-
 function cameraFallback(){
   return `<div class="camera-fallback">
     <div class="camera-fallback-card">
@@ -644,15 +652,32 @@ function retryCamera(){
   startCamera(true);
 }
 
-function detectedBox(num){
-  return `<div class="detected scan-success"><div class="particles"><i></i><i></i><i></i><i></i><i></i></div><div class="muted">Figurita detectada</div><div class="big">N° ${num}</div><p class="tiny">Elegí cómo guardarla. Después la cámara queda lista para seguir.</p><div class="state-grid" style="margin-top:12px">
-    <button class="state-option have" onclick="saveDetected('${num}','have')">${icons.check} La tengo</button>
-    <button class="state-option repeated" onclick="saveDetected('${num}','repeated')">${icons.repeat} Repetida</button>
-    <button class="state-option missing" onclick="saveDetected('${num}','missing')">${icons.x} Me falta</button>
-  </div><button class="btn btn-primary full" style="margin-top:12px" onclick="state.detectedNumber=''; render(); setTimeout(startCamera,50)">Seguir escaneando</button></div>`;
+function detectedBox(){
+  const c = state.scanCandidate || { number:'', player:'', country:'general', countryName:'General', image:'' };
+  return `<div class="detected scan-success scan-card-save"><div class="particles"><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="muted">Figurita detectada</div>
+    ${c.image ? `<img class="scan-preview" src="${c.image}" alt="Vista de figurita">` : ''}
+    <div class="field"><label>Número detectado</label><input class="input" id="detectedNum" inputmode="numeric" value="${escapeHtml(c.number)}" placeholder="Ej: 24"></div>
+    <div class="field"><label>Jugador detectado</label><input class="input" id="detectedPlayer" value="${escapeHtml(c.player || '')}" placeholder="Escribí el jugador si falta"></div>
+    <div class="field"><label>Selección / país</label><input class="input" id="detectedCountry" list="countryListScan" value="${escapeHtml(c.countryName || countryLabel(c.country || 'general'))}" placeholder="Ej: Argentina"><datalist id="countryListScan">${countryOptions(c.country || 'general')}</datalist></div>
+    <p class="tiny">Si el reconocimiento no es perfecto, corregilo acá. La imagen queda guardada con la figurita.</p>
+    <div class="state-grid" style="margin-top:12px">
+      <button class="state-option have" onclick="saveDetected('have')">${icons.check} La tengo</button>
+      <button class="state-option repeated" onclick="saveDetected('repeated')">${icons.repeat} Repetida</button>
+      <button class="state-option missing" onclick="saveDetected('missing')">${icons.x} Me falta</button>
+    </div>
+    <button class="btn btn-primary full" style="margin-top:12px" onclick="state.scanCandidate=null; state.detectedNumber=''; state.autoScanPaused=false; render(); setTimeout(startCamera,50)">Seguir escaneando</button>
+  </div>`;
 }
-function saveDetected(num,status){ addOrUpdateSticker({number:num,status,repeatedCount:1,country:'general',countryName:'General'}); state.countryFilter='all'; state.search=''; state.detectedNumber=''; state.view='scanner'; render(); setTimeout(startCamera,80); }
-
+function saveDetected(status){
+  const c = state.scanCandidate || {};
+  const num = normalizeNumber(document.getElementById('detectedNum')?.value || c.number || '');
+  const player = document.getElementById('detectedPlayer')?.value || c.player || '';
+  const countryRaw = document.getElementById('detectedCountry')?.value || c.countryName || 'General';
+  const parsed = countryFromInput(countryRaw);
+  addOrUpdateSticker({number:num,status,repeatedCount:1,player,country:parsed.country,countryName:parsed.countryName,image:c.image || ''});
+  state.countryFilter='all'; state.search=''; state.detectedNumber=''; state.scanCandidate=null; state.autoScanPaused=false; state.view='scanner'; render(); setTimeout(startCamera,80);
+}
 function batchQuickSection(){
   const active = state.batchStatus || 'have';
   return `<section class="section batch-quick">
@@ -719,6 +744,7 @@ async function startCamera(manual=false){
     video.muted = true;
 
     try { await video.play(); } catch(playErr) { /* algunos navegadores arrancan igual */ }
+    startAutoScan();
 
     state.cameraStarting = false;
     state.cameraError = '';
@@ -732,42 +758,107 @@ async function startCamera(manual=false){
   }
 }
 function stopCamera(){
+  stopAutoScan();
   if(state.scannerStream){ state.scannerStream.getTracks().forEach(t=>t.stop()); state.scannerStream=null; }
   state.cameraStarting = false;
 }
-async function scanFrame(){
+function startAutoScan(){
+  stopAutoScan();
+  state.autoScanTimer = setInterval(()=>{
+    if(state.view !== 'scanner') return;
+    if(state.scanBusy || state.autoScanPaused || state.scanCandidate) return;
+    scanFrame(false);
+  }, 2600);
+}
+function stopAutoScan(){
+  if(state.autoScanTimer){ clearInterval(state.autoScanTimer); state.autoScanTimer=null; }
+}
+async function scanFrame(manualTap=false){
   if(state.scanBusy) return;
   const video = document.getElementById('video');
   if(!video || !video.videoWidth){ toast('La cámara todavía no está lista.', 'warn'); return; }
-  state.scanBusy = true; toast('Leyendo número...', 'warn');
+  state.scanBusy = true;
+  if(manualTap) toast('Escaneando figurita...', 'warn');
   try{
-    const crop = cropVideoCenter(video);
+    const image = captureStickerImage(video);
+    const ocrImage = cropVideoCenter(video);
     let text = '';
     if(window.Tesseract){
-      const result = await Tesseract.recognize(crop, 'eng', { logger:()=>{} });
+      const result = await Tesseract.recognize(ocrImage, 'eng', { logger:()=>{} });
       text = result?.data?.text || '';
     }
-    const found = pickNumber(text);
-    if(found){ state.detectedNumber = found; toast(`Detecté la N° ${found}.`); }
-    else { toast('No pude detectar. Usá carga manual rápida.', 'warn'); }
-  }catch(e){ toast('No pude leer la imagen. Probá cargar manual.', 'warn'); }
+    const info = analyzeStickerText(text);
+    if(info.number || manualTap){
+      state.autoScanPaused = true;
+      state.detectedNumber = info.number || '';
+      state.scanCandidate = {
+        number: info.number || '',
+        player: info.player || '',
+        country: info.country || 'general',
+        countryName: info.countryName || 'General',
+        image,
+        rawText: text
+      };
+      if(info.number) toast(`Detecté la N° ${info.number}. Revisá y guardá.`, 'success');
+      else toast('No pude leer datos claros. Completá y guardá.', 'warn');
+      haptic('success');
+    } else if(manualTap) {
+      toast('No pude detectar. Completá manualmente.', 'warn');
+    }
+  }catch(e){ if(manualTap) toast('No pude leer la imagen. Probá cargar manual.', 'warn'); }
   state.scanBusy = false; render(); setTimeout(startCamera,50);
+}
+function captureStickerImage(video){
+  const vw=video.videoWidth, vh=video.videoHeight;
+  const cw = Math.floor(vw*.82), ch = Math.floor(vh*.62);
+  const sx = Math.max(0, Math.floor((vw-cw)/2)), sy = Math.max(0, Math.floor((vh-ch)/2));
+  const c=document.createElement('canvas'); c.width=520; c.height=Math.round(520*ch/cw);
+  const ctx=c.getContext('2d'); ctx.drawImage(video,sx,sy,cw,ch,0,0,c.width,c.height);
+  return c.toDataURL('image/jpeg', .72);
 }
 function cropVideoCenter(video){
   const vw=video.videoWidth, vh=video.videoHeight;
-  const cw = Math.floor(vw*.78), ch = Math.floor(vh*.42);
+  const cw = Math.floor(vw*.82), ch = Math.floor(vh*.62);
   const sx = Math.floor((vw-cw)/2), sy = Math.floor((vh-ch)/2);
-  const c=document.createElement('canvas'); c.width=900; c.height=Math.round(900*ch/cw);
-  const ctx=c.getContext('2d'); ctx.filter='contrast(1.4) brightness(1.08) grayscale(1)'; ctx.drawImage(video,sx,sy,cw,ch,0,0,c.width,c.height);
+  const c=document.createElement('canvas'); c.width=1100; c.height=Math.round(1100*ch/cw);
+  const ctx=c.getContext('2d');
+  ctx.filter='contrast(1.75) brightness(1.12) grayscale(1)';
+  ctx.drawImage(video,sx,sy,cw,ch,0,0,c.width,c.height);
   return c.toDataURL('image/png');
+}
+function analyzeStickerText(text){
+  const clean = String(text||'').replace(/[|_~]/g,' ').replace(/\s+/g,' ').trim();
+  const number = pickNumber(clean);
+  const country = pickCountry(clean);
+  const player = pickPlayer(text, country.countryName);
+  return { number, player, ...country };
 }
 function pickNumber(text){
   const m = String(text||'').match(/\b\d{1,4}\b/g);
   if(!m || !m.length) return '';
-  const candidates = m.map(Number).filter(n=>n>0 && n<1000).sort((a,b)=>String(a).length-String(b).length);
-  return String(candidates[0] || '');
+  const nums = m.map(Number).filter(n=>n>0 && n<1000);
+  if(!nums.length) return '';
+  nums.sort((a,b)=>String(a).length-String(b).length || a-b);
+  return String(nums[0]);
 }
-
+function pickCountry(text){
+  const q = normalizeText(text);
+  for(const c of COUNTRIES){
+    if(c.id==='general') continue;
+    if(q.includes(normalizeText(c.name)) || q.includes(normalizeText(c.short))) return { country:c.id, countryName:c.name };
+  }
+  return { country:'general', countryName:'General' };
+}
+function pickPlayer(text, countryName=''){
+  const bad = new Set(['FIFA','WORLD','CUP','QATAR','RUSSIA','PANINI','STICKER','FIGUSCAN','GENERAL', normalizeText(countryName).toUpperCase()]);
+  const lines = String(text||'').split(/\n+/).map(s=>s.trim()).filter(Boolean);
+  const candidates = lines.map(line=>line.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s.'-]/g,' ').replace(/\s+/g,' ').trim())
+    .filter(line=>line.length>=4 && /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(line))
+    .filter(line=>!bad.has(line.toUpperCase()))
+    .filter(line=>!COUNTRIES.some(c=>normalizeText(line)===normalizeText(c.name) || normalizeText(line)===normalizeText(c.short)));
+  candidates.sort((a,b)=>b.length-a.length);
+  return candidates[0] || '';
+}
 function friendsScreen(){
   return `<main class="screen">
     ${topbar(`<button class="pill" onclick="setView('album',{filter:'repeated'})">Repetidas</button>`)}

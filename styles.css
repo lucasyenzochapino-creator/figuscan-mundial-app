@@ -95,3 +95,17 @@ html,body{background:#05070D;color:#F8FAFC;}
 .camera-fallback-card{width:min(360px,100%);display:grid;gap:10px;background:rgba(6,25,71,.92);border:1px solid rgba(255,224,138,.35);border-radius:26px;padding:18px;color:#fff;box-shadow:0 18px 44px rgba(0,0,0,.35);text-align:center}
 .camera-fallback-card strong{font-size:20px}
 .camera-fallback-card span{color:#CBD5E1;font-weight:800;line-height:1.35}
+
+/* V21 escaneo tipo QR + imagen guardada */
+.scanner-wrap-xl{min-height:68vh;cursor:pointer;border:1px solid rgba(255,224,138,.18)}
+.video-xl{height:68vh;min-height:520px}
+.scan-frame-xl{width:86%;height:62%;display:grid;place-items:end center;padding-bottom:18px;border-width:5px}
+.scan-frame-xl span{background:rgba(5,7,13,.72);color:#FFE08A;border:1px solid rgba(255,224,138,.28);font-weight:1000;border-radius:999px;padding:10px 16px;font-size:14px;box-shadow:0 10px 28px rgba(0,0,0,.28)}
+.auto-scan-badge{position:absolute;left:14px;bottom:14px;right:14px;border-radius:18px;padding:12px 14px;text-align:center;background:rgba(18,57,183,.78);border:1px solid rgba(255,255,255,.18);color:#fff;font-weight:1000;backdrop-filter:blur(10px)}
+.auto-scan-badge.working{background:rgba(214,168,58,.86);color:#071126;animation:pulseScan 1s infinite}
+@keyframes pulseScan{0%,100%{transform:scale(1)}50%{transform:scale(.985)}}
+.scan-preview{width:100%;max-height:260px;object-fit:cover;border-radius:22px;margin:10px 0 14px;border:1px solid rgba(255,224,138,.24);box-shadow:0 12px 34px rgba(0,0,0,.25)}
+.scan-card-save .field{margin-top:10px}
+.sticker-photo{height:116px;border-radius:18px;overflow:hidden;margin:10px 0 8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
+.sticker-photo img{width:100%;height:100%;object-fit:cover;display:block}
+@media(max-width:420px){.scanner-wrap-xl{min-height:62vh}.video-xl{height:62vh;min-height:460px}.scan-frame-xl{width:88%;height:60%}}
