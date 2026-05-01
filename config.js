@@ -1,8 +1,5 @@
 window.FIGUSCAN_CONFIG = {
-  apiKey: "AIzaSyCbiyJlOaeV-qQrumxCcQt9lMaTZAk196Y",
-  authDomain: "figuscan-mundial.firebaseapp.com",
-  projectId: "figuscan-mundial",
-  storageBucket: "figuscan-mundial.firebasestorage.app",
-  messagingSenderId: "357142133780",
-  appId: "1:357142133780:web:b8cbcb292e481d7fad7b01"
+  APP_VERSION: "8.0.0",
+  STORAGE_KEY: "figuscan_v8_stickers",
+  USER_KEY: "figuscan_v8_user"
 };

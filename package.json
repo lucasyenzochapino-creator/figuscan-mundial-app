@@ -1,9 +1,7 @@
 {
-  "name": "figuscan-mundial-static",
-  "version": "5.0.0",
+  "name": "figuscan-mundial-v8",
+  "version": "8.0.0",
   "private": true,
-  "description": "PWA estatica para organizar figuritas del Mundial.",
-  "scripts": {
-    "build": "echo App estatica lista"
-  }
+  "description": "PWA local-first para organizar figuritas del Mundial.",
+  "scripts": {}
 }
