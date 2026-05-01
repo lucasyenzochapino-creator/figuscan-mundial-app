@@ -643,7 +643,6 @@ function handleScannerFrameTap(e){
   if(!state.scannerStream || state.cameraError || !video || !video.videoWidth){
     state.cameraError = '';
     startCamera(true);
-    toast('Activando cámara...', 'warn');
     return;
   }
   scanFrame(true);
@@ -738,10 +737,15 @@ function saveBatchQuick(){
 
 async function startCamera(manual=false){
   if(state.view !== 'scanner') return;
-  const video = document.getElementById('video');
+  let video = document.getElementById('video');
   if(!video) return;
+
+  // Si ya hay stream, puede haberse perdido al re-renderizar. Re-adjuntar siempre.
+  if(state.scannerStream && !manual){
+    attachCameraStream();
+    return;
+  }
   if(state.cameraStarting) return;
-  if(state.scannerStream && !manual) return;
 
   state.cameraStarting = true;
   state.cameraError = '';
@@ -767,22 +771,29 @@ async function startCamera(manual=false){
 
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     state.scannerStream = stream;
-    video.srcObject = stream;
-    video.setAttribute('playsinline', 'true');
-    video.muted = true;
-
-    try { await video.play(); } catch(playErr) { /* algunos navegadores arrancan igual */ }
-
     state.cameraStarting = false;
     state.cameraError = '';
+
+    // Muy importante: después del permiso puede haber habido un render.
+    attachCameraStream();
   }catch(e){
     state.cameraStarting = false;
     state.cameraError = 'Permiso de cámara bloqueado o no disponible. Tocá “Activar cámara” o cargá manual.';
     const videoNow = document.getElementById('video');
     if(videoNow) videoNow.srcObject = null;
-    toast('No pude abrir la cámara. Revisá permisos o cargá manual.', 'warn');
     render();
   }
+}
+function attachCameraStream(){
+  if(state.view !== 'scanner' || !state.scannerStream) return;
+  const video = document.getElementById('video');
+  if(!video) return;
+  if(video.srcObject !== state.scannerStream) video.srcObject = state.scannerStream;
+  video.setAttribute('playsinline', 'true');
+  video.setAttribute('autoplay', 'true');
+  video.muted = true;
+  const playPromise = video.play();
+  if(playPromise && typeof playPromise.catch === 'function') playPromise.catch(()=>{});
 }
 function stopCamera(){
   stopAutoScan();
@@ -799,7 +810,11 @@ function stopAutoScan(){
 async function scanFrame(manualTap=false){
   if(state.scanBusy) return;
   const video = document.getElementById('video');
-  if(!video || !video.videoWidth){ toast('La cámara todavía no está lista.', 'warn'); return; }
+  if(!video || !video.videoWidth){
+    startCamera(true);
+    toast('Activando cámara. Tocá el recuadro de nuevo en unos segundos.', 'warn');
+    return;
+  }
   state.scanBusy = true;
   toast('Sacando foto y mejorando imagen...', 'warn');
   try{
@@ -1360,10 +1375,15 @@ function render(){
   if(state.view==='friends') screen = friendsScreen();
   if(state.view==='share') screen = shareScreen();
   app.innerHTML = `<div class="app">${appTrophyBg()}${screen}${bottomNav()}${stickerViewerHtml()}${modalHtml()}${toastHtml()}</div>`;
-  if(state.view==='scanner' && !state.scannerStream && !state.cameraError) setTimeout(()=>startCamera(false), 80);
+  if(state.view==='scanner') {
+    setTimeout(()=>{
+      if(state.scannerStream) attachCameraStream();
+      else if(!state.cameraError) startCamera(false);
+    }, 30);
+  }
 }
 
-window.openStickerViewer=openStickerViewer; window.closeStickerViewer=closeStickerViewer; window.moveViewer=moveViewer; window.removeScanPhoto=removeScanPhoto; window.stepDetectedNumber=stepDetectedNumber; window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.render=render;
+window.handleScannerFrameTap=handleScannerFrameTap; window.attachCameraStream=attachCameraStream; window.openStickerViewer=openStickerViewer; window.closeStickerViewer=closeStickerViewer; window.moveViewer=moveViewer; window.removeScanPhoto=removeScanPhoto; window.stepDetectedNumber=stepDetectedNumber; window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.render=render;
 
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('/service-worker.js').catch(()=>{}); }
 render();
