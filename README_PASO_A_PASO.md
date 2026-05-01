@@ -1,25 +1,27 @@
-# FiguScan Mundial V10
+# FiguScan Mundial V11
 
-Versión con navegación inferior rediseñada y pantalla Compartir mejorada.
+Versión mejorada para subir al mismo repositorio de GitHub conectado a Vercel.
 
 ## Cambios principales
-- Íconos inferiores más grandes, claros y con estilo de app móvil.
-- Botón Escanear más destacado.
-- Pantalla Compartir con opciones:
-  - Resumen completo
-  - Solo tengo
-  - Solo me faltan
-  - Solo repetidas
-- Vista previa del mensaje.
-- Botón Enviar por WhatsApp.
-- Botón Copiar mensaje.
-- Mantiene guardado local en el celular.
 
-## Cómo actualizar en GitHub
-1. Entrar a esta carpeta.
-2. Subir todo el contenido al mismo repositorio conectado a Vercel.
-3. Confirmar cambios.
-4. Esperar que Vercel actualice.
-5. Abrir la app en el celular.
+- En Álbum ahora podés cargar una figurita desde cada sección:
+  - Tengo
+  - Me faltan
+  - Repetidas
+- Si estás en “Me faltan”, el botón carga directamente una faltante.
+- Si estás en “Repetidas”, el botón carga directamente una repetida.
+- WhatsApp ya no sale tan pelado: ahora usa encabezado FiguScan, separadores y mensajes más claros.
+- Agregué opción “Compartir imagen visual”. Si el celular permite compartir archivos desde navegador, genera una imagen con marca FiguScan. Si no, abre WhatsApp con texto.
+- Mejoré el reconocimiento con OCR en navegador usando Tesseract.js desde CDN.
+- El escaneo sigue teniendo fallback manual rápido si el OCR no detecta bien.
 
-No subir el ZIP. Subir los archivos de adentro.
+## Cómo actualizar
+
+1. Subí todo lo de esta carpeta al mismo repositorio de GitHub.
+2. Confirmá cambios.
+3. Vercel actualiza solo.
+4. Abrí la app y probá primero carga manual desde Álbum.
+
+## Nota importante sobre reconocimiento
+
+El OCR en navegador depende de luz, enfoque, tamaño del número y calidad de la impresión. Por eso nunca guarda una detección inventada: si no está seguro, pide cargar número manualmente.

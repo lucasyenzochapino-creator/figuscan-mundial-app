@@ -1,4 +1,4 @@
-/* FiguScan Mundial V10 - navegación y compartir mejorados. Local-first PWA. */
+/* FiguScan Mundial V11 - álbum accionable, WhatsApp visual y OCR asistido. Local-first PWA. */
 (function(){
   const CFG = window.FIGUSCAN_CONFIG || {};
   const STORAGE_KEY = CFG.STORAGE_KEY || 'figuscan_v10_stickers';
@@ -132,9 +132,22 @@
     state.selected.clear(); saveStickers(); toast('Estados actualizados'); render();
   }
   function singleMessage(s){
-    if(s.status === 'missing') return `Me falta la figurita N° ${s.number}. ¿La tenés para cambiar?`;
-    if(s.status === 'repeated') return `Tengo repetida la figurita N° ${s.number} x${s.repeatedCount || 1}. ¿La necesitás?`;
-    return `Tengo la figurita N° ${s.number}. ¿Te sirve?`;
+    const player = s.player ? ` (${s.player})` : '';
+    if(s.status === 'missing') return `🏆 FiguScan Mundial
+
+Me falta la figurita N° ${s.number}${player}.
+
+¿La tenés para cambiar?`;
+    if(s.status === 'repeated') return `🏆 FiguScan Mundial
+
+Tengo repetida la figurita N° ${s.number}${player} x${s.repeatedCount || 1}.
+
+¿La necesitás?`;
+    return `🏆 FiguScan Mundial
+
+Tengo la figurita N° ${s.number}${player}.
+
+¿Te sirve?`;
   }
   function getStickerGroups(){
     const byNumber = (a,b)=>Number(a.number)-Number(b.number);
@@ -146,13 +159,97 @@
   }
   function shareMessage(mode='summary'){
     const { have, missing, repeated } = getStickerGroups();
-    if(mode === 'have') return `Tengo estas figuritas en FiguScan:\n\n${have.length ? have.join(', ') : 'Sin figuritas cargadas'}\n\n¿Te sirve alguna?`;
-    if(mode === 'missing') return `Me faltan estas figuritas:\n\n${missing.length ? missing.join(', ') : 'Sin figuritas cargadas'}\n\n¿Tenés alguna para cambiar?`;
-    if(mode === 'repeated') return `Tengo estas repetidas:\n\n${repeated.length ? repeated.join('\n') : 'Sin figuritas cargadas'}\n\n¿Necesitás alguna?`;
-    return `Mi álbum FiguScan:\n\n✅ Tengo:\n${have.length ? have.join(', ') : 'Sin figuritas cargadas'}\n\n❌ Me faltan:\n${missing.length ? missing.join(', ') : 'Sin figuritas cargadas'}\n\n🔁 Repetidas:\n${repeated.length ? repeated.join('\n') : 'Sin figuritas cargadas'}\n\nOrganizado con FiguScan Mundial.`;
+    const header = `🏆 FiguScan Mundial
+━━━━━━━━━━━━━━`;
+    const footer = `
+
+Organizado con FiguScan Mundial.
+Abrí tu álbum, cargá repetidas y compartí cambios.`;
+    if(mode === 'have') return `${header}
+
+✅ FIGURITAS QUE TENGO
+${have.length ? have.join(', ') : 'Sin figuritas cargadas'}
+
+¿Te sirve alguna?${footer}`;
+    if(mode === 'missing') return `${header}
+
+❌ FIGURITAS QUE ME FALTAN
+${missing.length ? missing.join(', ') : 'Sin figuritas cargadas'}
+
+¿Tenés alguna para cambiar?${footer}`;
+    if(mode === 'repeated') return `${header}
+
+🔁 FIGURITAS REPETIDAS
+${repeated.length ? repeated.join('\n') : 'Sin figuritas cargadas'}
+
+¿Necesitás alguna?${footer}`;
+    return `${header}
+
+MI ÁLBUM
+
+✅ Tengo:
+${have.length ? have.join(', ') : 'Sin figuritas cargadas'}
+
+❌ Me faltan:
+${missing.length ? missing.join(', ') : 'Sin figuritas cargadas'}
+
+🔁 Repetidas:
+${repeated.length ? repeated.join('\n') : 'Sin figuritas cargadas'}${footer}`;
   }
   function summaryMessage(){ return shareMessage('summary'); }
   function openWhatsApp(text){ window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank'); }
+  async function shareVisualCard(mode='summary'){
+    const text = shareMessage(mode);
+    try{
+      const file = await buildShareImage(mode);
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        await navigator.share({ title:'FiguScan Mundial', text, files:[file] });
+        return;
+      }
+      if(navigator.share){ await navigator.share({title:'FiguScan Mundial', text}); return; }
+      openWhatsApp(text);
+    }catch(err){
+      openWhatsApp(text);
+    }
+  }
+  async function buildShareImage(mode='summary'){
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080; canvas.height = 1350;
+    const ctx = canvas.getContext('2d');
+    const g = ctx.createLinearGradient(0,0,1080,1350);
+    g.addColorStop(0,'#061A40'); g.addColorStop(.52,'#0B2A63'); g.addColorStop(1,'#16A34A');
+    ctx.fillStyle = g; ctx.fillRect(0,0,1080,1350);
+    ctx.globalAlpha = .18; ctx.fillStyle = '#F4C542'; ctx.beginPath(); ctx.arc(930,170,260,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+    ctx.fillStyle = '#F4C542'; roundRect(ctx,70,70,150,150,42); ctx.fill();
+    ctx.strokeStyle = '#061A40'; ctx.lineWidth = 13; ctx.beginPath(); ctx.moveTo(122,115); ctx.lineTo(168,115); ctx.lineTo(155,171); ctx.lineTo(135,171); ctx.closePath(); ctx.stroke();
+    ctx.font = '900 72px system-ui, sans-serif'; ctx.fillStyle = 'white'; ctx.fillText('FiguScan Mundial',250,130);
+    ctx.font = '700 34px system-ui, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.78)'; ctx.fillText('Álbum de figuritas',250,178);
+    ctx.fillStyle = 'rgba(255,255,255,.94)'; roundRect(ctx,70,275,940,920,46); ctx.fill();
+    ctx.fillStyle = '#061A40'; ctx.font = '900 52px system-ui, sans-serif';
+    const title = mode==='have'?'Figuritas que tengo':mode==='missing'?'Figuritas que me faltan':mode==='repeated'?'Figuritas repetidas':'Resumen completo';
+    ctx.fillText(title,120,360);
+    ctx.font = '700 34px system-ui, sans-serif'; ctx.fillStyle = '#334155';
+    const cleanedText = text.replace('🏆 FiguScan Mundial\n━━━━━━━━━━━━━━\n\n','');
+    const lines = cleanedText.split('\n').slice(0,24);
+    let y = 430;
+    for(const line of lines){
+      const pieces = wrapLine(ctx,line,800);
+      for(const piece of pieces){ ctx.fillText(piece,120,y); y+=48; if(y>1140) break; }
+      if(y>1140) break;
+    }
+    ctx.font = '800 30px system-ui, sans-serif'; ctx.fillStyle = '#F4C542'; ctx.fillText('Compartido desde FiguScan Mundial',120,1255);
+    const blob = await new Promise(resolve=>canvas.toBlob(resolve,'image/png',.92));
+    return new File([blob], 'figuscan-resumen.png', {type:'image/png'});
+  }
+  function roundRect(ctx,x,y,w,h,r){
+    ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+  }
+  function wrapLine(ctx,line,max){
+    if(!line) return [''];
+    const words = line.split(' '); const out=[]; let cur='';
+    for(const w of words){ const test = cur ? cur+' '+w : w; if(ctx.measureText(test).width>max && cur){ out.push(cur); cur=w; } else cur=test; }
+    out.push(cur); return out;
+  }
   async function copyText(text){
     try{ await navigator.clipboard.writeText(text); toast('Mensaje copiado'); }
     catch{ toast('No pude copiar. Usá WhatsApp.'); }
@@ -225,19 +322,38 @@
   function qtyControl(value){ return `<div class="field"><label>Cantidad repetida</label><div class="qty"><button type="button" data-qty="minus">−</button><strong id="qtyNum">${value||1}</strong><button type="button" data-qty="plus">+</button></div></div>`; }
   function scannerScreen(){
     return appFrame(`<section class="panel"><div class="section-title"><div class="title-left"><div class="title-icon">${ICONS.scan}</div><div><h1 class="panel-title">Escanear figurita</h1><p class="panel-sub">Usalo para figuritas que tenés en la mano. Para faltantes, agregalas manualmente por número.</p></div></div></div></section>
-      <div class="camera-wrap"><video class="camera" id="camera" playsinline autoplay muted></video><div class="scan-frame"></div><div class="scan-line"></div><div class="camera-tip">Apuntá al número de la figurita</div><div class="camera-actions"><button class="btn btn-primary" id="captureBtn">Detectar número</button><button class="btn btn-ghost" data-go="manual">Cargar número</button></div></div>
+      <div class="camera-wrap"><video class="camera" id="camera" playsinline autoplay muted></video><div class="scan-frame"></div><div class="scan-line"></div><div class="camera-tip">Apuntá al número de la figurita</div><div class="camera-actions"><button class="btn btn-primary" id="captureBtn">Leer número</button><button class="btn btn-ghost" data-go="manual">Cargar número</button></div></div>
       <div id="detectedBox"></div>`);
   }
   function detectedCard(number){
     state.pending = { number, status:'have', repeatedCount:1, player:'' };
     return `<div class="detected"><div class="small-note">Figurita detectada</div><div class="detected-number">N° ${number}</div><button class="btn btn-primary btn-full" data-go="manual">Elegir estado y guardar</button><button class="btn btn-ghost btn-full" style="margin-top:10px" data-action="retry-scan">Escanear otra</button></div>`;
   }
+  function albumStatusFromFilter(){
+    return ['have','missing','repeated'].includes(state.filter) ? state.filter : 'have';
+  }
+  function albumAddLabel(){
+    if(state.filter === 'missing') return 'Agregar faltante';
+    if(state.filter === 'repeated') return 'Agregar repetida';
+    if(state.filter === 'have') return 'Agregar que tengo';
+    return 'Agregar figurita';
+  }
   function albumScreen(){
     const arr = sortedStickers();
-    return appFrame(`<section class="panel"><div class="section-title"><div class="title-left"><div class="title-icon">${ICONS.album}</div><div><h1 class="panel-title">Mi álbum</h1><p class="panel-sub">Buscá, filtrá, enviá o eliminá figuritas.</p></div></div></div>
+    const addStatus = albumStatusFromFilter();
+    const addHelp = state.filter === 'missing'
+      ? 'Anotá una figurita que necesitás, sin escanear.'
+      : state.filter === 'repeated'
+        ? 'Cargá una repetida para cambiar.'
+        : 'Cargá una figurita desde esta sección.';
+    return appFrame(`<section class="panel"><div class="section-title album-title"><div class="title-left"><div class="title-icon">${ICONS.album}</div><div><h1 class="panel-title">Mi álbum</h1><p class="panel-sub">Buscá, filtrá, enviá o eliminá figuritas.</p></div></div></div>
+      <div class="album-action-strip">
+        <button class="album-add ${statusClass(addStatus)}" data-action="add-in-filter"><span>${statusIcon(addStatus)}</span><strong>${albumAddLabel()}</strong><small>${addHelp}</small></button>
+        <button class="album-add scan-mini" data-go="scanner"><span>${ICONS.scan}</span><strong>Escanear</strong><small>Solo si la tenés en mano</small></button>
+      </div>
       <div class="field"><label>Buscar número o jugador</label><input class="input" id="searchInput" placeholder="Ej: 24 o Messi" value="${escapeAttr(state.search)}" /></div>
       <div class="filters">${chip('all','Todas')} ${chip('have','Tengo')} ${chip('missing','Me faltan')} ${chip('repeated','Repetidas')}</div>
-      ${arr.length ? `<div class="album-grid">${arr.map(stickerCard).join('')}</div>` : `<div class="empty">${ICONS.empty}<div>No hay figuritas en esta sección.</div><p class="small-note">Agregá una desde “Escanear” o “Agregar manualmente”.</p></div>`}
+      ${arr.length ? `<div class="album-grid">${arr.map(stickerCard).join('')}</div>` : `<div class="empty">${ICONS.empty}<div>No hay figuritas en esta sección.</div><p class="small-note">Tocá “${albumAddLabel()}” para cargar desde acá.</p></div>`}
     </section>`);
   }
   function chip(f,label){ return `<button class="chip ${state.filter===f?'active':''}" data-filter="${f}">${label}</button>`; }
@@ -268,7 +384,8 @@
         </div>
       </section>
       <section class="panel preview-panel"><div class="section-title"><div><h2 class="panel-title">Vista previa</h2><p class="panel-sub">Este es el mensaje que se abrirá en WhatsApp.</p></div></div><pre class="message-preview">${escapeHtml(message)}</pre>
-        <div class="share-actions"><button class="btn btn-primary btn-full" data-action="send-share">${ICONS.whatsapp} Enviar por WhatsApp</button><button class="btn btn-ghost btn-full" data-action="copy-share">Copiar mensaje</button></div>
+        <div class="share-actions"><button class="btn btn-primary btn-full" data-action="send-share">${ICONS.whatsapp} Enviar por WhatsApp</button><button class="btn btn-gold btn-full" data-action="share-image">${ICONS.share} Compartir imagen visual</button><button class="btn btn-ghost btn-full" data-action="copy-share">Copiar mensaje</button></div>
+        <p class="small-note">La imagen visual se comparte si tu celular lo permite. Si no, se abre WhatsApp con el texto mejorado.</p>
       </section>`);
   }
   function friendsScreen(){
@@ -299,6 +416,12 @@
     document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
     document.querySelectorAll('[data-filtergo]').forEach(b=>b.addEventListener('click',()=>{state.filter=b.dataset.filtergo;go('album',{filter:b.dataset.filtergo});}));
     document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{state.filter=b.dataset.filter;render();}));
+    document.querySelector('[data-action="add-in-filter"]')?.addEventListener('click',()=>{
+      const status = albumStatusFromFilter();
+      state.pending = { number:'', player:'', status, repeatedCount: status==='repeated' ? 1 : 0 };
+      state.returnFilter = state.filter === 'all' ? status : state.filter;
+      go('manual');
+    });
     const search = document.getElementById('searchInput'); if(search) search.addEventListener('input', e=>{state.search=e.target.value;render();});
     const profileBtn = document.querySelector('[data-action="profile"]'); if(profileBtn) profileBtn.addEventListener('click',()=>go('profile'));
     const form = document.getElementById('manualForm');
@@ -317,8 +440,12 @@
       }));
       const save = (more=false)=>{
         const ok = upsertSticker({ number:document.getElementById('numInput').value, player:document.getElementById('playerInput').value, status, repeatedCount:qty });
+        const returnFilter = state.returnFilter || (['have','missing','repeated'].includes(status) ? status : 'all');
         state.pending = null;
-        if(ok){ more ? go('manual') : go('album', {filter:'all'}); }
+        if(ok){
+          if(more){ state.pending = {status, repeatedCount: status==='repeated'?qty:1, player:''}; go('manual'); }
+          else { state.returnFilter = null; go('album', {filter:returnFilter}); }
+        }
       };
       form.addEventListener('submit', e=>{e.preventDefault();save(false);});
       document.getElementById('saveMore')?.addEventListener('click',()=>save(true));
@@ -330,6 +457,7 @@
     document.querySelectorAll('[data-bulk]').forEach(b=>b.addEventListener('click',()=>{ const a=b.dataset.bulk; if(a==='delete') bulkDelete(); else bulkSet(a); }));
     document.querySelectorAll('[data-share-mode]').forEach(b=>b.addEventListener('click',()=>{state.shareMode=b.dataset.shareMode;render();}));
     document.querySelector('[data-action="send-share"]')?.addEventListener('click',()=>openWhatsApp(shareMessage(state.shareMode)));
+    document.querySelector('[data-action="share-image"]')?.addEventListener('click',()=>shareVisualCard(state.shareMode));
     document.querySelector('[data-action="copy-share"]')?.addEventListener('click',()=>copyText(shareMessage(state.shareMode)));
     document.querySelector('[data-modal="cancel"]')?.addEventListener('click',()=>{state.modal=null;render();});
     document.querySelector('[data-modal="confirm"]')?.addEventListener('click',()=>{ if(state.modal?.onConfirm) state.modal.onConfirm(); });
@@ -351,10 +479,77 @@
   function stopCamera(){
     if(state.cameraStream){ state.cameraStream.getTracks().forEach(t=>t.stop()); state.cameraStream=null; }
   }
-  function detectFromCamera(){
-    // Sin API paga ni OCR pesado: escaneo asistido real. No inventa detección.
+  async function detectFromCamera(){
     const box = document.getElementById('detectedBox');
-    box.innerHTML = `<div class="detected"><div class="small-note">Escaneo asistido</div><h2 style="margin:6px 0;color:var(--navy)">No pude detectar el número automáticamente</h2><p class="panel-sub">Para no guardar datos equivocados, ingresá el número que ves en la figurita.</p><div class="field"><input class="input" id="quickNum" inputmode="numeric" placeholder="Número" /></div><button class="btn btn-primary btn-full" id="quickSave">Continuar</button></div>`;
+    const btn = document.getElementById('captureBtn');
+    const video = document.getElementById('camera');
+    if(!box) return;
+    if(btn){ btn.disabled = true; btn.textContent = 'Leyendo...'; }
+    box.innerHTML = `<div class="detected"><div class="small-note">Leyendo el número</div><h2 style="margin:6px 0;color:var(--navy)">Intentando detectar la figurita...</h2><p class="panel-sub">Centrala dentro del recuadro amarillo. Si no sale, la cargás manual.</p></div>`;
+    try{
+      const number = await readNumberFromVideo(video);
+      if(number){
+        box.innerHTML = detectedCard(number);
+        wire();
+        return;
+      }
+      showManualFallback(box);
+    }catch(err){
+      showManualFallback(box);
+    }finally{
+      if(btn){ btn.disabled = false; btn.textContent = 'Leer número'; }
+    }
+  }
+  async function readNumberFromVideo(video){
+    if(!video || !video.videoWidth) return '';
+    const crop = cropGuideFromVideo(video);
+    const processed = preprocessForOCR(crop);
+    if(window.Tesseract && window.Tesseract.recognize){
+      const result = await window.Tesseract.recognize(processed, 'eng', {
+        tessedit_char_whitelist: '0123456789',
+        logger: () => {}
+      });
+      const text = result?.data?.text || '';
+      const number = extractBestNumber(text);
+      if(number) return number;
+    }
+    return '';
+  }
+  function cropGuideFromVideo(video){
+    const vw = video.videoWidth, vh = video.videoHeight;
+    const w = Math.floor(vw * 0.76);
+    const h = Math.floor(vh * 0.58);
+    const x = Math.floor((vw - w) / 2);
+    const y = Math.floor((vh - h) / 2);
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    c.getContext('2d').drawImage(video, x, y, w, h, 0, 0, w, h);
+    return c;
+  }
+  function preprocessForOCR(source){
+    const scale = 2;
+    const c = document.createElement('canvas');
+    c.width = source.width * scale; c.height = source.height * scale;
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(source, 0, 0, c.width, c.height);
+    const img = ctx.getImageData(0,0,c.width,c.height);
+    const d = img.data;
+    for(let i=0;i<d.length;i+=4){
+      const gray = d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114;
+      const contrasted = gray > 150 ? 255 : 0;
+      d[i]=d[i+1]=d[i+2]=contrasted;
+    }
+    ctx.putImageData(img,0,0);
+    return c;
+  }
+  function extractBestNumber(text){
+    const matches = String(text||'').match(/\d{1,4}/g) || [];
+    if(!matches.length) return '';
+    return matches.sort((a,b)=>b.length-a.length || Number(a)-Number(b))[0];
+  }
+  function showManualFallback(box){
+    box.innerHTML = `<div class="detected"><div class="small-note">No pude detectar el número</div><h2 style="margin:6px 0;color:var(--navy)">Cargalo manualmente</h2><p class="panel-sub">El OCR en el navegador depende de luz, enfoque y tamaño del número. No guardo nada inventado.</p><div class="field"><input class="input" id="quickNum" inputmode="numeric" placeholder="Número" /></div><button class="btn btn-primary btn-full" id="quickSave">Continuar</button></div>`;
     document.getElementById('quickSave').addEventListener('click',()=>{
       const n = normalizeNumber(document.getElementById('quickNum').value);
       if(!n){toast('Ingresá el número');return;}

@@ -1,5 +1,5 @@
-const CACHE = 'figuscan-v8-cache';
-const ASSETS = ['/', '/index.html', '/styles.css?v=8', '/app.js?v=8', '/config.js?v=8', '/manifest.webmanifest'];
+const CACHE = 'figuscan-v11-cache';
+const ASSETS = ['/', '/index.html', '/styles.css?v=11', '/app.js?v=11', '/config.js?v=11', '/manifest.webmanifest'];
 self.addEventListener('install', event => {
   self.skipWaiting();
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS).catch(() => undefined)));
