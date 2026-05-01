@@ -1,4 +1,4 @@
-/* FiguScan Mundial V14 - país editable + nav uniforme */
+/* FiguScan Mundial V15 - fix guardado faltantes + filtros visibles */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 
@@ -156,14 +156,18 @@ function formatSticker(s){
   return `N° ${s.number}${name}`;
 }
 
-function addOrUpdateSticker({ number, status, repeatedCount=1, player='', country='general', countryName='' }){
+function addOrUpdateSticker({ number, status, repeatedCount=1, player='', country='general', countryName='', forceMissing=false }){
   number = normalizeNumber(number);
   if(!number){ toast('Ingresá un número de figurita.', 'warn'); return false; }
+  if(!['have','missing','repeated'].includes(status)) status = 'have';
+
   const existing = existingByNumber(number);
   const stamp = now();
   const cleanPlayer = String(player || '').trim();
   const cleanCountry = country || 'general';
   const cleanCountryName = countryName || countryLabel(cleanCountry);
+  const qty = Math.max(1, Number(repeatedCount)||1);
+
   if(existing){
     if(cleanPlayer) existing.player = cleanPlayer;
     if(cleanCountry) existing.country = cleanCountry;
@@ -173,52 +177,59 @@ function addOrUpdateSticker({ number, status, repeatedCount=1, player='', countr
     if(status === 'have'){
       if(existing.status === 'have'){
         existing.status = 'repeated';
-        existing.repeatedCount = (Number(existing.repeatedCount)||0) + 1;
+        existing.repeatedCount = Math.max(2, (Number(existing.repeatedCount)||1) + 1);
         toast(`Ya tenías la N° ${number}. La marqué como repetida.`, 'warn');
       } else if(existing.status === 'repeated'){
         existing.repeatedCount = (Number(existing.repeatedCount)||1) + 1;
         toast(`La N° ${number} ya era repetida. Sumé una más.`, 'warn');
-      } else if(existing.status === 'missing'){
+      } else {
         existing.status = 'have';
         existing.repeatedCount = 0;
         toast(`La N° ${number} estaba en faltantes. Ahora la tenés.`, 'success');
       }
+      saveStickers(); render(); return true;
     }
 
     if(status === 'repeated'){
-      const qty = Math.max(1, Number(repeatedCount)||1);
       existing.status = 'repeated';
       existing.repeatedCount = (Number(existing.repeatedCount)||0) + qty;
       toast(`La N° ${number} quedó como repetida x${existing.repeatedCount}.`, 'warn');
+      saveStickers(); render(); return true;
     }
 
     if(status === 'missing'){
       if(existing.status === 'missing'){
         toast(`La N° ${number} ya estaba en faltantes.`, 'warn');
-      } else {
-        state.modal = {
-          title: `La N° ${number} ya está cargada`,
-          text: `Figura como “${STATUS[existing.status].label}”. ¿Querés cambiarla a “Me falta”?`,
-          cancel: 'Mantener',
-          confirm: 'Cambiar',
-          danger: false,
-          onConfirm: () => {
-            existing.status = 'missing';
-            existing.repeatedCount = 0;
-            existing.updatedAt = now();
-            saveStickers();
-            state.modal = null;
-            toast(`La N° ${number} quedó como faltante.`, 'success');
-            render();
-          }
-        };
-        render();
-        return false;
+        saveStickers(); render(); return true;
       }
+      if(forceMissing){
+        existing.status = 'missing';
+        existing.repeatedCount = 0;
+        toast(`La N° ${number} quedó como faltante.`, 'success');
+        saveStickers(); render(); return true;
+      }
+      state.modal = {
+        title: `La N° ${number} ya está cargada`,
+        text: `Figura como “${STATUS[existing.status].label}”. ¿Querés cambiarla a “Me falta”?`,
+        cancel: 'Mantener',
+        confirm: 'Cambiar a faltante',
+        danger: false,
+        onConfirm: () => {
+          existing.status = 'missing';
+          existing.repeatedCount = 0;
+          existing.updatedAt = now();
+          saveStickers();
+          state.modal = null;
+          state.albumFilter = 'missing';
+          state.countryFilter = 'all';
+          state.search = '';
+          toast(`La N° ${number} quedó como faltante.`, 'success');
+          setView('album',{filter:'missing'});
+        }
+      };
+      render();
+      return false;
     }
-    saveStickers();
-    render();
-    return true;
   }
 
   const sticker = {
@@ -228,14 +239,14 @@ function addOrUpdateSticker({ number, status, repeatedCount=1, player='', countr
     country: cleanCountry,
     countryName: cleanCountryName,
     status,
-    repeatedCount: status === 'repeated' ? Math.max(1, Number(repeatedCount)||1) : 0,
+    repeatedCount: status === 'repeated' ? qty : 0,
     createdAt: stamp,
     updatedAt: stamp
   };
   state.stickers.push(sticker);
   state.stickers.sort(byNumber);
   saveStickers();
-  toast(`Figurita N° ${number} guardada.`, 'success');
+  toast(`Figurita N° ${number} guardada como ${STATUS[status].label}.`, 'success');
   render();
   return true;
 }
@@ -417,28 +428,55 @@ function changeQty(delta){
   el.textContent = next;
 }
 function submitManual(e, again=false){
-  e.preventDefault?.();
+  e?.preventDefault?.();
   const number = normalizeNumber(document.getElementById('num')?.value);
   const player = document.getElementById('player')?.value || '';
-  const status = document.getElementById('manualStatus')?.value || 'have';
+  const status = document.getElementById('manualStatus')?.value || state.manualDefault || 'have';
   const countryData = countryFromInput(document.getElementById('countryInput')?.value || 'General');
   const country = countryData.country;
   const countryName = countryData.countryName;
-  const repeatedCount = Number(document.getElementById('qtyValue')?.textContent || 1);
+  const repeatedCount = Math.max(1, Number(document.getElementById('qtyValue')?.textContent || 1));
+
+  if(!number){ toast('Ingresá el número de figurita.', 'warn'); return false; }
+
   if(state.editingId){
     const s = state.stickers.find(x=>x.id===state.editingId);
     if(s){
-      s.number = number; s.player = player.trim(); s.country = country; s.countryName = countryName; s.status = status; s.repeatedCount = status==='repeated' ? Math.max(1,repeatedCount) : 0; s.updatedAt = now();
-      saveStickers(); toast('Figurita actualizada.'); state.editingId = null; setView('album',{filter:state.albumFilter});
+      s.number = number;
+      s.player = player.trim();
+      s.country = country;
+      s.countryName = countryName;
+      s.status = status;
+      s.repeatedCount = status==='repeated' ? repeatedCount : 0;
+      s.updatedAt = now();
+      saveStickers();
+      toast('Figurita actualizada.');
+      state.editingId = null;
+      state.countryFilter = 'all';
+      state.search = '';
+      setView('album',{filter:status});
     }
-    return;
+    return false;
   }
+
   const ok = addOrUpdateSticker({number, player, country, countryName, status, repeatedCount});
   if(ok){
-    if(again){ setView('manual',{manualDefault:status}); }
-    else setView('album',{filter:status});
+    state.countryFilter = 'all';
+    state.search = '';
+    if(again){
+      state.manualDefault = status;
+      state.editingId = null;
+      render();
+      const num = document.getElementById('num');
+      if(num){ num.value=''; num.focus(); }
+      const p = document.getElementById('player'); if(p) p.value='';
+    } else {
+      setView('album',{filter:status});
+    }
   }
+  return false;
 }
+
 
 function albumScreen(){
   const list = filteredStickers();
@@ -517,7 +555,7 @@ function detectedBox(num){
     <button class="state-option missing" onclick="saveDetected('${num}','missing')">${icons.x} Me falta</button>
   </div><button class="btn btn-primary full" style="margin-top:12px" onclick="state.detectedNumber=''; render(); setTimeout(startCamera,50)">Escanear otra</button></div>`;
 }
-function saveDetected(num,status){ addOrUpdateSticker({number:num,status,repeatedCount:1,country:'general',countryName:'General'}); state.detectedNumber=''; state.view='scanner'; render(); setTimeout(startCamera,80); }
+function saveDetected(num,status){ addOrUpdateSticker({number:num,status,repeatedCount:1,country:'general',countryName:'General'}); state.countryFilter='all'; state.search=''; state.detectedNumber=''; state.view='scanner'; render(); setTimeout(startCamera,80); }
 async function startCamera(){
   const video = document.getElementById('video'); if(!video) return;
   try{
