@@ -1,4 +1,4 @@
-/* FiguScan Mundial V33 - banderas FIFA, cámara estable, foto y compartir imagen */
+/* FiguScan Mundial V35 - foto sin zoom agresivo, sin General por defecto */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 const APP_URL = 'https://figuscan-mundial-app.vercel.app/';
@@ -13,8 +13,8 @@ const STATUS = {
 const COUNTRIES = [
   {
     "id": "general",
-    "name": "General",
-    "short": "GEN",
+    "name": "País sin cargar",
+    "short": "",
     "flag": "⚽",
     "color": "#FFD166",
     "aliases": [
@@ -3469,13 +3469,23 @@ function customCountryName(id){
 function countryById(id){
   const found = COUNTRIES.find(c=>c.id===id);
   if(found) return found;
-  const name = customCountryName(id) || String(id || 'General').replace(/-/g,' ').replace(/\b\w/g, m=>m.toUpperCase());
+  const name = customCountryName(id) || String(id || 'pais-sin-cargar').replace(/-/g,' ').replace(/\b\w/g, m=>m.toUpperCase());
   return { id:id || 'general', name, short:name.slice(0,3).toUpperCase(), flag:'⚑', color:'#FFE08A', custom:true };
 }
 function countryLabel(id){ return countryById(id).name; }
+function countryInputValue(country, countryName){
+  if(!countryName && (!country || country === 'general')) return '';
+  return countryName || countryLabel(country || 'general');
+}
+function countryDisplayName(s){
+  if(!s) return 'País sin cargar';
+  if(s.countryName) return s.countryName;
+  const id = s.country || 'general';
+  return id === 'general' ? 'País sin cargar' : countryLabel(id);
+}
 function countryFromInput(value){
   const raw = String(value || '').trim();
-  if(!raw) return { country:'general', countryName:'General' };
+  if(!raw) return { country:'general', countryName:'' };
   const q = normalizeText(raw);
   const byName = COUNTRIES.find(c => {
     const fields = [c.name, c.short, c.id, ...(c.aliases || [])];
@@ -3652,7 +3662,7 @@ function addOrUpdateSticker({ number, status, repeatedCount=1, player='', countr
   const stamp = now();
   const cleanPlayer = String(player || '').trim();
   const cleanCountry = country || 'general';
-  const cleanCountryName = countryName || countryLabel(cleanCountry);
+  const cleanCountryName = countryName || (cleanCountry === 'general' ? '' : countryLabel(cleanCountry));
   const qty = Math.max(1, Number(repeatedCount)||1);
 
   if(existing){
@@ -3919,7 +3929,7 @@ function manualScreen(){
       <form class="form" onsubmit="submitManual(event)">
         <div class="field"><label>Número de figurita</label><input class="input" inputmode="numeric" pattern="[0-9]*" id="num" placeholder="Ej: 24" value="${editing ? escapeHtml(editing.number) : ''}" required></div>
         <div class="field"><label>Nombre del jugador</label><input class="input" id="player" placeholder="Ej: Messi" value="${editing ? escapeHtml(editing.player||'') : ''}"></div>
-        <div class="field"><label>Selección / país</label><input class="input" id="countryInput" list="countryList" placeholder="Escribí Argentina, Brasil..." value="${editing ? escapeHtml(editing.countryName || countryLabel(editing.country || 'general')) : ''}"><datalist id="countryList">${countryOptions(editing?.country || 'general')}</datalist><small class="help">Escribí y elegí una sugerencia. Si no existe, la app agrega ese país.</small></div>
+        <div class="field"><label>Selección / país</label><input class="input" id="countryInput" list="countryList" placeholder="Escribí Argentina, Brasil..." value="${editing ? escapeHtml(countryInputValue(editing.country, editing.countryName)) : ''}"><datalist id="countryList">${countryOptions(editing?.country || 'general')}</datalist><small class="help">Escribí y elegí una sugerencia. Si no existe, la app agrega ese país.</small></div>
         <div class="field"><label>¿Cómo la querés marcar?</label><div class="state-grid">
           ${stateButton('have', defaultStatus)}
           ${stateButton('missing', defaultStatus)}
@@ -3957,7 +3967,7 @@ function submitManual(e, again=false){
   const number = normalizeNumber(document.getElementById('num')?.value);
   const player = document.getElementById('player')?.value || '';
   const status = document.getElementById('manualStatus')?.value || state.manualDefault || 'have';
-  const countryData = countryFromInput(document.getElementById('countryInput')?.value || 'General');
+  const countryData = countryFromInput(document.getElementById('countryInput')?.value || '');
   const country = countryData.country;
   const countryName = countryData.countryName;
   const repeatedCount = Math.max(1, Number(document.getElementById('qtyValue')?.textContent || 1));
@@ -4060,7 +4070,7 @@ function stickerCard(s){
     <div style="padding-left:26px">
       <div class="sticker-top"><div class="number">#${s.number}</div><span class="status-badge ${s.status}">${statusIcon(s.status)} ${STATUS[s.status].label}${s.status==='repeated'?` x${s.repeatedCount||1}`:''}</span></div>
       ${s.image ? `<div class="sticker-photo"><img src="${s.image}" alt="Figurita ${escapeHtml(s.number)}" loading="lazy"></div>` : `<div class="sticker-photo sticker-photo-empty"><div>${icons.trophy}</div><strong>Sin foto</strong></div>`}
-      <div class="country-line"><span>${countryById(stickerCountry(s)).flag}</span> ${escapeHtml(s.countryName || countryLabel(stickerCountry(s)))}</div>
+      <div class="country-line"><span>${countryById(stickerCountry(s)).flag}</span> ${escapeHtml(countryDisplayName(s))}</div>
       <div class="player">${escapeHtml(s.player || 'Sin jugador')}</div>
       <div class="card-actions">
         <button class="icon-btn" title="Editar" onclick="event.stopPropagation(); setView('manual',{editingId:'${s.id}'})">${icons.edit}</button>
@@ -4152,7 +4162,7 @@ async function toggleTorch(e){
 }
 
 function detectedBox(){
-  const c = state.scanCandidate || { number:'', player:'', country:'general', countryName:'General', image:'' };
+  const c = state.scanCandidate || { number:'', player:'', country:'general', countryName:'', image:'' };
   return `<div class="detected scan-success scan-card-save lux-save-panel"><div class="particles"><i></i><i></i><i></i><i></i><i></i></div>
     <div class="figu-capture-title"><strong>Foto lista</strong><span>Completá los datos y elegí el estado</span></div>
     ${c.image ? `<div class="figu-stage"><div class="figu-world-bg"></div><img class="scan-preview" src="${c.image}" alt="Vista de figurita"><button class="remove-photo-btn" onclick="removeScanPhoto(event)" type="button">${icons.trash} Eliminar foto</button></div>` : `<div class="figu-stage empty-photo"><div class="figu-world-bg"></div><button class="btn btn-gold full" onclick="state.scanCandidate=null; render(); setTimeout(startCamera,50)" type="button">Sacar foto</button></div>`}
@@ -4160,7 +4170,7 @@ function detectedBox(){
       <div class="scan-data-head"><span>${icons.edit}</span><div><strong>Datos de la figurita</strong><small>Estos son los campos que se cargan en el álbum</small></div></div>
       <div class="field number-field"><label>Número de figurita</label><div class="number-control"><button type="button" onclick="stepDetectedNumber(-1)">−</button><input class="input" id="detectedNum" inputmode="numeric" value="${escapeHtml(c.number)}" placeholder="Ej: 24"><button type="button" onclick="stepDetectedNumber(1)">+</button></div></div>
       <div class="field"><label>Nombre del jugador</label><input class="input" id="detectedPlayer" value="${escapeHtml(c.player || '')}" placeholder="Ej: Messi"></div>
-      <div class="field"><label>País / selección</label><input class="input" id="detectedCountry" list="countryListScan" value="${escapeHtml(c.countryName || countryLabel(c.country || 'general'))}" placeholder="Ej: Portugal"><datalist id="countryListScan">${countryOptions(c.country || 'general')}</datalist></div>
+      <div class="field"><label>País / selección</label><input class="input" id="detectedCountry" list="countryListScan" value="${escapeHtml(countryInputValue(c.country, c.countryName))}" placeholder="Ej: Portugal"><datalist id="countryListScan">${countryOptions(c.country || 'general')}</datalist></div>
     </section>
     <div class="state-grid luxury-state-grid" style="margin-top:12px">
       <button class="state-option have" onclick="saveDetected('have')">${icons.check} La tengo</button>
@@ -4187,7 +4197,7 @@ function saveDetected(status){
   const c = state.scanCandidate || {};
   const num = normalizeNumber(document.getElementById('detectedNum')?.value || c.number || '');
   const player = document.getElementById('detectedPlayer')?.value || c.player || '';
-  const countryRaw = document.getElementById('detectedCountry')?.value || c.countryName || 'General';
+  const countryRaw = document.getElementById('detectedCountry')?.value || c.countryName || '';
   const parsed = countryFromInput(countryRaw);
   addOrUpdateSticker({number:num,status,repeatedCount:1,player,country:parsed.country,countryName:parsed.countryName,image:c.image || ''});
   state.countryFilter='all'; state.search=''; state.detectedNumber=''; state.scanCandidate=null; state.autoScanPaused=false; state.view='scanner'; render(); setTimeout(startCamera,80);
@@ -4215,7 +4225,7 @@ function saveBatchQuick(){
   const nums = Array.from(new Set(String(raw).split(/[^0-9]+/).map(normalizeNumber).filter(Boolean)));
   if(!nums.length){ toast('Escribí al menos un número.', 'warn'); return; }
   const status = state.batchStatus || 'have';
-  nums.forEach(n => addOrUpdateSticker({ number:n, status, repeatedCount:1, country:'general', countryName:'General' }));
+  nums.forEach(n => addOrUpdateSticker({ number:n, status, repeatedCount:1, country:'general', countryName:'' }));
   state.countryFilter='all'; state.search=''; state.countrySearch='';
   haptic('success');
   toast(`Guardé ${nums.length} figuritas como ${STATUS[status].label}.`, 'success');
@@ -4313,7 +4323,7 @@ async function scanFrame(manualTap=false){
       number: '',
       player: '',
       country: 'general',
-      countryName: 'General',
+      countryName: '',
       image,
       rawText: ''
     };
@@ -4369,10 +4379,9 @@ function captureStickerImage(video){
   tctx.filter='contrast(1.08) brightness(1.03) saturate(1.08)';
   tctx.drawImage(video,sx,sy,cw,ch,0,0,tmp.width,tmp.height);
 
-  // V34: el fondo real NO debe quedar visible.
-  // Buscamos la figurita y luego forzamos un recorte cerrado tipo cromo.
+  // V35: fondo generado + recorte estable. No zoom agresivo ni fondo real como marco.
   let detected = detectDarkStickerBounds(tmp) || detectStickerBounds(tmp);
-  let box = detected ? expandBox(detected, tmp.width, tmp.height, .012) : getCenteredStickerCrop(tmp);
+  let box = detected ? expandBox(detected, tmp.width, tmp.height, .055) : getCenteredStickerCrop(tmp);
   box = forceTightStickerCrop(box, tmp.width, tmp.height);
 
   const c=document.createElement('canvas');
@@ -4439,8 +4448,8 @@ function captureStickerImage(video){
 
   // La figurita recortada se centra automáticamente y completa dentro del marco.
   const srcRatio = box.w / box.h;
-  const maxW = photoW * .82;
-  const maxH = photoH * .86;
+  const maxW = photoW * .74;
+  const maxH = photoH * .78;
   let stickerW=maxW, stickerH=maxH;
   if(srcRatio > maxW/maxH){ stickerH = stickerW / srcRatio; }
   else { stickerW = stickerH * srcRatio; }
@@ -4475,20 +4484,17 @@ function captureStickerImage(video){
   ctx.lineWidth=3*S;
   ctx.stroke();
 
-  // Banda inferior simple.
-  const bandY = 1012*S;
-  roundRect(ctx,92*S,bandY,576*S,92*S,28*S);
-  ctx.fillStyle='rgba(5,7,13,.72)';
+  // Sello sutil de la app, sin textos grandes que molesten la foto.
+  const bandY = 1018*S;
+  roundRect(ctx,108*S,bandY,544*S,64*S,24*S);
+  ctx.fillStyle='rgba(5,7,13,.46)';
   ctx.fill();
-  ctx.strokeStyle='rgba(255,224,138,.36)';
+  ctx.strokeStyle='rgba(255,224,138,.22)';
   ctx.lineWidth=2*S;
   ctx.stroke();
-  ctx.fillStyle='#FFE08A';
-  ctx.font=`900 ${30*S}px Inter, Arial`;
-  ctx.fillText('FiguScan Mundial',124*S,bandY+42*S);
-  ctx.fillStyle='rgba(226,232,240,.92)';
-  ctx.font=`800 ${18*S}px Inter, Arial`;
-  ctx.fillText('Guardada en tu álbum',124*S,bandY+70*S);
+  ctx.fillStyle='rgba(255,224,138,.92)';
+  ctx.font=`900 ${22*S}px Inter, Arial`;
+  ctx.fillText('FiguScan Mundial',136*S,bandY+40*S);
 
   const shine=ctx.createLinearGradient(0,0,c.width,c.height);
   shine.addColorStop(0,'rgba(255,255,255,.20)');
@@ -4504,39 +4510,44 @@ function captureStickerImage(video){
 
 
 function forceTightStickerCrop(box, maxW, maxH){
-  // Recorte agresivo y centrado: prioridad absoluta a que NO se vea la mesa/pared.
-  // La figurita mundialista es vertical; usamos esa proporción y cerramos el encuadre.
-  const targetRatio = 0.70; // ancho / alto aproximado de figurita
-  let cx = box.x + box.w / 2;
-  let cy = box.y + box.h / 2;
+  // V35: no ampliar/cortar de más. Buscamos que entre la figurita completa.
+  // El fondo real se elimina usando un fondo generado detrás; este recorte debe quedarse
+  // lo más cerca posible del cromo sin comerse cabeza, número ni bordes.
+  const targetRatio = 0.70; // ancho / alto aproximado de una figurita
+  const cx = box.x + box.w / 2;
+  const cy = box.y + box.h / 2;
+  const boxRatio = box.w / Math.max(1, box.h);
 
-  // Si el detector agarró mucho entorno, achicamos bastante.
-  const tooWide = box.w > maxW * 0.52;
-  const tooTall = box.h > maxH * 0.76;
-  const tooSquare = (box.w / Math.max(1, box.h)) > 0.82;
+  let w;
+  let h;
 
-  let h = box.h * (tooWide || tooTall || tooSquare ? 0.72 : 0.84);
-  let w = h * targetRatio;
+  if(boxRatio > 0.88 || box.w > maxW * 0.62){
+    // El detector tomó demasiado fondo. Usamos un recorte vertical centrado,
+    // pero con más aire que antes para no cortar la figurita.
+    h = Math.min(box.h * 0.94, maxH * 0.84);
+    w = h * targetRatio;
+  }else{
+    // Detector razonable: expandimos un poco para que entre el cromo completo.
+    h = box.h * 1.10;
+    w = Math.max(box.w * 1.08, h * targetRatio);
+    h = w / targetRatio;
+  }
 
-  // Nunca dejamos que el recorte use demasiado del cuadro original.
-  w = Math.min(w, maxW * 0.46);
-  h = Math.min(h, maxH * 0.68);
+  // Límites de seguridad para Android/iPhone: evita zoom agresivo y deformaciones.
+  w = Math.min(w, maxW * 0.60);
+  h = Math.min(h, maxH * 0.86);
 
-  // Si quedó muy chico, mantenemos un mínimo razonable.
-  w = Math.max(w, maxW * 0.28);
+  // Mínimos para que no quede microscópica.
+  w = Math.max(w, maxW * 0.34);
   h = Math.max(h, w / targetRatio);
-
-  // Ajuste vertical: normalmente la figurita real queda un poco más abajo del centro del área detectada.
-  cy += box.h * 0.01;
 
   let x = Math.round(cx - w / 2);
   let y = Math.round(cy - h / 2);
-  x = Math.max(0, Math.min(maxW - w, x));
-  y = Math.max(0, Math.min(maxH - h, y));
+  x = Math.max(0, Math.min(Math.round(maxW - w), x));
+  y = Math.max(0, Math.min(Math.round(maxH - h), y));
 
   return { x, y, w: Math.round(w), h: Math.round(h) };
 }
-
 
 function detectDarkStickerBounds(canvas){
   const ctx=canvas.getContext('2d', { willReadFrequently:true });
@@ -4739,7 +4750,7 @@ function pickCountry(text){
     const fields = [c.name, c.short, ...(c.aliases || [])];
     if(fields.some(v => normalizeText(v) && q.includes(normalizeText(v)))) return { country:c.id, countryName:c.name };
   }
-  return { country:'general', countryName:'General' };
+  return { country:'general', countryName:'' };
 }
 function pickPlayer(text, countryName=''){
   const bad = new Set(['FIFA','WORLD','CUP','QATAR','RUSSIA','PANINI','STICKER','FIGUSCAN','GENERAL', normalizeText(countryName).toUpperCase()]);
@@ -4975,7 +4986,7 @@ function stickerViewerHtml(){
       <div class="viewer-info">
         <span class="status-badge ${s.status}">${statusIcon(s.status)} ${STATUS[s.status].label}${s.status==='repeated'?` x${s.repeatedCount||1}`:''}</span>
         <h3>${escapeHtml(s.player || 'Sin jugador')}</h3>
-        <p>${countryById(stickerCountry(s)).flag} ${escapeHtml(s.countryName || countryLabel(stickerCountry(s)))}</p>
+        <p>${countryById(stickerCountry(s)).flag} ${escapeHtml(countryDisplayName(s))}</p>
       </div>
       <div class="viewer-actions">
         <button class="btn btn-primary" onclick="setView('manual',{editingId:'${s.id}'}); closeStickerViewer()">${icons.edit} Editar</button>
