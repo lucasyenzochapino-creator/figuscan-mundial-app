@@ -1,4 +1,4 @@
-/* FiguScan Mundial V18 - necesario: álbum por país, progreso, WhatsApp pasión mundial, haptics y shiny */
+/* FiguScan Mundial V19 - escaneo más grande + carga rápida múltiple */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 const APP_URL = 'https://figuscan-mundial-app.vercel.app/';
@@ -100,7 +100,8 @@ let state = {
   scannerStream: null,
   scanBusy: false,
   detectedNumber: '',
-  shareMode: 'summary'
+  shareMode: 'summary',
+  batchStatus: 'have'
 };
 
 const app = document.getElementById('app');
@@ -604,37 +605,70 @@ function quickCycle(id){
 }
 
 function scannerScreen(){
-  return `<main class="screen">
+  return `<main class="screen scanner-screen">
     ${topbar(`<button class="pill" onclick="setView('home')">Inicio</button>`)}
-    <section class="hero"><div class="logo">${icons.scan}</div><h1>Escanear figurita</h1><p>Apuntá al número. Si no lo detecta, lo cargás manual en segundos.</p></section>
+    <section class="hero scanner-hero"><div class="logo">${icons.scan}</div><h1>Escaneo rápido</h1><p>Centrás la figurita, leés el número y seguís con la siguiente. También podés cargar varias de una vez.</p></section>
     ${entryModeSwitch('scanner')}
-    <section class="section">
-      <div class="scanner-wrap">
-        <video id="video" class="video" autoplay playsinline muted></video>
-        <div class="scan-overlay"><div class="scan-text">Apuntá al número de la figurita</div><div class="scan-frame"></div></div>
+    <section class="section scan-section">
+      <div class="scanner-wrap scanner-wrap-large">
+        <video id="video" class="video video-large" autoplay playsinline muted></video>
+        <div class="scan-overlay"><div class="scan-text">Centrar la figurita en el marco</div><div class="scan-frame scan-frame-large"></div></div>
       </div>
-      <div class="scan-controls">
+      <div class="scan-controls scan-controls-grid">
         <button class="btn btn-primary full" onclick="scanFrame()">${icons.scan} Leer número</button>
-        <button class="btn btn-ghost full" onclick="setView('manual',{manualDefault:'have'})">No detectó, cargar número</button>
+        <button class="btn btn-ghost full" onclick="setView('manual',{manualDefault:'have'})">Cargar una manual</button>
       </div>
       <div id="detectedBox">${state.detectedNumber ? detectedBox(state.detectedNumber) : ''}</div>
     </section>
+    ${batchQuickSection()}
   </main>`;
 }
+
 function detectedBox(num){
-  return `<div class="detected scan-success"><div class="particles"><i></i><i></i><i></i><i></i><i></i></div><div class="muted">Escaneo exitoso</div><div class="big">N° ${num}</div><div class="state-grid" style="margin-top:12px">
+  return `<div class="detected scan-success"><div class="particles"><i></i><i></i><i></i><i></i><i></i></div><div class="muted">Figurita detectada</div><div class="big">N° ${num}</div><p class="tiny">Elegí cómo guardarla. Después la cámara queda lista para seguir.</p><div class="state-grid" style="margin-top:12px">
     <button class="state-option have" onclick="saveDetected('${num}','have')">${icons.check} La tengo</button>
     <button class="state-option repeated" onclick="saveDetected('${num}','repeated')">${icons.repeat} Repetida</button>
     <button class="state-option missing" onclick="saveDetected('${num}','missing')">${icons.x} Me falta</button>
-  </div><button class="btn btn-primary full" style="margin-top:12px" onclick="state.detectedNumber=''; render(); setTimeout(startCamera,50)">Escanear otra</button></div>`;
+  </div><button class="btn btn-primary full" style="margin-top:12px" onclick="state.detectedNumber=''; render(); setTimeout(startCamera,50)">Seguir escaneando</button></div>`;
 }
 function saveDetected(num,status){ addOrUpdateSticker({number:num,status,repeatedCount:1,country:'general',countryName:'General'}); state.countryFilter='all'; state.search=''; state.detectedNumber=''; state.view='scanner'; render(); setTimeout(startCamera,80); }
+
+function batchQuickSection(){
+  const active = state.batchStatus || 'have';
+  return `<section class="section batch-quick">
+    <div class="section-title"><h2>Cargar varias rápido</h2><span class="muted">sin volver atrás</span></div>
+    <p class="muted">Escribí varios números separados por coma, espacio o salto de línea.</p>
+    <textarea id="batchNumbers" class="batch-input" inputmode="numeric" placeholder="Ej: 4, 9, 15, 22"></textarea>
+    <div class="batch-status-grid">
+      ${batchStatusButton('have', active)}
+      ${batchStatusButton('missing', active)}
+      ${batchStatusButton('repeated', active)}
+    </div>
+    <button class="btn btn-primary full" onclick="saveBatchQuick()">Guardar varias</button>
+  </section>`;
+}
+function batchStatusButton(status, active){
+  return `<button class="batch-status ${status} ${active===status?'active':''}" onclick="state.batchStatus='${status}'; render()">${statusIcon(status)} <span>${STATUS[status].label}</span></button>`;
+}
+function saveBatchQuick(){
+  const input = document.getElementById('batchNumbers');
+  const raw = input ? input.value : '';
+  const nums = Array.from(new Set(String(raw).split(/[^0-9]+/).map(normalizeNumber).filter(Boolean)));
+  if(!nums.length){ toast('Escribí al menos un número.', 'warn'); return; }
+  const status = state.batchStatus || 'have';
+  nums.forEach(n => addOrUpdateSticker({ number:n, status, repeatedCount:1, country:'general', countryName:'General' }));
+  state.countryFilter='all'; state.search=''; state.countrySearch='';
+  haptic('success');
+  toast(`Guardé ${nums.length} figuritas como ${STATUS[status].label}.`, 'success');
+  state.view='album'; state.albumFilter=status; render();
+}
+
 async function startCamera(){
   const video = document.getElementById('video'); if(!video) return;
   try{
     state.scannerStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}, audio:false});
     video.srcObject = state.scannerStream;
-  }catch(e){ toast('No pude abrir la cámara. Cargá el número manualmente.', 'warn'); }
+  }catch(e){ toast('No pude abrir la cámara. Usá carga manual rápida.', 'warn'); }
 }
 function stopCamera(){
   if(state.scannerStream){ state.scannerStream.getTracks().forEach(t=>t.stop()); state.scannerStream=null; }
@@ -653,7 +687,7 @@ async function scanFrame(){
     }
     const found = pickNumber(text);
     if(found){ state.detectedNumber = found; toast(`Detecté la N° ${found}.`); }
-    else { toast('No pude detectar. Cargá el número manualmente.', 'warn'); }
+    else { toast('No pude detectar. Usá carga manual rápida.', 'warn'); }
   }catch(e){ toast('No pude leer la imagen. Probá cargar manual.', 'warn'); }
   state.scanBusy = false; render(); setTimeout(startCamera,50);
 }
@@ -855,7 +889,7 @@ function render(){
   if(state.view==='scanner') setTimeout(startCamera, 150);
 }
 
-window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.startCamera=startCamera; window.confirmModal=confirmModal; window.state=state; window.render=render;
+window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.startCamera=startCamera; window.confirmModal=confirmModal; window.state=state; window.render=render;
 
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('/service-worker.js').catch(()=>{}); }
 render();
