@@ -98,6 +98,8 @@ let state = {
   manualDefault: 'have',
   editingId: null,
   scannerStream: null,
+  cameraStarting: false,
+  cameraError: '',
   scanBusy: false,
   detectedNumber: '',
   shareMode: 'summary',
@@ -137,6 +139,7 @@ function setView(view, opts={}){
   if(opts.editingId !== undefined) state.editingId = opts.editingId;
   state.selected = new Set();
   state.detectedNumber = '';
+  if(view === 'scanner') state.cameraError = '';
   render();
 }
 function toast(message, type='success'){
@@ -613,6 +616,7 @@ function scannerScreen(){
       <div class="scanner-wrap scanner-wrap-large">
         <video id="video" class="video video-large" autoplay playsinline muted></video>
         <div class="scan-overlay"><div class="scan-text">Centrar la figurita en el marco</div><div class="scan-frame scan-frame-large"></div></div>
+        ${state.cameraError ? cameraFallback() : ''}
       </div>
       <div class="scan-controls scan-controls-grid">
         <button class="btn btn-primary full" onclick="scanFrame()">${icons.scan} Leer número</button>
@@ -622,6 +626,22 @@ function scannerScreen(){
     </section>
     ${batchQuickSection()}
   </main>`;
+}
+
+function cameraFallback(){
+  return `<div class="camera-fallback">
+    <div class="camera-fallback-card">
+      <strong>La cámara no se activó</strong>
+      <span>${escapeHtml(state.cameraError || 'Revisá el permiso de cámara.')}</span>
+      <button class="btn btn-primary full" onclick="retryCamera()">Activar cámara</button>
+      <button class="btn btn-ghost full" onclick="setView('manual',{manualDefault:'have'})">Cargar manual</button>
+    </div>
+  </div>`;
+}
+function retryCamera(){
+  state.cameraError = '';
+  state.cameraStarting = false;
+  startCamera(true);
 }
 
 function detectedBox(num){
@@ -663,15 +683,57 @@ function saveBatchQuick(){
   state.view='album'; state.albumFilter=status; render();
 }
 
-async function startCamera(){
-  const video = document.getElementById('video'); if(!video) return;
+async function startCamera(manual=false){
+  if(state.view !== 'scanner') return;
+  const video = document.getElementById('video');
+  if(!video) return;
+  if(state.cameraStarting) return;
+  if(state.scannerStream && !manual) return;
+
+  state.cameraStarting = true;
+  state.cameraError = '';
+
   try{
-    state.scannerStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}, audio:false});
-    video.srcObject = state.scannerStream;
-  }catch(e){ toast('No pude abrir la cámara. Usá carga manual rápida.', 'warn'); }
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      throw new Error('Este navegador no permite usar cámara desde esta pantalla.');
+    }
+
+    if(state.scannerStream){
+      state.scannerStream.getTracks().forEach(t=>t.stop());
+      state.scannerStream = null;
+    }
+
+    const constraints = {
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      },
+      audio: false
+    };
+
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    state.scannerStream = stream;
+    video.srcObject = stream;
+    video.setAttribute('playsinline', 'true');
+    video.muted = true;
+
+    try { await video.play(); } catch(playErr) { /* algunos navegadores arrancan igual */ }
+
+    state.cameraStarting = false;
+    state.cameraError = '';
+  }catch(e){
+    state.cameraStarting = false;
+    state.cameraError = 'Permiso de cámara bloqueado o no disponible. Tocá “Activar cámara” o cargá manual.';
+    const videoNow = document.getElementById('video');
+    if(videoNow) videoNow.srcObject = null;
+    toast('No pude abrir la cámara. Revisá permisos o cargá manual.', 'warn');
+    render();
+  }
 }
 function stopCamera(){
   if(state.scannerStream){ state.scannerStream.getTracks().forEach(t=>t.stop()); state.scannerStream=null; }
+  state.cameraStarting = false;
 }
 async function scanFrame(){
   if(state.scanBusy) return;
@@ -886,10 +948,10 @@ function render(){
   if(state.view==='friends') screen = friendsScreen();
   if(state.view==='share') screen = shareScreen();
   app.innerHTML = `<div class="app">${appTrophyBg()}${screen}${bottomNav()}${modalHtml()}${toastHtml()}</div>`;
-  if(state.view==='scanner') setTimeout(startCamera, 150);
+  if(state.view==='scanner' && !state.scannerStream && !state.cameraError) setTimeout(()=>startCamera(false), 80);
 }
 
-window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.startCamera=startCamera; window.confirmModal=confirmModal; window.state=state; window.render=render;
+window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.render=render;
 
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('/service-worker.js').catch(()=>{}); }
 render();

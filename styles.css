@@ -89,3 +89,9 @@ html,body{background:#05070D;color:#F8FAFC;}
 .batch-status.missing.active{background:linear-gradient(180deg,rgba(239,68,68,.36),rgba(185,28,28,.16));border-color:#EF4444;color:#FECACA}
 .batch-status.repeated.active{background:linear-gradient(180deg,rgba(214,168,58,.40),rgba(251,146,60,.16));border-color:#D4AF37;color:#FFE8A3}
 @media(max-width:390px){.scanner-wrap-large{min-height:500px}.video-large{height:500px;min-height:500px}.scan-frame-large{height:55%}.batch-status{font-size:12px}.batch-status svg{width:26px;height:26px}}
+
+/* V20 cámara automática + fallback */
+.camera-fallback{position:absolute;inset:0;z-index:5;background:rgba(0,0,0,.62);display:grid;place-items:center;padding:18px}
+.camera-fallback-card{width:min(360px,100%);display:grid;gap:10px;background:rgba(6,25,71,.92);border:1px solid rgba(255,224,138,.35);border-radius:26px;padding:18px;color:#fff;box-shadow:0 18px 44px rgba(0,0,0,.35);text-align:center}
+.camera-fallback-card strong{font-size:20px}
+.camera-fallback-card span{color:#CBD5E1;font-weight:800;line-height:1.35}
