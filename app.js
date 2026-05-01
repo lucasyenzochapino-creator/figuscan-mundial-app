@@ -1,4 +1,4 @@
-/* FiguScan Mundial V32 - cámara estable, flash flotante y recorte centrado */
+/* FiguScan Mundial V33 - banderas FIFA, cámara estable, foto y compartir imagen */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 const APP_URL = 'https://figuscan-mundial-app.vercel.app/';
@@ -11,22 +11,3449 @@ const STATUS = {
 
 
 const COUNTRIES = [
-  { id:'general', name:'General', short:'GEN', flag:'⚽', color:'#FFD166' },
-  { id:'argentina', name:'Argentina', short:'ARG', flag:'🇦🇷', color:'#74C0FC' },
-  { id:'brasil', name:'Brasil', short:'BRA', flag:'🇧🇷', color:'#2DD36F' },
-  { id:'francia', name:'Francia', short:'FRA', flag:'🇫🇷', color:'#4D96FF' },
-  { id:'uruguay', name:'Uruguay', short:'URU', flag:'🇺🇾', color:'#7DD3FC' },
-  { id:'espana', name:'España', short:'ESP', flag:'🇪🇸', color:'#FF6B6B' },
-  { id:'inglaterra', name:'Inglaterra', short:'ING', flag:'🏴', color:'#F8FAFC' },
-  { id:'alemania', name:'Alemania', short:'ALE', flag:'🇩🇪', color:'#FACC15' },
-  { id:'italia', name:'Italia', short:'ITA', flag:'🇮🇹', color:'#22C55E' },
-  { id:'portugal', name:'Portugal', short:'POR', flag:'🇵🇹', color:'#EF4444' },
-  { id:'paises-bajos', name:'Países Bajos', short:'NED', flag:'🇳🇱', color:'#FB923C' },
-  { id:'mexico', name:'México', short:'MEX', flag:'🇲🇽', color:'#10B981' },
-  { id:'usa', name:'Estados Unidos', short:'USA', flag:'🇺🇸', color:'#60A5FA' },
-  { id:'japon', name:'Japón', short:'JPN', flag:'🇯🇵', color:'#F472B6' },
-  { id:'marruecos', name:'Marruecos', short:'MAR', flag:'🇲🇦', color:'#DC2626' },
+  {
+    "id": "general",
+    "name": "General",
+    "short": "GEN",
+    "flag": "⚽",
+    "color": "#FFD166",
+    "aliases": [
+      "General",
+      "GEN"
+    ]
+  },
+  {
+    "id": "francia",
+    "name": "Francia",
+    "short": "FRA",
+    "flag": "🇫🇷",
+    "color": "#EF4444",
+    "aliases": [
+      "France",
+      "Francia",
+      "FRA",
+      "FR",
+      "French Republic"
+    ]
+  },
+  {
+    "id": "espana",
+    "name": "España",
+    "short": "ESP",
+    "flag": "🇪🇸",
+    "color": "#7DD3FC",
+    "aliases": [
+      "Spain",
+      "España",
+      "ESP",
+      "ES",
+      "Kingdom of Spain"
+    ]
+  },
+  {
+    "id": "argentina",
+    "name": "Argentina",
+    "short": "ARG",
+    "flag": "🇦🇷",
+    "color": "#7DD3FC",
+    "aliases": [
+      "Argentina",
+      "ARG",
+      "AR",
+      "Argentine Republic"
+    ]
+  },
+  {
+    "id": "inglaterra",
+    "name": "Inglaterra",
+    "short": "ENG",
+    "flag": "🏴",
+    "color": "#EF4444",
+    "aliases": [
+      "England",
+      "Inglaterra",
+      "ENG",
+      "GB",
+      "English"
+    ]
+  },
+  {
+    "id": "portugal",
+    "name": "Portugal",
+    "short": "POR",
+    "flag": "🇵🇹",
+    "color": "#DC2626",
+    "aliases": [
+      "Portugal",
+      "POR",
+      "PT",
+      "Portuguese Republic"
+    ]
+  },
+  {
+    "id": "brasil",
+    "name": "Brasil",
+    "short": "BRA",
+    "flag": "🇧🇷",
+    "color": "#7DD3FC",
+    "aliases": [
+      "Brazil",
+      "Brasil",
+      "BRA",
+      "BR",
+      "Federative Republic of Brazil"
+    ]
+  },
+  {
+    "id": "paises-bajos",
+    "name": "Países Bajos",
+    "short": "NED",
+    "flag": "🇳🇱",
+    "color": "#D4AF37",
+    "aliases": [
+      "Netherlands",
+      "Países Bajos",
+      "NED",
+      "NL",
+      "Kingdom of the Netherlands",
+      "Holanda",
+      "Holland"
+    ]
+  },
+  {
+    "id": "marruecos",
+    "name": "Marruecos",
+    "short": "MAR",
+    "flag": "🇲🇦",
+    "color": "#FB923C",
+    "aliases": [
+      "Morocco",
+      "Marruecos",
+      "MAR",
+      "MA",
+      "Kingdom of Morocco"
+    ]
+  },
+  {
+    "id": "belgica",
+    "name": "Bélgica",
+    "short": "BEL",
+    "flag": "🇧🇪",
+    "color": "#F472B6",
+    "aliases": [
+      "Belgium",
+      "Bélgica",
+      "BEL",
+      "BE",
+      "Kingdom of Belgium"
+    ]
+  },
+  {
+    "id": "alemania",
+    "name": "Alemania",
+    "short": "GER",
+    "flag": "🇩🇪",
+    "color": "#D4AF37",
+    "aliases": [
+      "Germany",
+      "Alemania",
+      "GER",
+      "DE",
+      "Federal Republic of Germany",
+      "Deutschland",
+      "ALE"
+    ]
+  },
+  {
+    "id": "croacia",
+    "name": "Croacia",
+    "short": "CRO",
+    "flag": "🇭🇷",
+    "color": "#800020",
+    "aliases": [
+      "Croatia",
+      "Croacia",
+      "CRO",
+      "HR",
+      "Republic of Croatia"
+    ]
+  },
+  {
+    "id": "italia",
+    "name": "Italia",
+    "short": "ITA",
+    "flag": "🇮🇹",
+    "color": "#D4AF37",
+    "aliases": [
+      "Italy",
+      "Italia",
+      "ITA",
+      "IT",
+      "Italian Republic"
+    ]
+  },
+  {
+    "id": "colombia",
+    "name": "Colombia",
+    "short": "COL",
+    "flag": "🇨🇴",
+    "color": "#DC2626",
+    "aliases": [
+      "Colombia",
+      "COL",
+      "CO",
+      "Republic of Colombia"
+    ]
+  },
+  {
+    "id": "senegal",
+    "name": "Senegal",
+    "short": "SEN",
+    "flag": "🇸🇳",
+    "color": "#800020",
+    "aliases": [
+      "Senegal",
+      "SEN",
+      "SN",
+      "Republic of Senegal"
+    ]
+  },
+  {
+    "id": "mexico",
+    "name": "México",
+    "short": "MEX",
+    "flag": "🇲🇽",
+    "color": "#D4AF37",
+    "aliases": [
+      "Mexico",
+      "México",
+      "MEX",
+      "MX",
+      "United Mexican States"
+    ]
+  },
+  {
+    "id": "estados-unidos",
+    "name": "Estados Unidos",
+    "short": "USA",
+    "flag": "🇺🇸",
+    "color": "#22C55E",
+    "aliases": [
+      "United States",
+      "Estados Unidos",
+      "USA",
+      "US",
+      "United States of America",
+      "EEUU",
+      "EE.UU."
+    ]
+  },
+  {
+    "id": "uruguay",
+    "name": "Uruguay",
+    "short": "URU",
+    "flag": "🇺🇾",
+    "color": "#74C0FC",
+    "aliases": [
+      "Uruguay",
+      "URU",
+      "UY",
+      "Eastern Republic of Uruguay"
+    ]
+  },
+  {
+    "id": "japon",
+    "name": "Japón",
+    "short": "JPN",
+    "flag": "🇯🇵",
+    "color": "#FF6B6B",
+    "aliases": [
+      "Japan",
+      "Japón",
+      "JPN",
+      "JP"
+    ]
+  },
+  {
+    "id": "suiza",
+    "name": "Suiza",
+    "short": "SUI",
+    "flag": "🇨🇭",
+    "color": "#10B981",
+    "aliases": [
+      "Switzerland",
+      "Suiza",
+      "SUI",
+      "CH",
+      "Swiss Confederation"
+    ]
+  },
+  {
+    "id": "dinamarca",
+    "name": "Dinamarca",
+    "short": "DEN",
+    "flag": "🇩🇰",
+    "color": "#60A5FA",
+    "aliases": [
+      "Denmark",
+      "Dinamarca",
+      "DEN",
+      "DK",
+      "Kingdom of Denmark"
+    ]
+  },
+  {
+    "id": "iran",
+    "name": "Irán",
+    "short": "IRN",
+    "flag": "🇮🇷",
+    "color": "#F8FAFC",
+    "aliases": [
+      "Iran, Islamic Republic of",
+      "Irán",
+      "IRN",
+      "IR",
+      "Islamic Republic of Iran"
+    ]
+  },
+  {
+    "id": "turquia",
+    "name": "Turquía",
+    "short": "TUR",
+    "flag": "🇹🇷",
+    "color": "#74C0FC",
+    "aliases": [
+      "Türkiye",
+      "Turquía",
+      "TUR",
+      "TR",
+      "Republic of Türkiye",
+      "Turkey"
+    ]
+  },
+  {
+    "id": "ecuador",
+    "name": "Ecuador",
+    "short": "ECU",
+    "flag": "🇪🇨",
+    "color": "#FACC15",
+    "aliases": [
+      "Ecuador",
+      "ECU",
+      "EC",
+      "Republic of Ecuador"
+    ]
+  },
+  {
+    "id": "austria",
+    "name": "Austria",
+    "short": "AUT",
+    "flag": "🇦🇹",
+    "color": "#EF4444",
+    "aliases": [
+      "Austria",
+      "AUT",
+      "AT",
+      "Republic of Austria"
+    ]
+  },
+  {
+    "id": "corea-del-sur",
+    "name": "Corea del Sur",
+    "short": "KOR",
+    "flag": "🇰🇷",
+    "color": "#EF4444",
+    "aliases": [
+      "Korea, Republic of",
+      "Corea del Sur",
+      "KOR",
+      "KR",
+      "South Korea",
+      "Korea Republic"
+    ]
+  },
+  {
+    "id": "nigeria",
+    "name": "Nigeria",
+    "short": "NGA",
+    "flag": "🇳🇬",
+    "color": "#800020",
+    "aliases": [
+      "Nigeria",
+      "NGA",
+      "NG",
+      "Federal Republic of Nigeria"
+    ]
+  },
+  {
+    "id": "australia",
+    "name": "Australia",
+    "short": "AUS",
+    "flag": "🇦🇺",
+    "color": "#DC2626",
+    "aliases": [
+      "Australia",
+      "AUS",
+      "AU"
+    ]
+  },
+  {
+    "id": "argelia",
+    "name": "Argelia",
+    "short": "ALG",
+    "flag": "🇩🇿",
+    "color": "#10B981",
+    "aliases": [
+      "Algeria",
+      "Argelia",
+      "ALG",
+      "DZ",
+      "People's Democratic Republic of Algeria"
+    ]
+  },
+  {
+    "id": "egipto",
+    "name": "Egipto",
+    "short": "EGY",
+    "flag": "🇪🇬",
+    "color": "#FF6B6B",
+    "aliases": [
+      "Egypt",
+      "Egipto",
+      "EGY",
+      "EG",
+      "Arab Republic of Egypt"
+    ]
+  },
+  {
+    "id": "canada",
+    "name": "Canadá",
+    "short": "CAN",
+    "flag": "🇨🇦",
+    "color": "#FF6B6B",
+    "aliases": [
+      "Canada",
+      "Canadá",
+      "CAN",
+      "CA"
+    ]
+  },
+  {
+    "id": "noruega",
+    "name": "Noruega",
+    "short": "NOR",
+    "flag": "🇳🇴",
+    "color": "#22C55E",
+    "aliases": [
+      "Norway",
+      "Noruega",
+      "NOR",
+      "NO",
+      "Kingdom of Norway"
+    ]
+  },
+  {
+    "id": "ucrania",
+    "name": "Ucrania",
+    "short": "UKR",
+    "flag": "🇺🇦",
+    "color": "#FACC15",
+    "aliases": [
+      "Ukraine",
+      "Ucrania",
+      "UKR",
+      "UA"
+    ]
+  },
+  {
+    "id": "panama",
+    "name": "Panamá",
+    "short": "PAN",
+    "flag": "🇵🇦",
+    "color": "#800020",
+    "aliases": [
+      "Panama",
+      "Panamá",
+      "PAN",
+      "PA",
+      "Republic of Panama"
+    ]
+  },
+  {
+    "id": "costa-de-marfil",
+    "name": "Costa de Marfil",
+    "short": "CIV",
+    "flag": "🇨🇮",
+    "color": "#10B981",
+    "aliases": [
+      "Côte d'Ivoire",
+      "Costa de Marfil",
+      "CIV",
+      "CI",
+      "Republic of Côte d'Ivoire",
+      "Ivory Coast",
+      "Cote d Ivoire",
+      "Côte d Ivoire"
+    ]
+  },
+  {
+    "id": "polonia",
+    "name": "Polonia",
+    "short": "POL",
+    "flag": "🇵🇱",
+    "color": "#EF4444",
+    "aliases": [
+      "Poland",
+      "Polonia",
+      "POL",
+      "PL",
+      "Republic of Poland"
+    ]
+  },
+  {
+    "id": "rusia",
+    "name": "Rusia",
+    "short": "RUS",
+    "flag": "🇷🇺",
+    "color": "#F8FAFC",
+    "aliases": [
+      "Russian Federation",
+      "Rusia",
+      "RUS",
+      "RU"
+    ]
+  },
+  {
+    "id": "reino-unido",
+    "name": "Reino Unido",
+    "short": "WAL",
+    "flag": "🏴",
+    "color": "#60A5FA",
+    "aliases": [
+      "Wales",
+      "Reino Unido",
+      "WAL",
+      "GB",
+      "Gales"
+    ]
+  },
+  {
+    "id": "suecia",
+    "name": "Suecia",
+    "short": "SWE",
+    "flag": "🇸🇪",
+    "color": "#74C0FC",
+    "aliases": [
+      "Sweden",
+      "Suecia",
+      "SWE",
+      "SE",
+      "Kingdom of Sweden"
+    ]
+  },
+  {
+    "id": "serbia",
+    "name": "Serbia",
+    "short": "SRB",
+    "flag": "🇷🇸",
+    "color": "#60A5FA",
+    "aliases": [
+      "Serbia",
+      "SRB",
+      "RS",
+      "Republic of Serbia"
+    ]
+  },
+  {
+    "id": "paraguay",
+    "name": "Paraguay",
+    "short": "PAR",
+    "flag": "🇵🇾",
+    "color": "#F8FAFC",
+    "aliases": [
+      "Paraguay",
+      "PAR",
+      "PY",
+      "Republic of Paraguay"
+    ]
+  },
+  {
+    "id": "republica-checa",
+    "name": "República Checa",
+    "short": "CZE",
+    "flag": "🇨🇿",
+    "color": "#EF4444",
+    "aliases": [
+      "Czechia",
+      "República Checa",
+      "CZE",
+      "CZ",
+      "Czech Republic",
+      "Chequia"
+    ]
+  },
+  {
+    "id": "hungria",
+    "name": "Hungría",
+    "short": "HUN",
+    "flag": "🇭🇺",
+    "color": "#EF4444",
+    "aliases": [
+      "Hungary",
+      "Hungría",
+      "HUN",
+      "HU"
+    ]
+  },
+  {
+    "id": "reino-unido-2",
+    "name": "Reino Unido",
+    "short": "SCO",
+    "flag": "🏴",
+    "color": "#60A5FA",
+    "aliases": [
+      "Scotland",
+      "Reino Unido",
+      "SCO",
+      "GB",
+      "Escocia"
+    ]
+  },
+  {
+    "id": "tunez",
+    "name": "Túnez",
+    "short": "TUN",
+    "flag": "🇹🇳",
+    "color": "#22C55E",
+    "aliases": [
+      "Tunisia",
+      "Túnez",
+      "TUN",
+      "TN",
+      "Republic of Tunisia"
+    ]
+  },
+  {
+    "id": "camerun",
+    "name": "Camerún",
+    "short": "CMR",
+    "flag": "🇨🇲",
+    "color": "#22C55E",
+    "aliases": [
+      "Cameroon",
+      "Camerún",
+      "CMR",
+      "CM",
+      "Republic of Cameroon"
+    ]
+  },
+  {
+    "id": "congo-dr",
+    "name": "Congo DR",
+    "short": "COD",
+    "flag": "🇨🇩",
+    "color": "#4D96FF",
+    "aliases": [
+      "Congo, The Democratic Republic of the",
+      "Congo DR",
+      "COD",
+      "CD",
+      "RD Congo",
+      "DR Congo",
+      "República Democrática del Congo"
+    ]
+  },
+  {
+    "id": "grecia",
+    "name": "Grecia",
+    "short": "GRE",
+    "flag": "🇬🇷",
+    "color": "#60A5FA",
+    "aliases": [
+      "Greece",
+      "Grecia",
+      "GRE",
+      "GR",
+      "Hellenic Republic"
+    ]
+  },
+  {
+    "id": "eslovaquia",
+    "name": "Eslovaquia",
+    "short": "SVK",
+    "flag": "🇸🇰",
+    "color": "#800020",
+    "aliases": [
+      "Slovakia",
+      "Eslovaquia",
+      "SVK",
+      "SK",
+      "Slovak Republic"
+    ]
+  },
+  {
+    "id": "venezuela",
+    "name": "Venezuela",
+    "short": "VEN",
+    "flag": "🇻🇪",
+    "color": "#74C0FC",
+    "aliases": [
+      "Venezuela, Bolivarian Republic of",
+      "Venezuela",
+      "VEN",
+      "VE",
+      "Bolivarian Republic of Venezuela"
+    ]
+  },
+  {
+    "id": "uzbekistan",
+    "name": "Uzbekistán",
+    "short": "UZB",
+    "flag": "🇺🇿",
+    "color": "#D4AF37",
+    "aliases": [
+      "Uzbekistan",
+      "Uzbekistán",
+      "UZB",
+      "UZ",
+      "Republic of Uzbekistan"
+    ]
+  },
+  {
+    "id": "reino-unido-3",
+    "name": "Reino Unido",
+    "short": "SCO",
+    "flag": "🏴",
+    "color": "#60A5FA",
+    "aliases": [
+      "Scotland",
+      "Reino Unido",
+      "SCO",
+      "GB",
+      "Escocia"
+    ]
+  },
+  {
+    "id": "reino-unido-4",
+    "name": "Reino Unido",
+    "short": "WAL",
+    "flag": "🏴",
+    "color": "#60A5FA",
+    "aliases": [
+      "Wales",
+      "Reino Unido",
+      "WAL",
+      "GB",
+      "Gales"
+    ]
+  },
+  {
+    "id": "reino-unido-5",
+    "name": "Reino Unido",
+    "short": "NIR",
+    "flag": "🇬🇧",
+    "color": "#60A5FA",
+    "aliases": [
+      "Northern Ireland",
+      "Reino Unido",
+      "NIR",
+      "GB",
+      "Irlanda del Norte"
+    ]
+  },
+  {
+    "id": "kosovo",
+    "name": "Kosovo",
+    "short": "KOS",
+    "flag": "🇽🇰",
+    "color": "#800020",
+    "aliases": [
+      "Kosovo",
+      "KOS",
+      "XK",
+      "Kosova"
+    ]
+  },
+  {
+    "id": "taiwan",
+    "name": "Taiwán",
+    "short": "TPE",
+    "flag": "🇹🇼",
+    "color": "#10B981",
+    "aliases": [
+      "Chinese Taipei",
+      "Taiwán",
+      "TPE",
+      "TW",
+      "Taiwan",
+      "China Taipei"
+    ]
+  },
+  {
+    "id": "polinesia-francesa",
+    "name": "Polinesia Francesa",
+    "short": "TAH",
+    "flag": "🇵🇫",
+    "color": "#F472B6",
+    "aliases": [
+      "Tahiti",
+      "Polinesia Francesa",
+      "TAH",
+      "PF",
+      "Tahití",
+      "French Polynesia"
+    ]
+  },
+  {
+    "id": "afganistan",
+    "name": "Afganistán",
+    "short": "AFG",
+    "flag": "🇦🇫",
+    "color": "#D4AF37",
+    "aliases": [
+      "Afghanistan",
+      "Afganistán",
+      "AFG",
+      "AF",
+      "Islamic Republic of Afghanistan"
+    ]
+  },
+  {
+    "id": "albania",
+    "name": "Albania",
+    "short": "ALB",
+    "flag": "🇦🇱",
+    "color": "#F472B6",
+    "aliases": [
+      "Albania",
+      "ALB",
+      "AL",
+      "Republic of Albania"
+    ]
+  },
+  {
+    "id": "andorra",
+    "name": "Andorra",
+    "short": "AND",
+    "flag": "🇦🇩",
+    "color": "#DC2626",
+    "aliases": [
+      "Andorra",
+      "AND",
+      "AD",
+      "Principality of Andorra"
+    ]
+  },
+  {
+    "id": "angola",
+    "name": "Angola",
+    "short": "ANG",
+    "flag": "🇦🇴",
+    "color": "#22C55E",
+    "aliases": [
+      "Angola",
+      "ANG",
+      "AO",
+      "Republic of Angola"
+    ]
+  },
+  {
+    "id": "anguila",
+    "name": "Anguila",
+    "short": "AIA",
+    "flag": "🇦🇮",
+    "color": "#FB923C",
+    "aliases": [
+      "Anguilla",
+      "Anguila",
+      "AIA",
+      "AI"
+    ]
+  },
+  {
+    "id": "antigua-y-barbuda",
+    "name": "Antigua y Barbuda",
+    "short": "ATG",
+    "flag": "🇦🇬",
+    "color": "#7DD3FC",
+    "aliases": [
+      "Antigua and Barbuda",
+      "Antigua y Barbuda",
+      "ATG",
+      "AG"
+    ]
+  },
+  {
+    "id": "arabia-saudita",
+    "name": "Arabia Saudita",
+    "short": "KSA",
+    "flag": "🇸🇦",
+    "color": "#4D96FF",
+    "aliases": [
+      "Saudi Arabia",
+      "Arabia Saudita",
+      "KSA",
+      "SA",
+      "Kingdom of Saudi Arabia"
+    ]
+  },
+  {
+    "id": "armenia",
+    "name": "Armenia",
+    "short": "ARM",
+    "flag": "🇦🇲",
+    "color": "#F8FAFC",
+    "aliases": [
+      "Armenia",
+      "ARM",
+      "AM",
+      "Republic of Armenia"
+    ]
+  },
+  {
+    "id": "aruba",
+    "name": "Aruba",
+    "short": "ARU",
+    "flag": "🇦🇼",
+    "color": "#FF6B6B",
+    "aliases": [
+      "Aruba",
+      "ARU",
+      "AW"
+    ]
+  },
+  {
+    "id": "azerbaiyan",
+    "name": "Azerbaiyán",
+    "short": "AZE",
+    "flag": "🇦🇿",
+    "color": "#FACC15",
+    "aliases": [
+      "Azerbaijan",
+      "Azerbaiyán",
+      "AZE",
+      "AZ",
+      "Republic of Azerbaijan"
+    ]
+  },
+  {
+    "id": "bahamas",
+    "name": "Bahamas",
+    "short": "BAH",
+    "flag": "🇧🇸",
+    "color": "#22C55E",
+    "aliases": [
+      "Bahamas",
+      "BAH",
+      "BS",
+      "Commonwealth of the Bahamas"
+    ]
+  },
+  {
+    "id": "banglades",
+    "name": "Bangladés",
+    "short": "BAN",
+    "flag": "🇧🇩",
+    "color": "#74C0FC",
+    "aliases": [
+      "Bangladesh",
+      "Bangladés",
+      "BAN",
+      "BD",
+      "People's Republic of Bangladesh"
+    ]
+  },
+  {
+    "id": "barbados",
+    "name": "Barbados",
+    "short": "BRB",
+    "flag": "🇧🇧",
+    "color": "#74C0FC",
+    "aliases": [
+      "Barbados",
+      "BRB",
+      "BB"
+    ]
+  },
+  {
+    "id": "barein",
+    "name": "Baréin",
+    "short": "BHR",
+    "flag": "🇧🇭",
+    "color": "#800020",
+    "aliases": [
+      "Bahrain",
+      "Baréin",
+      "BHR",
+      "BH",
+      "Kingdom of Bahrain"
+    ]
+  },
+  {
+    "id": "belice",
+    "name": "Belice",
+    "short": "BLZ",
+    "flag": "🇧🇿",
+    "color": "#10B981",
+    "aliases": [
+      "Belize",
+      "Belice",
+      "BLZ",
+      "BZ"
+    ]
+  },
+  {
+    "id": "benin",
+    "name": "Benín",
+    "short": "BEN",
+    "flag": "🇧🇯",
+    "color": "#10B981",
+    "aliases": [
+      "Benin",
+      "Benín",
+      "BEN",
+      "BJ",
+      "Republic of Benin"
+    ]
+  },
+  {
+    "id": "bermudas",
+    "name": "Bermudas",
+    "short": "BER",
+    "flag": "🇧🇲",
+    "color": "#60A5FA",
+    "aliases": [
+      "Bermuda",
+      "Bermudas",
+      "BER",
+      "BM"
+    ]
+  },
+  {
+    "id": "bielorrusia",
+    "name": "Bielorrusia",
+    "short": "BLR",
+    "flag": "🇧🇾",
+    "color": "#22C55E",
+    "aliases": [
+      "Belarus",
+      "Bielorrusia",
+      "BLR",
+      "BY",
+      "Republic of Belarus"
+    ]
+  },
+  {
+    "id": "bolivia",
+    "name": "Bolivia",
+    "short": "BOL",
+    "flag": "🇧🇴",
+    "color": "#D4AF37",
+    "aliases": [
+      "Bolivia, Plurinational State of",
+      "Bolivia",
+      "BOL",
+      "BO",
+      "Plurinational State of Bolivia"
+    ]
+  },
+  {
+    "id": "bosnia-y-herzegovina",
+    "name": "Bosnia y Herzegovina",
+    "short": "BIH",
+    "flag": "🇧🇦",
+    "color": "#F472B6",
+    "aliases": [
+      "Bosnia and Herzegovina",
+      "Bosnia y Herzegovina",
+      "BIH",
+      "BA",
+      "Republic of Bosnia and Herzegovina"
+    ]
+  },
+  {
+    "id": "botsuana",
+    "name": "Botsuana",
+    "short": "BOT",
+    "flag": "🇧🇼",
+    "color": "#F472B6",
+    "aliases": [
+      "Botswana",
+      "Botsuana",
+      "BOT",
+      "BW",
+      "Republic of Botswana"
+    ]
+  },
+  {
+    "id": "brunei",
+    "name": "Brunéi",
+    "short": "BRU",
+    "flag": "🇧🇳",
+    "color": "#FB923C",
+    "aliases": [
+      "Brunei Darussalam",
+      "Brunéi",
+      "BRU",
+      "BN"
+    ]
+  },
+  {
+    "id": "bulgaria",
+    "name": "Bulgaria",
+    "short": "BGR",
+    "flag": "🇧🇬",
+    "color": "#60A5FA",
+    "aliases": [
+      "Bulgaria",
+      "BGR",
+      "BG",
+      "Republic of Bulgaria"
+    ]
+  },
+  {
+    "id": "burkina-faso",
+    "name": "Burkina Faso",
+    "short": "BFA",
+    "flag": "🇧🇫",
+    "color": "#FB923C",
+    "aliases": [
+      "Burkina Faso",
+      "BFA",
+      "BF"
+    ]
+  },
+  {
+    "id": "burundi",
+    "name": "Burundi",
+    "short": "BDI",
+    "flag": "🇧🇮",
+    "color": "#10B981",
+    "aliases": [
+      "Burundi",
+      "BDI",
+      "BI",
+      "Republic of Burundi"
+    ]
+  },
+  {
+    "id": "butan",
+    "name": "Bután",
+    "short": "BHU",
+    "flag": "🇧🇹",
+    "color": "#4D96FF",
+    "aliases": [
+      "Bhutan",
+      "Bután",
+      "BHU",
+      "BT",
+      "Kingdom of Bhutan"
+    ]
+  },
+  {
+    "id": "cabo-verde",
+    "name": "Cabo Verde",
+    "short": "CPV",
+    "flag": "🇨🇻",
+    "color": "#FACC15",
+    "aliases": [
+      "Cabo Verde",
+      "CPV",
+      "CV",
+      "Republic of Cabo Verde",
+      "Cape Verde"
+    ]
+  },
+  {
+    "id": "camboya",
+    "name": "Camboya",
+    "short": "CAM",
+    "flag": "🇰🇭",
+    "color": "#D4AF37",
+    "aliases": [
+      "Cambodia",
+      "Camboya",
+      "CAM",
+      "KH",
+      "Kingdom of Cambodia"
+    ]
+  },
+  {
+    "id": "caribe-neerlandes",
+    "name": "Caribe neerlandés",
+    "short": "BES",
+    "flag": "🇧🇶",
+    "color": "#74C0FC",
+    "aliases": [
+      "Bonaire, Sint Eustatius and Saba",
+      "Caribe neerlandés",
+      "BES",
+      "BQ"
+    ]
+  },
+  {
+    "id": "catar",
+    "name": "Catar",
+    "short": "QAT",
+    "flag": "🇶🇦",
+    "color": "#EF4444",
+    "aliases": [
+      "Qatar",
+      "Catar",
+      "QAT",
+      "QA",
+      "State of Qatar"
+    ]
+  },
+  {
+    "id": "chad",
+    "name": "Chad",
+    "short": "CHA",
+    "flag": "🇹🇩",
+    "color": "#800020",
+    "aliases": [
+      "Chad",
+      "CHA",
+      "TD",
+      "Republic of Chad"
+    ]
+  },
+  {
+    "id": "chile",
+    "name": "Chile",
+    "short": "CHI",
+    "flag": "🇨🇱",
+    "color": "#800020",
+    "aliases": [
+      "Chile",
+      "CHI",
+      "CL",
+      "Republic of Chile"
+    ]
+  },
+  {
+    "id": "china",
+    "name": "China",
+    "short": "CHN",
+    "flag": "🇨🇳",
+    "color": "#10B981",
+    "aliases": [
+      "China",
+      "CHN",
+      "CN",
+      "People's Republic of China"
+    ]
+  },
+  {
+    "id": "chipre",
+    "name": "Chipre",
+    "short": "CYP",
+    "flag": "🇨🇾",
+    "color": "#2DD36F",
+    "aliases": [
+      "Cyprus",
+      "Chipre",
+      "CYP",
+      "CY",
+      "Republic of Cyprus"
+    ]
+  },
+  {
+    "id": "ciudad-del-vaticano",
+    "name": "Ciudad del Vaticano",
+    "short": "VAT",
+    "flag": "🇻🇦",
+    "color": "#60A5FA",
+    "aliases": [
+      "Holy See (Vatican City State)",
+      "Ciudad del Vaticano",
+      "VAT",
+      "VA"
+    ]
+  },
+  {
+    "id": "comoras",
+    "name": "Comoras",
+    "short": "COM",
+    "flag": "🇰🇲",
+    "color": "#7DD3FC",
+    "aliases": [
+      "Comoros",
+      "Comoras",
+      "COM",
+      "KM",
+      "Union of the Comoros"
+    ]
+  },
+  {
+    "id": "congo",
+    "name": "Congo",
+    "short": "CGO",
+    "flag": "🇨🇬",
+    "color": "#FF6B6B",
+    "aliases": [
+      "Congo",
+      "CGO",
+      "CG",
+      "Republic of the Congo",
+      "República del Congo"
+    ]
+  },
+  {
+    "id": "corea-del-norte",
+    "name": "Corea del Norte",
+    "short": "PRK",
+    "flag": "🇰🇵",
+    "color": "#FF6B6B",
+    "aliases": [
+      "Korea, Democratic People's Republic of",
+      "Corea del Norte",
+      "PRK",
+      "KP",
+      "Democratic People's Republic of Korea",
+      "North Korea"
+    ]
+  },
+  {
+    "id": "costa-rica",
+    "name": "Costa Rica",
+    "short": "CRC",
+    "flag": "🇨🇷",
+    "color": "#60A5FA",
+    "aliases": [
+      "Costa Rica",
+      "CRC",
+      "CR",
+      "Republic of Costa Rica"
+    ]
+  },
+  {
+    "id": "cuba",
+    "name": "Cuba",
+    "short": "CUB",
+    "flag": "🇨🇺",
+    "color": "#FB923C",
+    "aliases": [
+      "Cuba",
+      "CUB",
+      "CU",
+      "Republic of Cuba"
+    ]
+  },
+  {
+    "id": "curazao",
+    "name": "Curazao",
+    "short": "CUW",
+    "flag": "🇨🇼",
+    "color": "#FB923C",
+    "aliases": [
+      "Curaçao",
+      "Curazao",
+      "CUW",
+      "CW",
+      "Curacao"
+    ]
+  },
+  {
+    "id": "dominica",
+    "name": "Dominica",
+    "short": "DMA",
+    "flag": "🇩🇲",
+    "color": "#EF4444",
+    "aliases": [
+      "Dominica",
+      "DMA",
+      "DM",
+      "Commonwealth of Dominica"
+    ]
+  },
+  {
+    "id": "el-salvador",
+    "name": "El Salvador",
+    "short": "SLV",
+    "flag": "🇸🇻",
+    "color": "#74C0FC",
+    "aliases": [
+      "El Salvador",
+      "SLV",
+      "SV",
+      "Republic of El Salvador"
+    ]
+  },
+  {
+    "id": "emiratos-arabes-unidos",
+    "name": "Emiratos Árabes Unidos",
+    "short": "UAE",
+    "flag": "🇦🇪",
+    "color": "#FF6B6B",
+    "aliases": [
+      "United Arab Emirates",
+      "Emiratos Árabes Unidos",
+      "UAE",
+      "AE",
+      "Emiratos Arabes Unidos"
+    ]
+  },
+  {
+    "id": "eritrea",
+    "name": "Eritrea",
+    "short": "ERI",
+    "flag": "🇪🇷",
+    "color": "#800020",
+    "aliases": [
+      "Eritrea",
+      "ERI",
+      "ER",
+      "the State of Eritrea"
+    ]
+  },
+  {
+    "id": "eslovenia",
+    "name": "Eslovenia",
+    "short": "SVN",
+    "flag": "🇸🇮",
+    "color": "#800020",
+    "aliases": [
+      "Slovenia",
+      "Eslovenia",
+      "SVN",
+      "SI",
+      "Republic of Slovenia"
+    ]
+  },
+  {
+    "id": "estonia",
+    "name": "Estonia",
+    "short": "EST",
+    "flag": "🇪🇪",
+    "color": "#4D96FF",
+    "aliases": [
+      "Estonia",
+      "EST",
+      "EE",
+      "Republic of Estonia"
+    ]
+  },
+  {
+    "id": "esuatini",
+    "name": "Esuatini",
+    "short": "SWZ",
+    "flag": "🇸🇿",
+    "color": "#10B981",
+    "aliases": [
+      "Eswatini",
+      "Esuatini",
+      "SWZ",
+      "SZ",
+      "Kingdom of Eswatini"
+    ]
+  },
+  {
+    "id": "etiopia",
+    "name": "Etiopía",
+    "short": "ETH",
+    "flag": "🇪🇹",
+    "color": "#7DD3FC",
+    "aliases": [
+      "Ethiopia",
+      "Etiopía",
+      "ETH",
+      "ET",
+      "Federal Democratic Republic of Ethiopia"
+    ]
+  },
+  {
+    "id": "filipinas",
+    "name": "Filipinas",
+    "short": "PHI",
+    "flag": "🇵🇭",
+    "color": "#D4AF37",
+    "aliases": [
+      "Philippines",
+      "Filipinas",
+      "PHI",
+      "PH",
+      "Republic of the Philippines"
+    ]
+  },
+  {
+    "id": "finlandia",
+    "name": "Finlandia",
+    "short": "FIN",
+    "flag": "🇫🇮",
+    "color": "#60A5FA",
+    "aliases": [
+      "Finland",
+      "Finlandia",
+      "FIN",
+      "FI",
+      "Republic of Finland"
+    ]
+  },
+  {
+    "id": "fiyi",
+    "name": "Fiyi",
+    "short": "FIJ",
+    "flag": "🇫🇯",
+    "color": "#F472B6",
+    "aliases": [
+      "Fiji",
+      "Fiyi",
+      "FIJ",
+      "FJ",
+      "Republic of Fiji"
+    ]
+  },
+  {
+    "id": "gabon",
+    "name": "Gabón",
+    "short": "GAB",
+    "flag": "🇬🇦",
+    "color": "#FB923C",
+    "aliases": [
+      "Gabon",
+      "Gabón",
+      "GAB",
+      "GA",
+      "Gabonese Republic"
+    ]
+  },
+  {
+    "id": "gambia",
+    "name": "Gambia",
+    "short": "GAM",
+    "flag": "🇬🇲",
+    "color": "#F472B6",
+    "aliases": [
+      "Gambia",
+      "GAM",
+      "GM",
+      "Republic of the Gambia"
+    ]
+  },
+  {
+    "id": "georgia",
+    "name": "Georgia",
+    "short": "GEO",
+    "flag": "🇬🇪",
+    "color": "#7DD3FC",
+    "aliases": [
+      "Georgia",
+      "GEO",
+      "GE"
+    ]
+  },
+  {
+    "id": "ghana",
+    "name": "Ghana",
+    "short": "GHA",
+    "flag": "🇬🇭",
+    "color": "#FB923C",
+    "aliases": [
+      "Ghana",
+      "GHA",
+      "GH",
+      "Republic of Ghana"
+    ]
+  },
+  {
+    "id": "gibraltar",
+    "name": "Gibraltar",
+    "short": "GIB",
+    "flag": "🇬🇮",
+    "color": "#FB923C",
+    "aliases": [
+      "Gibraltar",
+      "GIB",
+      "GI"
+    ]
+  },
+  {
+    "id": "granada",
+    "name": "Granada",
+    "short": "GRN",
+    "flag": "🇬🇩",
+    "color": "#74C0FC",
+    "aliases": [
+      "Grenada",
+      "Granada",
+      "GRN",
+      "GD"
+    ]
+  },
+  {
+    "id": "groenlandia",
+    "name": "Groenlandia",
+    "short": "GRL",
+    "flag": "🇬🇱",
+    "color": "#4D96FF",
+    "aliases": [
+      "Greenland",
+      "Groenlandia",
+      "GRL",
+      "GL"
+    ]
+  },
+  {
+    "id": "guadalupe",
+    "name": "Guadalupe",
+    "short": "GLP",
+    "flag": "🇬🇵",
+    "color": "#D4AF37",
+    "aliases": [
+      "Guadeloupe",
+      "Guadalupe",
+      "GLP",
+      "GP"
+    ]
+  },
+  {
+    "id": "guam",
+    "name": "Guam",
+    "short": "GUM",
+    "flag": "🇬🇺",
+    "color": "#10B981",
+    "aliases": [
+      "Guam",
+      "GUM",
+      "GU"
+    ]
+  },
+  {
+    "id": "guatemala",
+    "name": "Guatemala",
+    "short": "GUA",
+    "flag": "🇬🇹",
+    "color": "#D4AF37",
+    "aliases": [
+      "Guatemala",
+      "GUA",
+      "GT",
+      "Republic of Guatemala"
+    ]
+  },
+  {
+    "id": "guayana-francesa",
+    "name": "Guayana Francesa",
+    "short": "GUF",
+    "flag": "🇬🇫",
+    "color": "#EF4444",
+    "aliases": [
+      "French Guiana",
+      "Guayana Francesa",
+      "GUF",
+      "GF"
+    ]
+  },
+  {
+    "id": "guernesey",
+    "name": "Guernesey",
+    "short": "GGY",
+    "flag": "🇬🇬",
+    "color": "#D4AF37",
+    "aliases": [
+      "Guernsey",
+      "Guernesey",
+      "GGY",
+      "GG"
+    ]
+  },
+  {
+    "id": "guinea",
+    "name": "Guinea",
+    "short": "GUI",
+    "flag": "🇬🇳",
+    "color": "#74C0FC",
+    "aliases": [
+      "Guinea",
+      "GUI",
+      "GN",
+      "Republic of Guinea"
+    ]
+  },
+  {
+    "id": "guinea-ecuatorial",
+    "name": "Guinea Ecuatorial",
+    "short": "EQG",
+    "flag": "🇬🇶",
+    "color": "#DC2626",
+    "aliases": [
+      "Equatorial Guinea",
+      "Guinea Ecuatorial",
+      "EQG",
+      "GQ",
+      "Republic of Equatorial Guinea"
+    ]
+  },
+  {
+    "id": "guinea-bisau",
+    "name": "Guinea-Bisáu",
+    "short": "GNB",
+    "flag": "🇬🇼",
+    "color": "#74C0FC",
+    "aliases": [
+      "Guinea-Bissau",
+      "Guinea-Bisáu",
+      "GNB",
+      "GW",
+      "Republic of Guinea-Bissau"
+    ]
+  },
+  {
+    "id": "guyana",
+    "name": "Guyana",
+    "short": "GUY",
+    "flag": "🇬🇾",
+    "color": "#FF6B6B",
+    "aliases": [
+      "Guyana",
+      "GUY",
+      "GY",
+      "Republic of Guyana"
+    ]
+  },
+  {
+    "id": "haiti",
+    "name": "Haití",
+    "short": "HAI",
+    "flag": "🇭🇹",
+    "color": "#2DD36F",
+    "aliases": [
+      "Haiti",
+      "Haití",
+      "HAI",
+      "HT",
+      "Republic of Haiti"
+    ]
+  },
+  {
+    "id": "honduras",
+    "name": "Honduras",
+    "short": "HON",
+    "flag": "🇭🇳",
+    "color": "#D4AF37",
+    "aliases": [
+      "Honduras",
+      "HON",
+      "HN",
+      "Republic of Honduras"
+    ]
+  },
+  {
+    "id": "india",
+    "name": "India",
+    "short": "IND",
+    "flag": "🇮🇳",
+    "color": "#60A5FA",
+    "aliases": [
+      "India",
+      "IND",
+      "IN",
+      "Republic of India"
+    ]
+  },
+  {
+    "id": "indonesia",
+    "name": "Indonesia",
+    "short": "IDN",
+    "flag": "🇮🇩",
+    "color": "#FB923C",
+    "aliases": [
+      "Indonesia",
+      "IDN",
+      "ID",
+      "Republic of Indonesia"
+    ]
+  },
+  {
+    "id": "irak",
+    "name": "Irak",
+    "short": "IRQ",
+    "flag": "🇮🇶",
+    "color": "#800020",
+    "aliases": [
+      "Iraq",
+      "Irak",
+      "IRQ",
+      "IQ",
+      "Republic of Iraq"
+    ]
+  },
+  {
+    "id": "irlanda",
+    "name": "Irlanda",
+    "short": "IRL",
+    "flag": "🇮🇪",
+    "color": "#FB923C",
+    "aliases": [
+      "Ireland",
+      "Irlanda",
+      "IRL",
+      "IE"
+    ]
+  },
+  {
+    "id": "isla-bouvet",
+    "name": "Isla Bouvet",
+    "short": "BVT",
+    "flag": "🇧🇻",
+    "color": "#4D96FF",
+    "aliases": [
+      "Bouvet Island",
+      "Isla Bouvet",
+      "BVT",
+      "BV"
+    ]
+  },
+  {
+    "id": "isla-norfolk",
+    "name": "Isla Norfolk",
+    "short": "NFK",
+    "flag": "🇳🇫",
+    "color": "#DC2626",
+    "aliases": [
+      "Norfolk Island",
+      "Isla Norfolk",
+      "NFK",
+      "NF"
+    ]
+  },
+  {
+    "id": "isla-de-man",
+    "name": "Isla de Man",
+    "short": "IMN",
+    "flag": "🇮🇲",
+    "color": "#F472B6",
+    "aliases": [
+      "Isle of Man",
+      "Isla de Man",
+      "IMN",
+      "IM"
+    ]
+  },
+  {
+    "id": "isla-de-navidad",
+    "name": "Isla de Navidad",
+    "short": "CXR",
+    "flag": "🇨🇽",
+    "color": "#22C55E",
+    "aliases": [
+      "Christmas Island",
+      "Isla de Navidad",
+      "CXR",
+      "CX"
+    ]
+  },
+  {
+    "id": "islandia",
+    "name": "Islandia",
+    "short": "ISL",
+    "flag": "🇮🇸",
+    "color": "#4D96FF",
+    "aliases": [
+      "Iceland",
+      "Islandia",
+      "ISL",
+      "IS",
+      "Republic of Iceland"
+    ]
+  },
+  {
+    "id": "islas-aland",
+    "name": "Islas Aland",
+    "short": "ALA",
+    "flag": "🇦🇽",
+    "color": "#FACC15",
+    "aliases": [
+      "Åland Islands",
+      "Islas Aland",
+      "ALA",
+      "AX"
+    ]
+  },
+  {
+    "id": "islas-caiman",
+    "name": "Islas Caimán",
+    "short": "CAY",
+    "flag": "🇰🇾",
+    "color": "#DC2626",
+    "aliases": [
+      "Cayman Islands",
+      "Islas Caimán",
+      "CAY",
+      "KY"
+    ]
+  },
+  {
+    "id": "islas-cocos",
+    "name": "Islas Cocos",
+    "short": "CCK",
+    "flag": "🇨🇨",
+    "color": "#FACC15",
+    "aliases": [
+      "Cocos (Keeling) Islands",
+      "Islas Cocos",
+      "CCK",
+      "CC"
+    ]
+  },
+  {
+    "id": "islas-cook",
+    "name": "Islas Cook",
+    "short": "COK",
+    "flag": "🇨🇰",
+    "color": "#FB923C",
+    "aliases": [
+      "Cook Islands",
+      "Islas Cook",
+      "COK",
+      "CK"
+    ]
+  },
+  {
+    "id": "islas-feroe",
+    "name": "Islas Feroe",
+    "short": "FRO",
+    "flag": "🇫🇴",
+    "color": "#10B981",
+    "aliases": [
+      "Faroe Islands",
+      "Islas Feroe",
+      "FRO",
+      "FO"
+    ]
+  },
+  {
+    "id": "islas-georgia-del-sur-y-sandwich-del-sur",
+    "name": "Islas Georgia del Sur y Sandwich del Sur",
+    "short": "SGS",
+    "flag": "🇬🇸",
+    "color": "#2DD36F",
+    "aliases": [
+      "South Georgia and the South Sandwich Islands",
+      "Islas Georgia del Sur y Sandwich del Sur",
+      "SGS",
+      "GS"
+    ]
+  },
+  {
+    "id": "islas-heard-y-mcdonald",
+    "name": "Islas Heard y McDonald",
+    "short": "HMD",
+    "flag": "🇭🇲",
+    "color": "#22C55E",
+    "aliases": [
+      "Heard Island and McDonald Islands",
+      "Islas Heard y McDonald",
+      "HMD",
+      "HM"
+    ]
+  },
+  {
+    "id": "islas-malvinas",
+    "name": "Islas Malvinas",
+    "short": "FLK",
+    "flag": "🇫🇰",
+    "color": "#4D96FF",
+    "aliases": [
+      "Falkland Islands (Malvinas)",
+      "Islas Malvinas",
+      "FLK",
+      "FK"
+    ]
+  },
+  {
+    "id": "islas-marianas-del-norte",
+    "name": "Islas Marianas del Norte",
+    "short": "MNP",
+    "flag": "🇲🇵",
+    "color": "#FACC15",
+    "aliases": [
+      "Northern Mariana Islands",
+      "Islas Marianas del Norte",
+      "MNP",
+      "MP",
+      "Commonwealth of the Northern Mariana Islands"
+    ]
+  },
+  {
+    "id": "islas-marshall",
+    "name": "Islas Marshall",
+    "short": "MHL",
+    "flag": "🇲🇭",
+    "color": "#4D96FF",
+    "aliases": [
+      "Marshall Islands",
+      "Islas Marshall",
+      "MHL",
+      "MH",
+      "Republic of the Marshall Islands"
+    ]
+  },
+  {
+    "id": "islas-pitcairn",
+    "name": "Islas Pitcairn",
+    "short": "PCN",
+    "flag": "🇵🇳",
+    "color": "#F8FAFC",
+    "aliases": [
+      "Pitcairn",
+      "Islas Pitcairn",
+      "PCN",
+      "PN"
+    ]
+  },
+  {
+    "id": "islas-salomon",
+    "name": "Islas Salomón",
+    "short": "SOL",
+    "flag": "🇸🇧",
+    "color": "#FF6B6B",
+    "aliases": [
+      "Solomon Islands",
+      "Islas Salomón",
+      "SOL",
+      "SB"
+    ]
+  },
+  {
+    "id": "islas-turcas-y-caicos",
+    "name": "Islas Turcas y Caicos",
+    "short": "TCA",
+    "flag": "🇹🇨",
+    "color": "#4D96FF",
+    "aliases": [
+      "Turks and Caicos Islands",
+      "Islas Turcas y Caicos",
+      "TCA",
+      "TC"
+    ]
+  },
+  {
+    "id": "islas-virgenes-britanicas",
+    "name": "Islas Vírgenes Británicas",
+    "short": "VGB",
+    "flag": "🇻🇬",
+    "color": "#DC2626",
+    "aliases": [
+      "Virgin Islands, British",
+      "Islas Vírgenes Británicas",
+      "VGB",
+      "VG",
+      "British Virgin Islands"
+    ]
+  },
+  {
+    "id": "islas-virgenes-estadounidenses",
+    "name": "Islas Vírgenes Estadounidenses",
+    "short": "VIR",
+    "flag": "🇻🇮",
+    "color": "#D4AF37",
+    "aliases": [
+      "Virgin Islands, U.S.",
+      "Islas Vírgenes Estadounidenses",
+      "VIR",
+      "VI",
+      "Virgin Islands of the United States"
+    ]
+  },
+  {
+    "id": "islas-menores-alejadas-de-ee-uu",
+    "name": "Islas menores alejadas de EE. UU.",
+    "short": "UMI",
+    "flag": "🇺🇲",
+    "color": "#60A5FA",
+    "aliases": [
+      "United States Minor Outlying Islands",
+      "Islas menores alejadas de EE. UU.",
+      "UMI",
+      "UM"
+    ]
+  },
+  {
+    "id": "israel",
+    "name": "Israel",
+    "short": "ISR",
+    "flag": "🇮🇱",
+    "color": "#800020",
+    "aliases": [
+      "Israel",
+      "ISR",
+      "IL",
+      "State of Israel"
+    ]
+  },
+  {
+    "id": "jamaica",
+    "name": "Jamaica",
+    "short": "JAM",
+    "flag": "🇯🇲",
+    "color": "#FB923C",
+    "aliases": [
+      "Jamaica",
+      "JAM",
+      "JM"
+    ]
+  },
+  {
+    "id": "jersey",
+    "name": "Jersey",
+    "short": "JEY",
+    "flag": "🇯🇪",
+    "color": "#F472B6",
+    "aliases": [
+      "Jersey",
+      "JEY",
+      "JE"
+    ]
+  },
+  {
+    "id": "jordania",
+    "name": "Jordania",
+    "short": "JOR",
+    "flag": "🇯🇴",
+    "color": "#FB923C",
+    "aliases": [
+      "Jordan",
+      "Jordania",
+      "JOR",
+      "JO",
+      "Hashemite Kingdom of Jordan"
+    ]
+  },
+  {
+    "id": "kazajistan",
+    "name": "Kazajistán",
+    "short": "KAZ",
+    "flag": "🇰🇿",
+    "color": "#800020",
+    "aliases": [
+      "Kazakhstan",
+      "Kazajistán",
+      "KAZ",
+      "KZ",
+      "Republic of Kazakhstan"
+    ]
+  },
+  {
+    "id": "kenia",
+    "name": "Kenia",
+    "short": "KEN",
+    "flag": "🇰🇪",
+    "color": "#F8FAFC",
+    "aliases": [
+      "Kenya",
+      "Kenia",
+      "KEN",
+      "KE",
+      "Republic of Kenya"
+    ]
+  },
+  {
+    "id": "kirguistan",
+    "name": "Kirguistán",
+    "short": "KGZ",
+    "flag": "🇰🇬",
+    "color": "#60A5FA",
+    "aliases": [
+      "Kyrgyzstan",
+      "Kirguistán",
+      "KGZ",
+      "KG",
+      "Kyrgyz Republic"
+    ]
+  },
+  {
+    "id": "kiribati",
+    "name": "Kiribati",
+    "short": "KIR",
+    "flag": "🇰🇮",
+    "color": "#4D96FF",
+    "aliases": [
+      "Kiribati",
+      "KIR",
+      "KI",
+      "Republic of Kiribati"
+    ]
+  },
+  {
+    "id": "kuwait",
+    "name": "Kuwait",
+    "short": "KUW",
+    "flag": "🇰🇼",
+    "color": "#800020",
+    "aliases": [
+      "Kuwait",
+      "KUW",
+      "KW",
+      "State of Kuwait"
+    ]
+  },
+  {
+    "id": "laos",
+    "name": "Laos",
+    "short": "LAO",
+    "flag": "🇱🇦",
+    "color": "#800020",
+    "aliases": [
+      "Lao People's Democratic Republic",
+      "Laos",
+      "LAO",
+      "LA"
+    ]
+  },
+  {
+    "id": "lesoto",
+    "name": "Lesoto",
+    "short": "LSO",
+    "flag": "🇱🇸",
+    "color": "#10B981",
+    "aliases": [
+      "Lesotho",
+      "Lesoto",
+      "LSO",
+      "LS",
+      "Kingdom of Lesotho"
+    ]
+  },
+  {
+    "id": "letonia",
+    "name": "Letonia",
+    "short": "LVA",
+    "flag": "🇱🇻",
+    "color": "#22C55E",
+    "aliases": [
+      "Latvia",
+      "Letonia",
+      "LVA",
+      "LV",
+      "Republic of Latvia"
+    ]
+  },
+  {
+    "id": "liberia",
+    "name": "Liberia",
+    "short": "LBR",
+    "flag": "🇱🇷",
+    "color": "#FF6B6B",
+    "aliases": [
+      "Liberia",
+      "LBR",
+      "LR",
+      "Republic of Liberia"
+    ]
+  },
+  {
+    "id": "libia",
+    "name": "Libia",
+    "short": "LBY",
+    "flag": "🇱🇾",
+    "color": "#60A5FA",
+    "aliases": [
+      "Libya",
+      "Libia",
+      "LBY",
+      "LY"
+    ]
+  },
+  {
+    "id": "liechtenstein",
+    "name": "Liechtenstein",
+    "short": "LIE",
+    "flag": "🇱🇮",
+    "color": "#D4AF37",
+    "aliases": [
+      "Liechtenstein",
+      "LIE",
+      "LI",
+      "Principality of Liechtenstein"
+    ]
+  },
+  {
+    "id": "lituania",
+    "name": "Lituania",
+    "short": "LTU",
+    "flag": "🇱🇹",
+    "color": "#800020",
+    "aliases": [
+      "Lithuania",
+      "Lituania",
+      "LTU",
+      "LT",
+      "Republic of Lithuania"
+    ]
+  },
+  {
+    "id": "luxemburgo",
+    "name": "Luxemburgo",
+    "short": "LUX",
+    "flag": "🇱🇺",
+    "color": "#DC2626",
+    "aliases": [
+      "Luxembourg",
+      "Luxemburgo",
+      "LUX",
+      "LU",
+      "Grand Duchy of Luxembourg"
+    ]
+  },
+  {
+    "id": "libano",
+    "name": "Líbano",
+    "short": "LBN",
+    "flag": "🇱🇧",
+    "color": "#D4AF37",
+    "aliases": [
+      "Lebanon",
+      "Líbano",
+      "LBN",
+      "LB",
+      "Lebanese Republic"
+    ]
+  },
+  {
+    "id": "macedonia-del-norte",
+    "name": "Macedonia del Norte",
+    "short": "MKD",
+    "flag": "🇲🇰",
+    "color": "#4D96FF",
+    "aliases": [
+      "North Macedonia",
+      "Macedonia del Norte",
+      "MKD",
+      "MK",
+      "Republic of North Macedonia"
+    ]
+  },
+  {
+    "id": "madagascar",
+    "name": "Madagascar",
+    "short": "MAD",
+    "flag": "🇲🇬",
+    "color": "#EF4444",
+    "aliases": [
+      "Madagascar",
+      "MAD",
+      "MG",
+      "Republic of Madagascar"
+    ]
+  },
+  {
+    "id": "malasia",
+    "name": "Malasia",
+    "short": "MAS",
+    "flag": "🇲🇾",
+    "color": "#EF4444",
+    "aliases": [
+      "Malaysia",
+      "Malasia",
+      "MAS",
+      "MY"
+    ]
+  },
+  {
+    "id": "malaui",
+    "name": "Malaui",
+    "short": "MWI",
+    "flag": "🇲🇼",
+    "color": "#FB923C",
+    "aliases": [
+      "Malawi",
+      "Malaui",
+      "MWI",
+      "MW",
+      "Republic of Malawi"
+    ]
+  },
+  {
+    "id": "maldivas",
+    "name": "Maldivas",
+    "short": "MDV",
+    "flag": "🇲🇻",
+    "color": "#74C0FC",
+    "aliases": [
+      "Maldives",
+      "Maldivas",
+      "MDV",
+      "MV",
+      "Republic of Maldives"
+    ]
+  },
+  {
+    "id": "mali",
+    "name": "Malí",
+    "short": "MLI",
+    "flag": "🇲🇱",
+    "color": "#2DD36F",
+    "aliases": [
+      "Mali",
+      "Malí",
+      "MLI",
+      "ML",
+      "Republic of Mali"
+    ]
+  },
+  {
+    "id": "malta",
+    "name": "Malta",
+    "short": "MLT",
+    "flag": "🇲🇹",
+    "color": "#7DD3FC",
+    "aliases": [
+      "Malta",
+      "MLT",
+      "MT",
+      "Republic of Malta"
+    ]
+  },
+  {
+    "id": "martinica",
+    "name": "Martinica",
+    "short": "MTQ",
+    "flag": "🇲🇶",
+    "color": "#FACC15",
+    "aliases": [
+      "Martinique",
+      "Martinica",
+      "MTQ",
+      "MQ"
+    ]
+  },
+  {
+    "id": "mauricio",
+    "name": "Mauricio",
+    "short": "MRI",
+    "flag": "🇲🇺",
+    "color": "#D4AF37",
+    "aliases": [
+      "Mauritius",
+      "Mauricio",
+      "MRI",
+      "MU",
+      "Republic of Mauritius"
+    ]
+  },
+  {
+    "id": "mauritania",
+    "name": "Mauritania",
+    "short": "MTN",
+    "flag": "🇲🇷",
+    "color": "#F8FAFC",
+    "aliases": [
+      "Mauritania",
+      "MTN",
+      "MR",
+      "Islamic Republic of Mauritania"
+    ]
+  },
+  {
+    "id": "mayotte",
+    "name": "Mayotte",
+    "short": "MYT",
+    "flag": "🇾🇹",
+    "color": "#2DD36F",
+    "aliases": [
+      "Mayotte",
+      "MYT",
+      "YT"
+    ]
+  },
+  {
+    "id": "micronesia",
+    "name": "Micronesia",
+    "short": "FSM",
+    "flag": "🇫🇲",
+    "color": "#EF4444",
+    "aliases": [
+      "Micronesia, Federated States of",
+      "Micronesia",
+      "FSM",
+      "FM",
+      "Federated States of Micronesia"
+    ]
+  },
+  {
+    "id": "moldavia",
+    "name": "Moldavia",
+    "short": "MDA",
+    "flag": "🇲🇩",
+    "color": "#22C55E",
+    "aliases": [
+      "Moldova, Republic of",
+      "Moldavia",
+      "MDA",
+      "MD",
+      "Republic of Moldova"
+    ]
+  },
+  {
+    "id": "mongolia",
+    "name": "Mongolia",
+    "short": "MNG",
+    "flag": "🇲🇳",
+    "color": "#10B981",
+    "aliases": [
+      "Mongolia",
+      "MNG",
+      "MN"
+    ]
+  },
+  {
+    "id": "montenegro",
+    "name": "Montenegro",
+    "short": "MNE",
+    "flag": "🇲🇪",
+    "color": "#2DD36F",
+    "aliases": [
+      "Montenegro",
+      "MNE",
+      "ME"
+    ]
+  },
+  {
+    "id": "montserrat",
+    "name": "Montserrat",
+    "short": "MSR",
+    "flag": "🇲🇸",
+    "color": "#FB923C",
+    "aliases": [
+      "Montserrat",
+      "MSR",
+      "MS"
+    ]
+  },
+  {
+    "id": "mozambique",
+    "name": "Mozambique",
+    "short": "MOZ",
+    "flag": "🇲🇿",
+    "color": "#2DD36F",
+    "aliases": [
+      "Mozambique",
+      "MOZ",
+      "MZ",
+      "Republic of Mozambique"
+    ]
+  },
+  {
+    "id": "myanmar",
+    "name": "Myanmar",
+    "short": "MYA",
+    "flag": "🇲🇲",
+    "color": "#DC2626",
+    "aliases": [
+      "Myanmar",
+      "MYA",
+      "MM",
+      "Republic of Myanmar"
+    ]
+  },
+  {
+    "id": "monaco",
+    "name": "Mónaco",
+    "short": "MON",
+    "flag": "🇲🇨",
+    "color": "#7DD3FC",
+    "aliases": [
+      "Monaco",
+      "Mónaco",
+      "MON",
+      "MC",
+      "Principality of Monaco"
+    ]
+  },
+  {
+    "id": "namibia",
+    "name": "Namibia",
+    "short": "NAM",
+    "flag": "🇳🇦",
+    "color": "#60A5FA",
+    "aliases": [
+      "Namibia",
+      "NAM",
+      "NA",
+      "Republic of Namibia"
+    ]
+  },
+  {
+    "id": "nauru",
+    "name": "Nauru",
+    "short": "NRU",
+    "flag": "🇳🇷",
+    "color": "#F472B6",
+    "aliases": [
+      "Nauru",
+      "NRU",
+      "NR",
+      "Republic of Nauru"
+    ]
+  },
+  {
+    "id": "nepal",
+    "name": "Nepal",
+    "short": "NEP",
+    "flag": "🇳🇵",
+    "color": "#FACC15",
+    "aliases": [
+      "Nepal",
+      "NEP",
+      "NP",
+      "Federal Democratic Republic of Nepal"
+    ]
+  },
+  {
+    "id": "nicaragua",
+    "name": "Nicaragua",
+    "short": "NCA",
+    "flag": "🇳🇮",
+    "color": "#74C0FC",
+    "aliases": [
+      "Nicaragua",
+      "NCA",
+      "NI",
+      "Republic of Nicaragua"
+    ]
+  },
+  {
+    "id": "niue",
+    "name": "Niue",
+    "short": "NIU",
+    "flag": "🇳🇺",
+    "color": "#F472B6",
+    "aliases": [
+      "Niue",
+      "NIU",
+      "NU"
+    ]
+  },
+  {
+    "id": "nueva-caledonia",
+    "name": "Nueva Caledonia",
+    "short": "NCL",
+    "flag": "🇳🇨",
+    "color": "#10B981",
+    "aliases": [
+      "New Caledonia",
+      "Nueva Caledonia",
+      "NCL",
+      "NC"
+    ]
+  },
+  {
+    "id": "nueva-zelanda",
+    "name": "Nueva Zelanda",
+    "short": "NZL",
+    "flag": "🇳🇿",
+    "color": "#2DD36F",
+    "aliases": [
+      "New Zealand",
+      "Nueva Zelanda",
+      "NZL",
+      "NZ"
+    ]
+  },
+  {
+    "id": "niger",
+    "name": "Níger",
+    "short": "NIG",
+    "flag": "🇳🇪",
+    "color": "#60A5FA",
+    "aliases": [
+      "Niger",
+      "Níger",
+      "NIG",
+      "NE",
+      "Republic of the Niger"
+    ]
+  },
+  {
+    "id": "oman",
+    "name": "Omán",
+    "short": "OMA",
+    "flag": "🇴🇲",
+    "color": "#10B981",
+    "aliases": [
+      "Oman",
+      "Omán",
+      "OMA",
+      "OM",
+      "Sultanate of Oman"
+    ]
+  },
+  {
+    "id": "pakistan",
+    "name": "Pakistán",
+    "short": "PAK",
+    "flag": "🇵🇰",
+    "color": "#FF6B6B",
+    "aliases": [
+      "Pakistan",
+      "Pakistán",
+      "PAK",
+      "PK",
+      "Islamic Republic of Pakistan"
+    ]
+  },
+  {
+    "id": "palaos",
+    "name": "Palaos",
+    "short": "PLW",
+    "flag": "🇵🇼",
+    "color": "#2DD36F",
+    "aliases": [
+      "Palau",
+      "Palaos",
+      "PLW",
+      "PW",
+      "Republic of Palau"
+    ]
+  },
+  {
+    "id": "papua-nueva-guinea",
+    "name": "Papúa Nueva Guinea",
+    "short": "PNG",
+    "flag": "🇵🇬",
+    "color": "#F8FAFC",
+    "aliases": [
+      "Papua New Guinea",
+      "Papúa Nueva Guinea",
+      "PNG",
+      "PG",
+      "Independent State of Papua New Guinea"
+    ]
+  },
+  {
+    "id": "peru",
+    "name": "Perú",
+    "short": "PER",
+    "flag": "🇵🇪",
+    "color": "#F472B6",
+    "aliases": [
+      "Peru",
+      "Perú",
+      "PER",
+      "PE",
+      "Republic of Peru"
+    ]
+  },
+  {
+    "id": "puerto-rico",
+    "name": "Puerto Rico",
+    "short": "PUR",
+    "flag": "🇵🇷",
+    "color": "#D4AF37",
+    "aliases": [
+      "Puerto Rico",
+      "PUR",
+      "PR"
+    ]
+  },
+  {
+    "id": "hong-kong",
+    "name": "Hong Kong",
+    "short": "HKG",
+    "flag": "🇭🇰",
+    "color": "#2DD36F",
+    "aliases": [
+      "Hong Kong",
+      "HKG",
+      "HK",
+      "Hong Kong Special Administrative Region of China"
+    ]
+  },
+  {
+    "id": "macao",
+    "name": "Macao",
+    "short": "MAC",
+    "flag": "🇲🇴",
+    "color": "#4D96FF",
+    "aliases": [
+      "Macao",
+      "MAC",
+      "MO",
+      "Macao Special Administrative Region of China"
+    ]
+  },
+  {
+    "id": "republica-centroafricana",
+    "name": "República Centroafricana",
+    "short": "CTA",
+    "flag": "🇨🇫",
+    "color": "#FB923C",
+    "aliases": [
+      "Central African Republic",
+      "República Centroafricana",
+      "CTA",
+      "CF"
+    ]
+  },
+  {
+    "id": "republica-dominicana",
+    "name": "República Dominicana",
+    "short": "DOM",
+    "flag": "🇩🇴",
+    "color": "#F472B6",
+    "aliases": [
+      "Dominican Republic",
+      "República Dominicana",
+      "DOM",
+      "DO"
+    ]
+  },
+  {
+    "id": "reunion",
+    "name": "Reunión",
+    "short": "REU",
+    "flag": "🇷🇪",
+    "color": "#800020",
+    "aliases": [
+      "Réunion",
+      "Reunión",
+      "REU",
+      "RE"
+    ]
+  },
+  {
+    "id": "ruanda",
+    "name": "Ruanda",
+    "short": "RWA",
+    "flag": "🇷🇼",
+    "color": "#10B981",
+    "aliases": [
+      "Rwanda",
+      "Ruanda",
+      "RWA",
+      "RW",
+      "Rwandese Republic"
+    ]
+  },
+  {
+    "id": "rumania",
+    "name": "Rumania",
+    "short": "ROU",
+    "flag": "🇷🇴",
+    "color": "#800020",
+    "aliases": [
+      "Romania",
+      "Rumania",
+      "ROU",
+      "RO"
+    ]
+  },
+  {
+    "id": "samoa",
+    "name": "Samoa",
+    "short": "SAM",
+    "flag": "🇼🇸",
+    "color": "#7DD3FC",
+    "aliases": [
+      "Samoa",
+      "SAM",
+      "WS",
+      "Independent State of Samoa"
+    ]
+  },
+  {
+    "id": "samoa-americana",
+    "name": "Samoa Americana",
+    "short": "ASA",
+    "flag": "🇦🇸",
+    "color": "#22C55E",
+    "aliases": [
+      "American Samoa",
+      "Samoa Americana",
+      "ASA",
+      "AS"
+    ]
+  },
+  {
+    "id": "san-bartolome",
+    "name": "San Bartolomé",
+    "short": "BLM",
+    "flag": "🇧🇱",
+    "color": "#D4AF37",
+    "aliases": [
+      "Saint Barthélemy",
+      "San Bartolomé",
+      "BLM",
+      "BL"
+    ]
+  },
+  {
+    "id": "san-cristobal-y-nieves",
+    "name": "San Cristóbal y Nieves",
+    "short": "SKN",
+    "flag": "🇰🇳",
+    "color": "#60A5FA",
+    "aliases": [
+      "Saint Kitts and Nevis",
+      "San Cristóbal y Nieves",
+      "SKN",
+      "KN"
+    ]
+  },
+  {
+    "id": "san-marino",
+    "name": "San Marino",
+    "short": "SMR",
+    "flag": "🇸🇲",
+    "color": "#FACC15",
+    "aliases": [
+      "San Marino",
+      "SMR",
+      "SM",
+      "Republic of San Marino"
+    ]
+  },
+  {
+    "id": "san-martin",
+    "name": "San Martín",
+    "short": "MAF",
+    "flag": "🇲🇫",
+    "color": "#7DD3FC",
+    "aliases": [
+      "Saint Martin (French part)",
+      "San Martín",
+      "MAF",
+      "MF"
+    ]
+  },
+  {
+    "id": "san-pedro-y-miquelon",
+    "name": "San Pedro y Miquelón",
+    "short": "SPM",
+    "flag": "🇵🇲",
+    "color": "#800020",
+    "aliases": [
+      "Saint Pierre and Miquelon",
+      "San Pedro y Miquelón",
+      "SPM",
+      "PM"
+    ]
+  },
+  {
+    "id": "san-vicente-y-las-granadinas",
+    "name": "San Vicente y las Granadinas",
+    "short": "VIN",
+    "flag": "🇻🇨",
+    "color": "#22C55E",
+    "aliases": [
+      "Saint Vincent and the Grenadines",
+      "San Vicente y las Granadinas",
+      "VIN",
+      "VC"
+    ]
+  },
+  {
+    "id": "santa-elena",
+    "name": "Santa Elena",
+    "short": "SHN",
+    "flag": "🇸🇭",
+    "color": "#74C0FC",
+    "aliases": [
+      "Saint Helena, Ascension and Tristan da Cunha",
+      "Santa Elena",
+      "SHN",
+      "SH"
+    ]
+  },
+  {
+    "id": "santa-lucia",
+    "name": "Santa Lucía",
+    "short": "LCA",
+    "flag": "🇱🇨",
+    "color": "#4D96FF",
+    "aliases": [
+      "Saint Lucia",
+      "Santa Lucía",
+      "LCA",
+      "LC"
+    ]
+  },
+  {
+    "id": "santo-tome-y-principe",
+    "name": "Santo Tomé y Príncipe",
+    "short": "STP",
+    "flag": "🇸🇹",
+    "color": "#4D96FF",
+    "aliases": [
+      "Sao Tome and Principe",
+      "Santo Tomé y Príncipe",
+      "STP",
+      "ST",
+      "Democratic Republic of Sao Tome and Principe"
+    ]
+  },
+  {
+    "id": "seychelles",
+    "name": "Seychelles",
+    "short": "SEY",
+    "flag": "🇸🇨",
+    "color": "#22C55E",
+    "aliases": [
+      "Seychelles",
+      "SEY",
+      "SC",
+      "Republic of Seychelles"
+    ]
+  },
+  {
+    "id": "sierra-leona",
+    "name": "Sierra Leona",
+    "short": "SLE",
+    "flag": "🇸🇱",
+    "color": "#DC2626",
+    "aliases": [
+      "Sierra Leone",
+      "Sierra Leona",
+      "SLE",
+      "SL",
+      "Republic of Sierra Leone"
+    ]
+  },
+  {
+    "id": "singapur",
+    "name": "Singapur",
+    "short": "SIN",
+    "flag": "🇸🇬",
+    "color": "#22C55E",
+    "aliases": [
+      "Singapore",
+      "Singapur",
+      "SIN",
+      "SG",
+      "Republic of Singapore"
+    ]
+  },
+  {
+    "id": "sint-maarten",
+    "name": "Sint Maarten",
+    "short": "SXM",
+    "flag": "🇸🇽",
+    "color": "#F8FAFC",
+    "aliases": [
+      "Sint Maarten (Dutch part)",
+      "Sint Maarten",
+      "SXM",
+      "SX"
+    ]
+  },
+  {
+    "id": "siria",
+    "name": "Siria",
+    "short": "SYR",
+    "flag": "🇸🇾",
+    "color": "#F8FAFC",
+    "aliases": [
+      "Syrian Arab Republic",
+      "Siria",
+      "SYR",
+      "SY"
+    ]
+  },
+  {
+    "id": "somalia",
+    "name": "Somalia",
+    "short": "SOM",
+    "flag": "🇸🇴",
+    "color": "#22C55E",
+    "aliases": [
+      "Somalia",
+      "SOM",
+      "SO",
+      "Federal Republic of Somalia"
+    ]
+  },
+  {
+    "id": "sri-lanka",
+    "name": "Sri Lanka",
+    "short": "SRI",
+    "flag": "🇱🇰",
+    "color": "#FB923C",
+    "aliases": [
+      "Sri Lanka",
+      "SRI",
+      "LK",
+      "Democratic Socialist Republic of Sri Lanka"
+    ]
+  },
+  {
+    "id": "sudafrica",
+    "name": "Sudáfrica",
+    "short": "RSA",
+    "flag": "🇿🇦",
+    "color": "#F8FAFC",
+    "aliases": [
+      "South Africa",
+      "Sudáfrica",
+      "RSA",
+      "ZA",
+      "Republic of South Africa"
+    ]
+  },
+  {
+    "id": "sudan",
+    "name": "Sudán",
+    "short": "SDN",
+    "flag": "🇸🇩",
+    "color": "#4D96FF",
+    "aliases": [
+      "Sudan",
+      "Sudán",
+      "SDN",
+      "SD",
+      "Republic of the Sudan"
+    ]
+  },
+  {
+    "id": "sudan-del-sur",
+    "name": "Sudán del Sur",
+    "short": "SSD",
+    "flag": "🇸🇸",
+    "color": "#2DD36F",
+    "aliases": [
+      "South Sudan",
+      "Sudán del Sur",
+      "SSD",
+      "SS",
+      "Republic of South Sudan"
+    ]
+  },
+  {
+    "id": "surinam",
+    "name": "Surinam",
+    "short": "SUR",
+    "flag": "🇸🇷",
+    "color": "#10B981",
+    "aliases": [
+      "Suriname",
+      "Surinam",
+      "SUR",
+      "SR",
+      "Republic of Suriname"
+    ]
+  },
+  {
+    "id": "svalbard-y-jan-mayen",
+    "name": "Svalbard y Jan Mayen",
+    "short": "SJM",
+    "flag": "🇸🇯",
+    "color": "#2DD36F",
+    "aliases": [
+      "Svalbard and Jan Mayen",
+      "Svalbard y Jan Mayen",
+      "SJM",
+      "SJ"
+    ]
+  },
+  {
+    "id": "sahara-occidental",
+    "name": "Sáhara Occidental",
+    "short": "ESH",
+    "flag": "🇪🇭",
+    "color": "#F8FAFC",
+    "aliases": [
+      "Western Sahara",
+      "Sáhara Occidental",
+      "ESH",
+      "EH"
+    ]
+  },
+  {
+    "id": "tailandia",
+    "name": "Tailandia",
+    "short": "THA",
+    "flag": "🇹🇭",
+    "color": "#60A5FA",
+    "aliases": [
+      "Thailand",
+      "Tailandia",
+      "THA",
+      "TH",
+      "Kingdom of Thailand"
+    ]
+  },
+  {
+    "id": "chinese-taipei",
+    "name": "Chinese Taipei",
+    "short": "TPE",
+    "flag": "🇹🇼",
+    "color": "#22C55E",
+    "aliases": [
+      "Taiwan, Province of China",
+      "Chinese Taipei",
+      "TPE",
+      "TW"
+    ]
+  },
+  {
+    "id": "tanzania",
+    "name": "Tanzania",
+    "short": "TAN",
+    "flag": "🇹🇿",
+    "color": "#F472B6",
+    "aliases": [
+      "Tanzania, United Republic of",
+      "Tanzania",
+      "TAN",
+      "TZ",
+      "United Republic of Tanzania"
+    ]
+  },
+  {
+    "id": "tayikistan",
+    "name": "Tayikistán",
+    "short": "TJK",
+    "flag": "🇹🇯",
+    "color": "#10B981",
+    "aliases": [
+      "Tajikistan",
+      "Tayikistán",
+      "TJK",
+      "TJ",
+      "Republic of Tajikistan"
+    ]
+  },
+  {
+    "id": "territorio-britanico-del-oceano-indico",
+    "name": "Territorio Británico del Océano Índico",
+    "short": "IOT",
+    "flag": "🇮🇴",
+    "color": "#EF4444",
+    "aliases": [
+      "British Indian Ocean Territory",
+      "Territorio Británico del Océano Índico",
+      "IOT",
+      "IO"
+    ]
+  },
+  {
+    "id": "territorios-australes-franceses",
+    "name": "Territorios Australes Franceses",
+    "short": "ATF",
+    "flag": "🇹🇫",
+    "color": "#FB923C",
+    "aliases": [
+      "French Southern Territories",
+      "Territorios Australes Franceses",
+      "ATF",
+      "TF"
+    ]
+  },
+  {
+    "id": "palestina",
+    "name": "Palestina",
+    "short": "PLE",
+    "flag": "🇵🇸",
+    "color": "#7DD3FC",
+    "aliases": [
+      "Palestine, State of",
+      "Palestina",
+      "PLE",
+      "PS",
+      "the State of Palestine"
+    ]
+  },
+  {
+    "id": "timor-oriental",
+    "name": "Timor Oriental",
+    "short": "TLS",
+    "flag": "🇹🇱",
+    "color": "#DC2626",
+    "aliases": [
+      "Timor-Leste",
+      "Timor Oriental",
+      "TLS",
+      "TL",
+      "Democratic Republic of Timor-Leste"
+    ]
+  },
+  {
+    "id": "togo",
+    "name": "Togo",
+    "short": "TOG",
+    "flag": "🇹🇬",
+    "color": "#FACC15",
+    "aliases": [
+      "Togo",
+      "TOG",
+      "TG",
+      "Togolese Republic"
+    ]
+  },
+  {
+    "id": "tokelau",
+    "name": "Tokelau",
+    "short": "TKL",
+    "flag": "🇹🇰",
+    "color": "#7DD3FC",
+    "aliases": [
+      "Tokelau",
+      "TKL",
+      "TK"
+    ]
+  },
+  {
+    "id": "tonga",
+    "name": "Tonga",
+    "short": "TGA",
+    "flag": "🇹🇴",
+    "color": "#74C0FC",
+    "aliases": [
+      "Tonga",
+      "TGA",
+      "TO",
+      "Kingdom of Tonga"
+    ]
+  },
+  {
+    "id": "trinidad-y-tobago",
+    "name": "Trinidad y Tobago",
+    "short": "TRI",
+    "flag": "🇹🇹",
+    "color": "#EF4444",
+    "aliases": [
+      "Trinidad and Tobago",
+      "Trinidad y Tobago",
+      "TRI",
+      "TT",
+      "Republic of Trinidad and Tobago"
+    ]
+  },
+  {
+    "id": "turkmenistan",
+    "name": "Turkmenistán",
+    "short": "TKM",
+    "flag": "🇹🇲",
+    "color": "#F472B6",
+    "aliases": [
+      "Turkmenistan",
+      "Turkmenistán",
+      "TKM",
+      "TM"
+    ]
+  },
+  {
+    "id": "tuvalu",
+    "name": "Tuvalu",
+    "short": "TUV",
+    "flag": "🇹🇻",
+    "color": "#60A5FA",
+    "aliases": [
+      "Tuvalu",
+      "TUV",
+      "TV"
+    ]
+  },
+  {
+    "id": "uganda",
+    "name": "Uganda",
+    "short": "UGA",
+    "flag": "🇺🇬",
+    "color": "#2DD36F",
+    "aliases": [
+      "Uganda",
+      "UGA",
+      "UG",
+      "Republic of Uganda"
+    ]
+  },
+  {
+    "id": "vanuatu",
+    "name": "Vanuatu",
+    "short": "VAN",
+    "flag": "🇻🇺",
+    "color": "#EF4444",
+    "aliases": [
+      "Vanuatu",
+      "VAN",
+      "VU",
+      "Republic of Vanuatu"
+    ]
+  },
+  {
+    "id": "vietnam",
+    "name": "Vietnam",
+    "short": "VIE",
+    "flag": "🇻🇳",
+    "color": "#2DD36F",
+    "aliases": [
+      "Viet Nam",
+      "Vietnam",
+      "VIE",
+      "VN",
+      "Socialist Republic of Viet Nam"
+    ]
+  },
+  {
+    "id": "wallis-y-futuna",
+    "name": "Wallis y Futuna",
+    "short": "WLF",
+    "flag": "🇼🇫",
+    "color": "#FB923C",
+    "aliases": [
+      "Wallis and Futuna",
+      "Wallis y Futuna",
+      "WLF",
+      "WF"
+    ]
+  },
+  {
+    "id": "yemen",
+    "name": "Yemen",
+    "short": "YEM",
+    "flag": "🇾🇪",
+    "color": "#22C55E",
+    "aliases": [
+      "Yemen",
+      "YEM",
+      "YE",
+      "Republic of Yemen"
+    ]
+  },
+  {
+    "id": "yibuti",
+    "name": "Yibuti",
+    "short": "DJI",
+    "flag": "🇩🇯",
+    "color": "#22C55E",
+    "aliases": [
+      "Djibouti",
+      "Yibuti",
+      "DJI",
+      "DJ",
+      "Republic of Djibouti"
+    ]
+  },
+  {
+    "id": "zambia",
+    "name": "Zambia",
+    "short": "ZAM",
+    "flag": "🇿🇲",
+    "color": "#F472B6",
+    "aliases": [
+      "Zambia",
+      "ZAM",
+      "ZM",
+      "Republic of Zambia"
+    ]
+  },
+  {
+    "id": "zimbabue",
+    "name": "Zimbabue",
+    "short": "ZIM",
+    "flag": "🇿🇼",
+    "color": "#EF4444",
+    "aliases": [
+      "Zimbabwe",
+      "Zimbabue",
+      "ZIM",
+      "ZW",
+      "Republic of Zimbabwe"
+    ]
+  }
 ];
+const MAIN_COUNTRY_IDS = ["general", "argentina", "brasil", "francia", "uruguay", "espana", "inglaterra", "alemania", "italia", "portugal", "paises-bajos", "mexico", "estados-unidos", "japon", "marruecos", "belgica", "croacia", "colombia", "senegal", "suiza", "dinamarca", "iran", "turquia", "ecuador", "austria", "corea-del-sur", "nigeria", "australia", "argelia", "egipto", "canada"];
 function slugifyCountry(value){
   return String(value || '')
     .trim()
@@ -49,12 +3476,21 @@ function countryLabel(id){ return countryById(id).name; }
 function countryFromInput(value){
   const raw = String(value || '').trim();
   if(!raw) return { country:'general', countryName:'General' };
-  const byName = COUNTRIES.find(c => c.name.toLowerCase() === raw.toLowerCase() || c.short.toLowerCase() === raw.toLowerCase());
+  const q = normalizeText(raw);
+  const byName = COUNTRIES.find(c => {
+    const fields = [c.name, c.short, c.id, ...(c.aliases || [])];
+    return fields.some(v => normalizeText(v) === q);
+  }) || COUNTRIES.find(c => {
+    const fields = [c.name, c.short, c.id, ...(c.aliases || [])];
+    return fields.some(v => normalizeText(v).includes(q) || q.includes(normalizeText(v)));
+  });
   if(byName) return { country:byName.id, countryName:byName.name };
   return { country:slugifyCountry(raw), countryName:raw };
 }
 function availableCountries(){
-  const map = new Map(COUNTRIES.map(c => [c.id, c]));
+  const map = new Map();
+  // En pantalla mostramos las más usadas + las que el usuario ya cargó.
+  MAIN_COUNTRY_IDS.forEach(id => { const c = countryById(id); if(c) map.set(c.id, c); });
   state.stickers.forEach(s => {
     const id = s.country || 'general';
     if(!map.has(id)) map.set(id, countryById(id));
@@ -138,14 +3574,8 @@ function normalizeText(value){
 }
 function byNumber(a,b){ return Number(a.number) - Number(b.number); }
 function setView(view, opts={}){
-  const stayingOnScanner = state.view === 'scanner' && view === 'scanner';
-  if(!stayingOnScanner) stopCamera();
+  stopCamera();
   state.view = view;
-  if(stayingOnScanner) {
-    state.cameraError = '';
-    state.scanBusy = false;
-    setTimeout(()=>{ centerScannerFrame(); startCamera(false); }, 60);
-  }
   if(opts.filter) state.albumFilter = opts.filter;
   if(opts.manualDefault) state.manualDefault = opts.manualDefault;
   if(opts.editingId !== undefined) state.editingId = opts.editingId;
@@ -169,33 +3599,22 @@ function centerScannerFrame(){
   }
 }
 
+let toastTimer = null;
 function toast(message, type='success'){
   haptic(type === 'warn' ? 'warn' : 'success');
   state.toast = { message, type };
-
-  // No re-renderizar toda la pantalla mientras la cámara está viva.
-  // En Android/iPhone eso recreaba el <video> y parecía que la cámara se prendía y apagaba.
-  if(state.view === 'scanner' && state.scannerStream){
-    showFloatingToast(message, type);
-    clearTimeout(state.toastTimer);
-    state.toastTimer = setTimeout(()=>{ state.toast=null; removeFloatingToast(); }, 2600);
-    return;
-  }
-
-  render();
-  clearTimeout(state.toastTimer);
-  state.toastTimer = setTimeout(()=>{ state.toast=null; render(); }, 2600);
+  paintToast();
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ state.toast=null; paintToast(); }, 1600);
 }
-function showFloatingToast(message, type='success'){
-  removeFloatingToast();
-  const el = document.createElement('div');
-  el.className = `toast ${type === 'warn' ? 'warn' : 'success'}`;
-  el.setAttribute('data-floating-toast','true');
-  el.innerHTML = `${type === 'warn' ? icons.repeat : icons.check}<span>${escapeHtml(message)}</span>`;
-  document.body.appendChild(el);
-}
-function removeFloatingToast(){
-  document.querySelectorAll('[data-floating-toast]').forEach(el=>el.remove());
+function paintToast(){
+  document.querySelectorAll('.toast').forEach(el=>el.remove());
+  if(!state.toast) return;
+  const host = document.querySelector('.app') || app || document.body;
+  const div = document.createElement('div');
+  div.className = `toast ${state.toast.type==='warn'?'warn':'success'}`;
+  div.innerHTML = `${state.toast.type==='warn'?icons.repeat:icons.check}<span>${escapeHtml(state.toast.message)}</span>`;
+  host.appendChild(div);
 }
 function counts(){
   return {
@@ -515,7 +3934,7 @@ function manualScreen(){
     </section>
   </main>`;
 }
-function countryOptions(active='general'){ return availableCountries().map(c=>`<option value="${escapeHtml(c.name)}"></option>`).join(''); }
+function countryOptions(active='general'){ return COUNTRIES.map(c=>`<option value="${escapeHtml(c.name)}">${escapeHtml(c.short || '')} ${escapeHtml(c.flag || '')}</option>`).join(''); }
 function stateButton(status, active){
   return `<button type="button" class="state-option ${status} ${active===status?'active':''}" onclick="chooseManualStatus('${status}')">${statusIcon(status)} <span>${STATUS[status].long}</span></button>`;
 }
@@ -667,8 +4086,8 @@ function scannerScreen(){
     <section class="section scan-section scan-section-full">
       <div class="scanner-wrap scanner-wrap-xl" onclick="handleScannerFrameTap(event)">
         <video id="video" class="video video-xl" autoplay playsinline muted></video>
-        <button class="torch-float ${state.torchOn?'on':''}" onclick="event.stopPropagation(); toggleTorch()" aria-label="Activar luz">${icons.flash}</button>
         <div class="scan-overlay"><div class="scan-text">Centrar la figurita completa en el marco</div><div class="scan-frame scan-frame-xl"><span>Tocá el recuadro para activar cámara o sacar foto</span></div></div>
+        <button class="flash-fab ${state.torchOn?'on':''}" onclick="toggleTorch(event)" type="button" title="Luz / flash">${icons.flash}</button>
         <div class="auto-scan-badge ${state.scanBusy?'working':''}">${state.scanBusy ? 'Mejorando imagen...' : 'Cámara lista'}</div>
         ${state.cameraError ? cameraFallback() : ''}
       </div>
@@ -708,7 +4127,8 @@ function retryCamera(){
   startCamera(true);
 }
 
-async function toggleTorch(){
+async function toggleTorch(e){
+  if(e) e.stopPropagation();
   try{
     if(!state.scannerStream){
       toast('Activando cámara primero...', 'warn');
@@ -804,11 +4224,11 @@ function saveBatchQuick(){
 
 async function startCamera(manual=false){
   if(state.view !== 'scanner') return;
-  const video = document.getElementById('video');
+  let video = document.getElementById('video');
   if(!video) return;
 
-  // Si ya hay stream, NO lo apagamos. Solo lo volvemos a pegar al video actual.
-  if(state.scannerStream){
+  // Si ya hay stream, puede haberse perdido al re-renderizar. Re-adjuntar siempre.
+  if(state.scannerStream && !manual){
     attachCameraStream();
     return;
   }
@@ -822,12 +4242,16 @@ async function startCamera(manual=false){
       throw new Error('Este navegador no permite usar cámara desde esta pantalla.');
     }
 
+    if(state.scannerStream){
+      state.scannerStream.getTracks().forEach(t=>t.stop());
+      state.scannerStream = null;
+    }
+
     const constraints = {
       video: {
         facingMode: { ideal: 'environment' },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-        aspectRatio: { ideal: 3 / 4 }
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
       },
       audio: false
     };
@@ -837,6 +4261,8 @@ async function startCamera(manual=false){
     state.cameraStarting = false;
     state.cameraError = '';
     state.torchOn = false;
+
+    // Muy importante: después del permiso puede haber habido un render.
     attachCameraStream();
   }catch(e){
     state.cameraStarting = false;
@@ -859,7 +4285,6 @@ function attachCameraStream(){
 }
 function stopCamera(){
   stopAutoScan();
-  removeFloatingToast();
   if(state.scannerStream){ state.scannerStream.getTracks().forEach(t=>t.stop()); state.scannerStream=null; }
   state.cameraStarting = false;
   state.torchOn = false;
@@ -880,7 +4305,7 @@ async function scanFrame(manualTap=false){
     return;
   }
   state.scanBusy = true;
-  showFloatingToast('Sacando foto y mejorando imagen...', 'warn');
+  toast('Mejorando imagen...', 'warn');
   try{
     const image = captureStickerImage(video);
     state.autoScanPaused = true;
@@ -892,14 +4317,14 @@ async function scanFrame(manualTap=false){
       image,
       rawText: ''
     };
-    toast('Foto lista con fondo corregido. Completá los datos y guardá.', 'success');
+    toast('Foto lista.', 'success');
     haptic('success');
   }catch(e){
     toast('No pude sacar la foto. Probá de nuevo o cargá manual.', 'warn');
   }
   state.scanBusy = false;
   render();
-  setTimeout(()=>attachCameraStream(),80);
+  setTimeout(startCamera,50);
 }
 
 function getCenteredStickerCrop(canvas){
@@ -907,13 +4332,13 @@ function getCenteredStickerCrop(canvas){
   const w = canvas.width;
   const h = canvas.height;
 
-  // Respaldo centrado: más cerrado para que no se vea tanto la mesa/pared.
-  // El usuario debe ubicar la figurita dentro del marco; este crop evita ampliarla de más.
-  let cropW = Math.floor(w * 0.58);
+  // V30: recorte menos agresivo. Antes se ampliaba demasiado y cortaba la figurita.
+  // Mantiene formato de figurita, pero deja aire para que entre completa en Android/iPhone.
+  let cropW = Math.floor(w * 0.78);
   let cropH = Math.floor(cropW / ratio);
 
-  if(cropH > h * 0.86){
-    cropH = Math.floor(h * 0.86);
+  if(cropH > h * 0.92){
+    cropH = Math.floor(h * 0.92);
     cropW = Math.floor(cropH * ratio);
   }
 
@@ -936,8 +4361,8 @@ function captureStickerImage(video){
   const sy = Math.max(0, Math.floor((vh-ch)/2));
 
   const tmp=document.createElement('canvas');
-  tmp.width=1800;
-  tmp.height=Math.round(1800 * ch / cw);
+  tmp.width=1500;
+  tmp.height=Math.round(1500 * ch / cw);
   const tctx=tmp.getContext('2d', { willReadFrequently:true });
   tctx.imageSmoothingEnabled = true;
   tctx.imageSmoothingQuality = 'high';
@@ -946,8 +4371,8 @@ function captureStickerImage(video){
 
   // Primero intentamos encontrar la figurita real dentro de la foto.
   // Si no se puede, usamos un recorte central seguro.
-  let detected = detectStickerBounds(tmp);
-  let box = detected ? expandBox(detected, tmp.width, tmp.height, .11) : getCenteredStickerCrop(tmp);
+  let detected = detectDarkStickerBounds(tmp) || detectStickerBounds(tmp);
+  let box = detected ? expandBox(detected, tmp.width, tmp.height, .025) : getCenteredStickerCrop(tmp);
 
   const c=document.createElement('canvas');
   c.width=1080;
@@ -1013,8 +4438,8 @@ function captureStickerImage(video){
 
   // La figurita recortada se centra automáticamente y completa dentro del marco.
   const srcRatio = box.w / box.h;
-  const maxW = photoW * .78;
-  const maxH = photoH * .80;
+  const maxW = photoW * .72;
+  const maxH = photoH * .74;
   let stickerW=maxW, stickerH=maxH;
   if(srcRatio > maxW/maxH){ stickerH = stickerW / srcRatio; }
   else { stickerW = stickerH * srcRatio; }
@@ -1076,72 +4501,125 @@ function captureStickerImage(video){
   return c.toDataURL('image/jpeg', .96);
 }
 
-function detectStickerBounds(canvas){
-  const ctx = canvas.getContext('2d', { willReadFrequently:true });
-  const w = canvas.width, h = canvas.height;
-  const data = ctx.getImageData(0,0,w,h).data;
-  const step = 5;
-  const xs = [];
-  const ys = [];
-  const centerX = w / 2;
-  const centerY = h / 2;
 
-  // Buscamos píxeles que probablemente pertenezcan al cromo:
-  // borde negro, camiseta/cancha con color fuerte, texto oscuro y zonas contrastadas.
-  // El fondo de mesa/pared suele ser claro y con poca saturación, por eso queda afuera.
-  for(let y=Math.floor(h*.04); y<h*.96; y+=step){
-    for(let x=Math.floor(w*.05); x<w*.95; x+=step){
-      const i = (y*w+x)*4;
+function detectDarkStickerBounds(canvas){
+  const ctx=canvas.getContext('2d', { willReadFrequently:true });
+  const w=canvas.width, h=canvas.height;
+  const data=ctx.getImageData(0,0,w,h).data;
+  const step=6;
+  const gw=Math.ceil(w/step), gh=Math.ceil(h/step);
+  const mask=new Uint8Array(gw*gh);
+  const marginX=w*.08, marginY=h*.06;
+  for(let gy=0; gy<gh; gy++){
+    const y=Math.min(h-1, gy*step);
+    for(let gx=0; gx<gw; gx++){
+      const x=Math.min(w-1, gx*step);
+      if(x<marginX || x>w-marginX || y<marginY || y>h-marginY) continue;
+      const i=(y*w+x)*4;
       const r=data[i], g=data[i+1], b=data[i+2];
+      const luma=.299*r+.587*g+.114*b;
+      const max=Math.max(r,g,b), min=Math.min(r,g,b);
+      // Buscamos principalmente borde negro/oscuro de la figurita.
+      if(luma < 88 && (max-min) < 95) mask[gy*gw+gx]=1;
+    }
+  }
+  const seen=new Uint8Array(gw*gh);
+  const dirs=[1,-1,gw,-gw,gw+1,gw-1,-gw+1,-gw-1];
+  const stack=[];
+  let best=null;
+  const cx=w/2, cy=h/2;
+  for(let idx=0; idx<mask.length; idx++){
+    if(!mask[idx] || seen[idx]) continue;
+    seen[idx]=1; stack.length=0; stack.push(idx);
+    let minGx=gw, minGy=gh, maxGx=0, maxGy=0, area=0;
+    while(stack.length){
+      const cur=stack.pop();
+      const gx=cur%gw, gy=Math.floor(cur/gw);
+      area++;
+      if(gx<minGx) minGx=gx; if(gx>maxGx) maxGx=gx;
+      if(gy<minGy) minGy=gy; if(gy>maxGy) maxGy=gy;
+      for(const d of dirs){
+        const ni=cur+d;
+        if(ni<0 || ni>=mask.length || seen[ni] || !mask[ni]) continue;
+        const ngx=ni%gw;
+        if(Math.abs(ngx-gx)>1) continue;
+        seen[ni]=1; stack.push(ni);
+      }
+    }
+    const bx=minGx*step, by=minGy*step, bw=(maxGx-minGx+1)*step, bh=(maxGy-minGy+1)*step;
+    const ratio=bw/bh;
+    if(area<40 || bw<w*.18 || bh<h*.25 || ratio<.48 || ratio>.95) continue;
+    const compCx=bx+bw/2, compCy=by+bh/2;
+    const dist=Math.hypot((compCx-cx)/w, (compCy-cy)/h);
+    if(dist>.32) continue;
+    const score=area * (1.35-dist*2.1);
+    if(!best || score>best.score) best={x:bx,y:by,w:bw,h:bh,score};
+  }
+  return best ? {x:best.x,y:best.y,w:best.w,h:best.h} : null;
+}
+
+function detectStickerBounds(canvas){
+  const ctx=canvas.getContext('2d', { willReadFrequently:true });
+  const w=canvas.width, h=canvas.height;
+  const step=7;
+  const gw=Math.ceil(w/step), gh=Math.ceil(h/step);
+  const data=ctx.getImageData(0,0,w,h).data;
+  const mask=new Uint8Array(gw*gh);
+
+  // Ignoramos bordes extremos. La figurita debería estar dentro del marco central.
+  const marginX=w*.06, marginY=h*.04;
+  for(let gy=0; gy<gh; gy++){
+    const y=Math.min(h-1, gy*step);
+    for(let gx=0; gx<gw; gx++){
+      const x=Math.min(w-1, gx*step);
+      if(x<marginX || x>w-marginX || y<marginY || y>h-marginY) continue;
+      const i=(y*w+x)*4;
+      const r=data[i], g=data[i+1], b=data[i+2];
+      const luma=.299*r+.587*g+.114*b;
       const max=Math.max(r,g,b), min=Math.min(r,g,b);
       const sat=max-min;
-      const luma=.299*r+.587*g+.114*b;
-
-      // Centro pesa más: el usuario encuadra la figurita en el recuadro.
-      const dx = Math.abs(x-centerX)/w;
-      const dy = Math.abs(y-centerY)/h;
-      const nearCenter = dx < .38 && dy < .44;
-
-      const darkBorder = luma < 105;
-      const richColor = sat > 46 && luma > 28 && luma < 238;
-      const strongText = luma < 150 && sat > 24;
-
-      if(nearCenter && (darkBorder || richColor || strongText)){
-        xs.push(x);
-        ys.push(y);
-      }
+      // Bordes negros de la figurita + colores fuertes del cromo.
+      const salient = (luma < 92) || (sat > 58 && luma < 235);
+      if(salient) mask[gy*gw+gx]=1;
     }
   }
 
-  if(xs.length < 90) return null;
+  const seen=new Uint8Array(gw*gh);
+  let best=null;
+  const cx=w/2, cy=h/2;
+  const stack=[];
+  const dirs=[1,-1,gw,-gw,gw+1,gw-1,-gw+1,-gw-1];
 
-  xs.sort((a,b)=>a-b);
-  ys.sort((a,b)=>a-b);
-  const q = (arr,p)=>arr[Math.max(0, Math.min(arr.length-1, Math.floor(arr.length*p)))];
-  let x1=q(xs,.015), x2=q(xs,.985), y1=q(ys,.015), y2=q(ys,.985);
-
-  let bw=x2-x1, bh=y2-y1;
-  if(bw < w*.18 || bh < h*.22) return null;
-
-  // Llevar el recorte hacia formato de figurita vertical si quedó raro.
-  const targetRatio = 3/4;
-  const cx=(x1+x2)/2, cy=(y1+y2)/2;
-  const ratio = bw / bh;
-  if(ratio > .92){
-    bh = bw / targetRatio;
-  } else if(ratio < .48){
-    bw = bh * targetRatio;
+  for(let idx=0; idx<mask.length; idx++){
+    if(!mask[idx] || seen[idx]) continue;
+    seen[idx]=1; stack.length=0; stack.push(idx);
+    let minGx=gw, minGy=gh, maxGx=0, maxGy=0, area=0;
+    while(stack.length){
+      const cur=stack.pop();
+      const gx=cur%gw, gy=Math.floor(cur/gw);
+      area++;
+      if(gx<minGx) minGx=gx; if(gx>maxGx) maxGx=gx;
+      if(gy<minGy) minGy=gy; if(gy>maxGy) maxGy=gy;
+      for(const d of dirs){
+        const ni=cur+d;
+        if(ni<0 || ni>=mask.length || seen[ni] || !mask[ni]) continue;
+        const ngx=ni%gw;
+        if(Math.abs(ngx-gx)>1) continue;
+        seen[ni]=1; stack.push(ni);
+      }
+    }
+    const bx=minGx*step, by=minGy*step, bw=(maxGx-minGx+1)*step, bh=(maxGy-minGy+1)*step;
+    if(area<28 || bw<w*.16 || bh<h*.18) continue;
+    const compCx=bx+bw/2, compCy=by+bh/2;
+    const dist=Math.hypot((compCx-cx)/w, (compCy-cy)/h);
+    const centerBoost=Math.max(0, 1.15-dist*2.2);
+    const shapePenalty = (bh/bw < 1.05 || bh/bw > 2.4) ? .55 : 1;
+    const score=area * (1+centerBoost) * shapePenalty;
+    if(!best || score>best.score) best={x:bx,y:by,w:bw,h:bh,score};
   }
 
-  // Si el detector se fue demasiado grande, usar fallback centrado más limpio.
-  if(bw > w*.84 || bh > h*.92) return null;
-
-  x1 = Math.max(0, Math.floor(cx - bw/2));
-  y1 = Math.max(0, Math.floor(cy - bh/2));
-  x2 = Math.min(w, Math.ceil(cx + bw/2));
-  y2 = Math.min(h, Math.ceil(cy + bh/2));
-
-  return { x:x1, y:y1, w:x2-x1, h:y2-y1 };
+  if(!best) return null;
+  return {x:best.x,y:best.y,w:best.w,h:best.h};
 }
 
 function expandBox(box, maxW, maxH, pct=.06){
@@ -1222,8 +4700,8 @@ function pickNumber(text){
 function pickCountry(text){
   const q = normalizeText(text);
   for(const c of COUNTRIES){
-    if(c.id==='general') continue;
-    if(q.includes(normalizeText(c.name)) || q.includes(normalizeText(c.short))) return { country:c.id, countryName:c.name };
+    const fields = [c.name, c.short, ...(c.aliases || [])];
+    if(fields.some(v => normalizeText(v) && q.includes(normalizeText(v)))) return { country:c.id, countryName:c.name };
   }
   return { country:'general', countryName:'General' };
 }
@@ -1345,9 +4823,28 @@ ${figu}
 }
 
 function openWhatsApp(){ window.open(`https://wa.me/?text=${encodeURIComponent(buildShareMessage(state.shareMode))}`,'_blank'); }
-function shareSingle(id){
+async function shareSingle(id){
   const s = state.stickers.find(x=>x.id===id); if(!s) return;
-  window.open(`https://wa.me/?text=${encodeURIComponent(buildSingleStickerMessage(s))}`,'_blank');
+  const text = buildSingleStickerMessage(s);
+  if(s.image){
+    try{
+      const file = dataUrlToFile(s.image, `figuscan-${s.number || 'figurita'}.jpg`);
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        await navigator.share({ title:'FiguScan Mundial', text, files:[file] });
+        return;
+      }
+    }catch(e){}
+  }
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,'_blank');
+  if(s.image) toast('Si WhatsApp no adjunta la imagen, usá Compartir desde la galería.', 'warn');
+}
+function dataUrlToFile(dataUrl, filename){
+  const arr = dataUrl.split(',');
+  const mime = (arr[0].match(/:(.*?);/) || [,'image/jpeg'])[1];
+  const bin = atob(arr[1]);
+  const u8 = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
+  return new File([u8], filename, {type:mime});
 }
 async function copyMessage(){
   await navigator.clipboard?.writeText(buildShareMessage(state.shareMode));
@@ -1459,7 +4956,7 @@ function modalHtml(){
   return `<div class="modal-back"><div class="modal"><h3>${escapeHtml(m.title)}</h3><p>${escapeHtml(m.text)}</p><div class="modal-actions"><button class="btn btn-line" onclick="state.modal=null; render()">${escapeHtml(m.cancel||'Cancelar')}</button><button class="btn ${m.danger?'btn-danger':'btn-primary'}" onclick="confirmModal()">${escapeHtml(m.confirm||'Confirmar')}</button></div></div></div>`;
 }
 function confirmModal(){ const fn = state.modal?.onConfirm; if(fn) fn(); }
-function toastHtml(){ return state.toast ? `<div class="toast ${state.toast.type==='warn'?'warn':'success'}">${state.toast.type==='warn'?icons.repeat:icons.check}<span>${escapeHtml(state.toast.message)}</span></div>` : ''; }
+function toastHtml(){ return ''; }
 function escapeHtml(str){ return String(str||'').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 
 function render(){
@@ -1471,6 +4968,7 @@ function render(){
   if(state.view==='friends') screen = friendsScreen();
   if(state.view==='share') screen = shareScreen();
   app.innerHTML = `<div class="app">${appTrophyBg()}${screen}${bottomNav()}${stickerViewerHtml()}${modalHtml()}${toastHtml()}</div>`;
+  if(state.toast) setTimeout(paintToast, 0);
   if(state.view==='scanner') {
     setTimeout(()=>{
       centerScannerFrame();

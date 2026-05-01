@@ -1,4 +1,4 @@
-const CACHE_NAME = 'figuscan-v32-camara-estable';
+const CACHE_NAME = 'figuscan-v33-fifa-flags-share-fix';
 
 self.addEventListener('install', event => {
   self.skipWaiting();

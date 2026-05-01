@@ -333,48 +333,38 @@ html,body{background:#05070D;color:#F8FAFC;}
 }
 
 
-/* V32: cámara estable, flash flotante y vista móvil Android/iPhone */
-.torch-float{
+/* V33: ajustes solicitados */
+.toast{
+  bottom:96px!important;
+  width:min(420px,calc(100% - 36px))!important;
+  min-height:unset!important;
+  border-radius:18px!important;
+  padding:12px 14px!important;
+  font-size:14px!important;
+  line-height:1.25!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:10px!important;
+  pointer-events:none!important;
+}
+.toast svg{width:26px!important;height:26px!important;min-width:26px!important;flex:0 0 26px!important;stroke-width:2.8!important;}
+.flash-fab{
   position:absolute;
+  top:88px;
+  right:16px;
   z-index:6;
-  top:14px;
-  right:14px;
-  width:52px;
-  height:52px;
+  width:46px;
+  height:46px;
   border-radius:999px;
   display:grid;
   place-items:center;
-  background:rgba(5,7,13,.74);
-  border:1.5px solid rgba(255,224,138,.72);
   color:#FFE08A;
-  box-shadow:0 12px 30px rgba(0,0,0,.36), 0 0 18px rgba(212,175,55,.16), inset 0 1px 0 rgba(255,255,255,.14);
-  backdrop-filter:blur(10px);
+  background:rgba(5,7,13,.78);
+  border:1.5px solid rgba(255,224,138,.72);
+  box-shadow:0 10px 24px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.18);
+  backdrop-filter: blur(10px);
 }
-.torch-float svg{width:25px;height:25px}
-.torch-float.on{
-  background:linear-gradient(135deg,#FFF1A8,#D4AF37 58%,#8A6415);
-  color:#061126;
-  box-shadow:0 0 30px rgba(255,224,138,.46), inset 0 1px 0 rgba(255,255,255,.22);
-}
-.scanner-wrap-xl{
-  position:relative;
-  overflow:hidden;
-}
-.scan-section-full{
-  padding-top:10px!important;
-}
-.scan-preview{
-  border-radius:26px!important;
-  background:#061126!important;
-  box-shadow:0 18px 44px rgba(0,0,0,.42)!important;
-}
-.figu-stage{
-  align-items:center!important;
-  justify-items:center!important;
-}
-@media(max-width:430px){
-  .torch-float{top:12px;right:12px;width:48px;height:48px}
-  .scan-frame-xl{width:86%!important;height:70%!important}
-  .scanner-wrap-xl{min-height:70vh!important}
-  .video-xl{height:70vh!important;min-height:520px!important}
-}
+.flash-fab.on{background:linear-gradient(135deg,#D4AF37,#FFF1A8); color:#061126;}
+.flash-fab svg{width:24px;height:24px;}
+@media(max-width:430px){.flash-fab{top:74px;right:14px;width:44px;height:44px}.toast{bottom:92px!important}}
+.country-search-wrap .search{font-size:16px;}
