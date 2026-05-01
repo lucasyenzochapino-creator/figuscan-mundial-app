@@ -654,20 +654,35 @@ function retryCamera(){
 
 function detectedBox(){
   const c = state.scanCandidate || { number:'', player:'', country:'general', countryName:'General', image:'' };
-  return `<div class="detected scan-success scan-card-save"><div class="particles"><i></i><i></i><i></i><i></i><i></i></div>
-    <div class="muted">Foto lista para guardar</div>
-    ${c.image ? `<img class="scan-preview" src="${c.image}" alt="Vista de figurita">` : ''}
-    <div class="field"><label>Número de figurita</label><input class="input" id="detectedNum" inputmode="numeric" value="${escapeHtml(c.number)}" placeholder="Ej: 24"></div>
-    <div class="field"><label>Nombre del jugador</label><input class="input" id="detectedPlayer" value="${escapeHtml(c.player || '')}" placeholder="Ej: Messi"></div>
-    <div class="field"><label>Selección / país</label><input class="input" id="detectedCountry" list="countryListScan" value="${escapeHtml(c.countryName || countryLabel(c.country || 'general'))}" placeholder="Ej: Argentina"><datalist id="countryListScan">${countryOptions(c.country || 'general')}</datalist></div>
-    <p class="tiny">La app guarda esta imagen mejorada con la figurita. Completá los datos y elegí el estado.</p>
-    <div class="state-grid" style="margin-top:12px">
+  return `<div class="detected scan-success scan-card-save lux-save-panel"><div class="particles"><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="figu-capture-title"><strong>Foto lista</strong><span>Completá los datos y elegí el estado</span></div>
+    ${c.image ? `<div class="figu-stage"><div class="figu-world-bg"></div><img class="scan-preview" src="${c.image}" alt="Vista de figurita"><button class="remove-photo-btn" onclick="removeScanPhoto(event)" type="button">${icons.trash} Eliminar foto</button></div>` : `<div class="figu-stage empty-photo"><div class="figu-world-bg"></div><button class="btn btn-gold full" onclick="state.scanCandidate=null; render(); setTimeout(startCamera,50)" type="button">Sacar foto</button></div>`}
+    <section class="scan-data-panel">
+      <div class="scan-data-head"><span>${icons.edit}</span><div><strong>Datos de la figurita</strong><small>Estos son los campos que se cargan en el álbum</small></div></div>
+      <div class="field number-field"><label>Número de figurita</label><div class="number-control"><button type="button" onclick="stepDetectedNumber(-1)">−</button><input class="input" id="detectedNum" inputmode="numeric" value="${escapeHtml(c.number)}" placeholder="Ej: 24"><button type="button" onclick="stepDetectedNumber(1)">+</button></div></div>
+      <div class="field"><label>Nombre del jugador</label><input class="input" id="detectedPlayer" value="${escapeHtml(c.player || '')}" placeholder="Ej: Messi"></div>
+      <div class="field"><label>País / selección</label><input class="input" id="detectedCountry" list="countryListScan" value="${escapeHtml(c.countryName || countryLabel(c.country || 'general'))}" placeholder="Ej: Portugal"><datalist id="countryListScan">${countryOptions(c.country || 'general')}</datalist></div>
+    </section>
+    <div class="state-grid luxury-state-grid" style="margin-top:12px">
       <button class="state-option have" onclick="saveDetected('have')">${icons.check} La tengo</button>
       <button class="state-option repeated" onclick="saveDetected('repeated')">${icons.repeat} Repetida</button>
       <button class="state-option missing" onclick="saveDetected('missing')">${icons.x} Me falta</button>
     </div>
     <button class="btn btn-primary full" style="margin-top:12px" onclick="state.scanCandidate=null; state.detectedNumber=''; state.autoScanPaused=false; render(); setTimeout(startCamera,50)">Sacar otra foto</button>
   </div>`;
+}
+function removeScanPhoto(e){
+  if(e) e.stopPropagation();
+  if(state.scanCandidate) state.scanCandidate.image = '';
+  toast('Foto eliminada. Podés sacar otra o guardar sin imagen.', 'warn');
+  render();
+}
+function stepDetectedNumber(delta){
+  const input = document.getElementById('detectedNum');
+  if(!input) return;
+  const current = Number(normalizeNumber(input.value) || 0);
+  const next = Math.max(1, current + delta);
+  input.value = String(next);
 }
 function saveDetected(status){
   const c = state.scanCandidate || {};
@@ -796,21 +811,81 @@ async function scanFrame(manualTap=false){
 }
 function captureStickerImage(video){
   const vw=video.videoWidth, vh=video.videoHeight;
-  // Recorte vertical, parecido a una figurita. Toma el centro del marco.
+  // Recorte más cerrado, para evitar que aparezca demasiado fondo del lugar.
   const targetRatio = 3 / 4;
-  let ch = Math.floor(vh * .78);
+  let ch = Math.floor(vh * .70);
   let cw = Math.floor(ch * targetRatio);
-  if(cw > vw * .88){ cw = Math.floor(vw * .88); ch = Math.floor(cw / targetRatio); }
+  if(cw > vw * .76){ cw = Math.floor(vw * .76); ch = Math.floor(cw / targetRatio); }
   const sx = Math.max(0, Math.floor((vw-cw)/2));
   const sy = Math.max(0, Math.floor((vh-ch)/2));
+
   const c=document.createElement('canvas');
-  c.width=720;
-  c.height=Math.round(720*ch/cw);
+  c.width=760;
+  c.height=1040;
   const ctx=c.getContext('2d');
-  // Mejora simple: más contraste, un poco más de luz y color.
-  ctx.filter='contrast(1.18) brightness(1.08) saturate(1.16)';
-  ctx.drawImage(video,sx,sy,cw,ch,0,0,c.width,c.height);
-  return c.toDataURL('image/jpeg', .86);
+
+  // Fondo premium relacionado con fútbol/copa: elimina visualmente el fondo del lugar alrededor de la foto.
+  const g=ctx.createLinearGradient(0,0,c.width,c.height);
+  g.addColorStop(0,'#05070d');
+  g.addColorStop(.38,'#101b35');
+  g.addColorStop(.72,'#401021');
+  g.addColorStop(1,'#0b111f');
+  ctx.fillStyle=g;
+  ctx.fillRect(0,0,c.width,c.height);
+
+  ctx.save();
+  ctx.globalAlpha=.18;
+  ctx.strokeStyle='#D4AF37';
+  ctx.lineWidth=18;
+  ctx.beginPath();
+  ctx.arc(c.width*.82,c.height*.18,180,0,Math.PI*2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(c.width*.18,c.height*.82,150,0,Math.PI*2);
+  ctx.stroke();
+  ctx.globalAlpha=.10;
+  for(let y=80;y<c.height;y+=78){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(c.width,y-40); ctx.stroke(); }
+  ctx.restore();
+
+  // Marco interno con borde dorado.
+  const pad=42;
+  const x=pad, y=pad, w=c.width-pad*2, h=c.height-pad*2;
+  roundRect(ctx,x,y,w,h,36);
+  ctx.fillStyle='rgba(255,255,255,.045)';
+  ctx.fill();
+  ctx.strokeStyle='rgba(212,175,55,.88)';
+  ctx.lineWidth=5;
+  ctx.stroke();
+
+  // Foto recortada y mejorada dentro del marco.
+  ctx.save();
+  roundRect(ctx,x+20,y+20,w-40,h-40,28);
+  ctx.clip();
+  ctx.filter='contrast(1.22) brightness(1.08) saturate(1.18)';
+  ctx.drawImage(video,sx,sy,cw,ch,x+20,y+20,w-40,h-40);
+  ctx.restore();
+
+  // Brillo sutil tipo figurita.
+  const shine=ctx.createLinearGradient(0,0,c.width,c.height);
+  shine.addColorStop(0,'rgba(255,255,255,.22)');
+  shine.addColorStop(.18,'rgba(255,255,255,0)');
+  shine.addColorStop(.55,'rgba(255,255,255,.12)');
+  shine.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=shine;
+  roundRect(ctx,x+20,y+20,w-40,h-40,28);
+  ctx.fill();
+
+  return c.toDataURL('image/jpeg', .88);
+}
+function roundRect(ctx,x,y,w,h,r){
+  r=Math.min(r,w/2,h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
 }
 function cropVideoCenter(video){
   const vw=video.videoWidth, vh=video.videoHeight;
@@ -1038,7 +1113,7 @@ function render(){
   if(state.view==='scanner' && !state.scannerStream && !state.cameraError) setTimeout(()=>startCamera(false), 80);
 }
 
-window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.render=render;
+window.removeScanPhoto=removeScanPhoto; window.stepDetectedNumber=stepDetectedNumber; window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.render=render;
 
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('/service-worker.js').catch(()=>{}); }
 render();
