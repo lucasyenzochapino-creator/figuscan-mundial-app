@@ -1,27 +1,28 @@
-# FiguScan Mundial V11
+# FiguScan Mundial V12
 
-Versión mejorada para subir al mismo repositorio de GitHub conectado a Vercel.
+Versión local-first para subir a GitHub/Vercel.
 
-## Cambios principales
+## Qué corrige
 
-- En Álbum ahora podés cargar una figurita desde cada sección:
-  - Tengo
-  - Me faltan
-  - Repetidas
-- Si estás en “Me faltan”, el botón carga directamente una faltante.
-- Si estás en “Repetidas”, el botón carga directamente una repetida.
-- WhatsApp ya no sale tan pelado: ahora usa encabezado FiguScan, separadores y mensajes más claros.
-- Agregué opción “Compartir imagen visual”. Si el celular permite compartir archivos desde navegador, genera una imagen con marca FiguScan. Si no, abre WhatsApp con texto.
-- Mejoré el reconocimiento con OCR en navegador usando Tesseract.js desde CDN.
-- El escaneo sigue teniendo fallback manual rápido si el OCR no detecta bien.
+- Si cargás o escaneás una figurita que ya tenés, la app la marca automáticamente como **Repetida**.
+- Si ya era repetida, suma una unidad más.
+- Si estaba en "Me falta" y la cargás como "Tengo", la cambia a "Tengo".
+- En carga manual se puede escribir el nombre del jugador.
+- WhatsApp tiene mensajes más personalizados.
+- Incluye opción de compartir imagen visual con logo/recuadro si el celular lo permite.
 
-## Cómo actualizar
+## Archivos
 
-1. Subí todo lo de esta carpeta al mismo repositorio de GitHub.
-2. Confirmá cambios.
-3. Vercel actualiza solo.
-4. Abrí la app y probá primero carga manual desde Álbum.
+Subí todo el contenido de esta carpeta al repositorio de GitHub conectado a Vercel.
 
-## Nota importante sobre reconocimiento
+- index.html
+- app.js
+- styles.css
+- manifest.webmanifest
+- service-worker.js
+- vercel.json
+- assets/
 
-El OCR en navegador depende de luz, enfoque, tamaño del número y calidad de la impresión. Por eso nunca guarda una detección inventada: si no está seguro, pide cargar número manualmente.
+## Importante sobre WhatsApp
+
+El link directo `wa.me` solo permite enviar texto. Para mandar una placa visual con logo, usá el botón **Compartir imagen visual**. Si el navegador del celular lo permite, se abre el menú de compartir y podés elegir WhatsApp.
