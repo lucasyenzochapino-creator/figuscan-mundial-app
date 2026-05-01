@@ -748,7 +748,7 @@ function saveBatchQuick(){
   state.view='album'; state.albumFilter=status; render();
 }
 
-async async function startCamera(manual=false){
+async function startCamera(manual=false){
   if(state.view !== 'scanner') return;
   let video = document.getElementById('video');
   if(!video) return;
