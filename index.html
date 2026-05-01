@@ -1,20 +1,29 @@
 <!doctype html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0b1026" />
-    <meta name="description" content="FiguScan Mundial: escaneá, cargá y compartí tus figuritas." />
-    <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="apple-touch-icon" href="assets/icon-192.png" />
-    <title>FiguScan Mundial</title>
-    <link rel="stylesheet" href="styles.css?v=3" />
-    <script src="config.js?v=3"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-  </head>
-  <body>
-    <noscript>Necesitás activar JavaScript para usar FiguScan Mundial.</noscript>
-    <div id="app"></div>
-    <script type="module" src="app.js?v=3"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>FiguScan Mundial</title>
+  <meta name="theme-color" content="#0b5cff" />
+  <meta name="description" content="App para organizar figuritas del Mundial, repetidas, faltantes e intercambios." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="assets/icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <div class="splash">
+      <div class="logo-ball">⚽</div>
+      <h1>FiguScan Mundial</h1>
+      <p>Cargando app...</p>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="app.js"></script>
+</body>
 </html>

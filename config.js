@@ -1,4 +1,4 @@
-window.FIGUSCAN_FIREBASE = {
+window.FIGUSCAN_CONFIG = {
   apiKey: "AIzaSyCbiyJlOaeV-qQrumxCcQt9lMaTZAk196Y",
   authDomain: "figuscan-mundial.firebaseapp.com",
   projectId: "figuscan-mundial",
