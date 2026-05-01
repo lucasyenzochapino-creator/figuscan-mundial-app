@@ -368,3 +368,27 @@ html,body{background:#05070D;color:#F8FAFC;}
 .flash-fab svg{width:24px;height:24px;}
 @media(max-width:430px){.flash-fab{top:74px;right:14px;width:44px;height:44px}.toast{bottom:92px!important}}
 .country-search-wrap .search{font-size:16px;}
+
+/* V34: flash sin tapar texto, toast chico y foto con fondo generado */
+.toast{
+  bottom:calc(90px + env(safe-area-inset-bottom))!important;
+  width:min(340px,calc(100% - 48px))!important;
+  min-height:0!important;
+  padding:10px 12px!important;
+  border-radius:16px!important;
+  font-size:13px!important;
+  line-height:1.15!important;
+  box-shadow:0 12px 30px rgba(0,0,0,.28)!important;
+}
+.toast svg{width:20px!important;height:20px!important;min-width:20px!important;}
+.flash-fab{
+  top:112px!important;
+  right:18px!important;
+  width:42px!important;
+  height:42px!important;
+  z-index:7!important;
+}
+.flash-fab svg{width:21px!important;height:21px!important;}
+.scan-preview{object-fit:contain!important;background:#061126!important;}
+.figu-stage .scan-preview{object-fit:contain!important;background:#061126!important;}
+@media(max-width:430px){.flash-fab{top:108px!important;right:16px!important}.toast{bottom:calc(88px + env(safe-area-inset-bottom))!important}}

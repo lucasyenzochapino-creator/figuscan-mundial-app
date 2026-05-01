@@ -3605,7 +3605,7 @@ function toast(message, type='success'){
   state.toast = { message, type };
   paintToast();
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=>{ state.toast=null; paintToast(); }, 1600);
+  toastTimer = setTimeout(()=>{ state.toast=null; paintToast(); }, 1200);
 }
 function paintToast(){
   document.querySelectorAll('.toast').forEach(el=>el.remove());
@@ -4369,10 +4369,11 @@ function captureStickerImage(video){
   tctx.filter='contrast(1.08) brightness(1.03) saturate(1.08)';
   tctx.drawImage(video,sx,sy,cw,ch,0,0,tmp.width,tmp.height);
 
-  // Primero intentamos encontrar la figurita real dentro de la foto.
-  // Si no se puede, usamos un recorte central seguro.
+  // V34: el fondo real NO debe quedar visible.
+  // Buscamos la figurita y luego forzamos un recorte cerrado tipo cromo.
   let detected = detectDarkStickerBounds(tmp) || detectStickerBounds(tmp);
-  let box = detected ? expandBox(detected, tmp.width, tmp.height, .025) : getCenteredStickerCrop(tmp);
+  let box = detected ? expandBox(detected, tmp.width, tmp.height, .012) : getCenteredStickerCrop(tmp);
+  box = forceTightStickerCrop(box, tmp.width, tmp.height);
 
   const c=document.createElement('canvas');
   c.width=1080;
@@ -4438,13 +4439,13 @@ function captureStickerImage(video){
 
   // La figurita recortada se centra automáticamente y completa dentro del marco.
   const srcRatio = box.w / box.h;
-  const maxW = photoW * .72;
-  const maxH = photoH * .74;
+  const maxW = photoW * .82;
+  const maxH = photoH * .86;
   let stickerW=maxW, stickerH=maxH;
   if(srcRatio > maxW/maxH){ stickerH = stickerW / srcRatio; }
   else { stickerW = stickerH * srcRatio; }
   const stickerX = photoX + (photoW-stickerW)/2;
-  const stickerY = photoY + (photoH-stickerH)/2 - 4*S;
+  const stickerY = photoY + (photoH-stickerH)/2 - 2*S;
 
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,.62)';
@@ -4499,6 +4500,41 @@ function captureStickerImage(video){
   ctx.fill();
 
   return c.toDataURL('image/jpeg', .96);
+}
+
+
+function forceTightStickerCrop(box, maxW, maxH){
+  // Recorte agresivo y centrado: prioridad absoluta a que NO se vea la mesa/pared.
+  // La figurita mundialista es vertical; usamos esa proporción y cerramos el encuadre.
+  const targetRatio = 0.70; // ancho / alto aproximado de figurita
+  let cx = box.x + box.w / 2;
+  let cy = box.y + box.h / 2;
+
+  // Si el detector agarró mucho entorno, achicamos bastante.
+  const tooWide = box.w > maxW * 0.52;
+  const tooTall = box.h > maxH * 0.76;
+  const tooSquare = (box.w / Math.max(1, box.h)) > 0.82;
+
+  let h = box.h * (tooWide || tooTall || tooSquare ? 0.72 : 0.84);
+  let w = h * targetRatio;
+
+  // Nunca dejamos que el recorte use demasiado del cuadro original.
+  w = Math.min(w, maxW * 0.46);
+  h = Math.min(h, maxH * 0.68);
+
+  // Si quedó muy chico, mantenemos un mínimo razonable.
+  w = Math.max(w, maxW * 0.28);
+  h = Math.max(h, w / targetRatio);
+
+  // Ajuste vertical: normalmente la figurita real queda un poco más abajo del centro del área detectada.
+  cy += box.h * 0.01;
+
+  let x = Math.round(cx - w / 2);
+  let y = Math.round(cy - h / 2);
+  x = Math.max(0, Math.min(maxW - w, x));
+  y = Math.max(0, Math.min(maxH - h, y));
+
+  return { x, y, w: Math.round(w), h: Math.round(h) };
 }
 
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'figuscan-v33-fifa-flags-share-fix';
+const CACHE_NAME = 'figuscan-v34-foto-sin-fondo-real';
 
 self.addEventListener('install', event => {
   self.skipWaiting();
