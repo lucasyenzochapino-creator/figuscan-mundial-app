@@ -1,14 +1,15 @@
-/* FiguScan Mundial V8 - local-first PWA. Sin APIs pagas. */
+/* FiguScan Mundial V10 - navegación y compartir mejorados. Local-first PWA. */
 (function(){
   const CFG = window.FIGUSCAN_CONFIG || {};
-  const STORAGE_KEY = CFG.STORAGE_KEY || 'figuscan_v8_stickers';
-  const USER_KEY = CFG.USER_KEY || 'figuscan_v8_user';
+  const STORAGE_KEY = CFG.STORAGE_KEY || 'figuscan_v10_stickers';
+  const USER_KEY = CFG.USER_KEY || 'figuscan_v10_user';
   const $app = document.getElementById('app');
 
   const state = {
     screen: 'home',
     filter: 'all',
     search: '',
+    shareMode: 'summary',
     stickers: loadStickers(),
     selected: new Set(),
     pending: null,
@@ -135,13 +136,27 @@
     if(s.status === 'repeated') return `Tengo repetida la figurita N° ${s.number} x${s.repeatedCount || 1}. ¿La necesitás?`;
     return `Tengo la figurita N° ${s.number}. ¿Te sirve?`;
   }
-  function summaryMessage(){
-    const have = state.stickers.filter(s=>s.status==='have').sort((a,b)=>Number(a.number)-Number(b.number)).map(s=>s.number);
-    const missing = state.stickers.filter(s=>s.status==='missing').sort((a,b)=>Number(a.number)-Number(b.number)).map(s=>s.number);
-    const repeated = state.stickers.filter(s=>s.status==='repeated').sort((a,b)=>Number(a.number)-Number(b.number)).map(s=>`${s.number} x${s.repeatedCount || 1}`);
+  function getStickerGroups(){
+    const byNumber = (a,b)=>Number(a.number)-Number(b.number);
+    return {
+      have: state.stickers.filter(s=>s.status==='have').sort(byNumber).map(s=>s.number),
+      missing: state.stickers.filter(s=>s.status==='missing').sort(byNumber).map(s=>s.number),
+      repeated: state.stickers.filter(s=>s.status==='repeated').sort(byNumber).map(s=>`${s.number} x${s.repeatedCount || 1}`)
+    };
+  }
+  function shareMessage(mode='summary'){
+    const { have, missing, repeated } = getStickerGroups();
+    if(mode === 'have') return `Tengo estas figuritas en FiguScan:\n\n${have.length ? have.join(', ') : 'Sin figuritas cargadas'}\n\n¿Te sirve alguna?`;
+    if(mode === 'missing') return `Me faltan estas figuritas:\n\n${missing.length ? missing.join(', ') : 'Sin figuritas cargadas'}\n\n¿Tenés alguna para cambiar?`;
+    if(mode === 'repeated') return `Tengo estas repetidas:\n\n${repeated.length ? repeated.join('\n') : 'Sin figuritas cargadas'}\n\n¿Necesitás alguna?`;
     return `Mi álbum FiguScan:\n\n✅ Tengo:\n${have.length ? have.join(', ') : 'Sin figuritas cargadas'}\n\n❌ Me faltan:\n${missing.length ? missing.join(', ') : 'Sin figuritas cargadas'}\n\n🔁 Repetidas:\n${repeated.length ? repeated.join('\n') : 'Sin figuritas cargadas'}\n\nOrganizado con FiguScan Mundial.`;
   }
+  function summaryMessage(){ return shareMessage('summary'); }
   function openWhatsApp(text){ window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank'); }
+  async function copyText(text){
+    try{ await navigator.clipboard.writeText(text); toast('Mensaje copiado'); }
+    catch{ toast('No pude copiar. Usá WhatsApp.'); }
+  }
 
   function appFrame(content){
     return `<div class="app"><div class="trophy-bg"></div><div class="field-lines"></div><main class="screen">${topbar()}${content}</main>${bottomNav()}${bulkBar()}${modal()}${state.toast?`<div class="toast">${state.toast}</div>`:''}</div>`;
@@ -154,8 +169,8 @@
     </div>`;
   }
   function bottomNav(){
-    const item = (screen, icon, label, cls='')=>`<button class="nav-btn ${state.screen===screen?'active':''} ${cls}" data-go="${screen}">${cls==='scan'?`<span class="scan-bubble">${icon}</span>`:icon}<span>${label}</span></button>`;
-    return `<nav class="bottom-nav">
+    const item = (screen, icon, label, cls='')=>`<button class="nav-btn ${state.screen===screen?'active':''} ${cls}" data-go="${screen}"><span class="nav-icon">${cls==='scan'?`<span class="scan-bubble">${icon}</span>`:icon}</span><span class="nav-label">${label}</span></button>`;
+    return `<nav class="bottom-nav" aria-label="Navegación principal">
       ${item('home',ICONS.home,'Inicio')}
       ${item('scanner',ICONS.scan,'Escanear','scan')}
       ${item('album',ICONS.album,'Álbum')}
@@ -240,8 +255,21 @@
     return `<div class="bulk-bar"><strong>${state.selected.size} seleccionadas</strong><div class="bulk-actions"><button style="background:var(--field)" data-bulk="have">Tengo</button><button style="background:var(--red)" data-bulk="missing">Faltan</button><button style="background:var(--orange)" data-bulk="repeated">Repetidas</button><button style="background:#BE123C" data-bulk="delete">Eliminar</button></div></div>`;
   }
   function shareScreen(){
-    return appFrame(`<section class="share-card"><div class="logo" style="margin-bottom:12px">${ICONS.trophy}</div><h2>Compartí tu álbum</h2><p style="margin:0;color:rgba(255,255,255,.78);font-weight:700">Mandá tus repetidas y faltantes por WhatsApp con un mensaje claro.</p><div class="share-list"><b>El resumen incluye:</b><br/>Tengo, me faltan y repetidas con cantidades.</div><button class="btn btn-primary btn-full" style="margin-top:16px;background:white;color:var(--navy)" data-action="share-summary">${ICONS.whatsapp} Compartir resumen</button></section>
-      <section class="panel"><h2 class="panel-title">Mensaje preparado</h2><p class="panel-sub">Se abre WhatsApp y vos elegís a quién enviarlo.</p><pre style="white-space:pre-wrap;background:#F8FAFC;border-radius:18px;padding:14px;color:#334155;font-weight:700;font-size:13px;line-height:1.35">${escapeHtml(summaryMessage())}</pre></section>`);
+    const mode = state.shareMode || 'summary';
+    const message = shareMessage(mode);
+    const option = (id, title, text, icon, tone)=>`<button class="share-option ${tone} ${mode===id?'active':''}" data-share-mode="${id}"><span class="share-option-icon">${icon}</span><span><strong>${title}</strong><small>${text}</small></span></button>`;
+    return appFrame(`<section class="share-hero"><div class="share-hero-icon">${ICONS.share}</div><div><h1>Compartir por WhatsApp</h1><p>Elegí exactamente qué querés enviar. El resumen es opcional.</p></div></section>
+      <section class="panel share-panel"><h2 class="panel-title">¿Qué querés compartir?</h2><p class="panel-sub">Podés mandar todo el álbum o una sola categoría.</p>
+        <div class="share-options">
+          ${option('summary','Resumen completo','Tengo, faltantes y repetidas',ICONS.cards,'summary')}
+          ${option('have','Solo tengo','Las figuritas que ya tenés',ICONS.have,'have')}
+          ${option('missing','Solo me faltan','Las que necesitás conseguir',ICONS.missing,'missing')}
+          ${option('repeated','Solo repetidas','Las que tenés para cambiar',ICONS.repeated,'repeated')}
+        </div>
+      </section>
+      <section class="panel preview-panel"><div class="section-title"><div><h2 class="panel-title">Vista previa</h2><p class="panel-sub">Este es el mensaje que se abrirá en WhatsApp.</p></div></div><pre class="message-preview">${escapeHtml(message)}</pre>
+        <div class="share-actions"><button class="btn btn-primary btn-full" data-action="send-share">${ICONS.whatsapp} Enviar por WhatsApp</button><button class="btn btn-ghost btn-full" data-action="copy-share">Copiar mensaje</button></div>
+      </section>`);
   }
   function friendsScreen(){
     return appFrame(`<section class="panel"><div class="section-title"><div class="title-left"><div class="title-icon">${ICONS.friends}</div><div><h1 class="panel-title">Cambios con amigos</h1><p class="panel-sub">Primero compartí tu resumen por WhatsApp. Después compará manualmente con tus amigos.</p></div></div></div>
@@ -300,7 +328,9 @@
     document.querySelectorAll('[data-whatsapp]').forEach(b=>b.addEventListener('click',()=>{ const s=state.stickers.find(x=>x.id===b.dataset.whatsapp); if(s) openWhatsApp(singleMessage(s)); }));
     document.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>{ const s=state.stickers.find(x=>x.id===b.dataset.edit); if(s){ state.pending={...s}; go('manual'); }}));
     document.querySelectorAll('[data-bulk]').forEach(b=>b.addEventListener('click',()=>{ const a=b.dataset.bulk; if(a==='delete') bulkDelete(); else bulkSet(a); }));
-    document.querySelector('[data-action="share-summary"]')?.addEventListener('click',()=>openWhatsApp(summaryMessage()));
+    document.querySelectorAll('[data-share-mode]').forEach(b=>b.addEventListener('click',()=>{state.shareMode=b.dataset.shareMode;render();}));
+    document.querySelector('[data-action="send-share"]')?.addEventListener('click',()=>openWhatsApp(shareMessage(state.shareMode)));
+    document.querySelector('[data-action="copy-share"]')?.addEventListener('click',()=>copyText(shareMessage(state.shareMode)));
     document.querySelector('[data-modal="cancel"]')?.addEventListener('click',()=>{state.modal=null;render();});
     document.querySelector('[data-modal="confirm"]')?.addEventListener('click',()=>{ if(state.modal?.onConfirm) state.modal.onConfirm(); });
     document.getElementById('profileForm')?.addEventListener('submit',e=>{e.preventDefault(); state.user.name=document.getElementById('nameInput').value.trim() || 'Mi álbum'; saveUser(); toast('Perfil guardado'); go('home');});

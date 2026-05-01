@@ -1,6 +1,6 @@
 {
-  "name": "figuscan-mundial-v8",
-  "version": "8.0.0",
+  "name": "figuscan-mundial-v10",
+  "version": "10.0.0",
   "private": true,
   "description": "PWA local-first para organizar figuritas del Mundial.",
   "scripts": {}

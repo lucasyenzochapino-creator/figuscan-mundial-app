@@ -1,42 +1,25 @@
-# FiguScan Mundial V9
+# FiguScan Mundial V10
 
-Versión PWA local-first para subir a Vercel.
+Versión con navegación inferior rediseñada y pantalla Compartir mejorada.
 
-## Mejoras incluidas
-- Fondo con copa genérica estilo mundialista.
-- Iconos SVG grandes, claros y profesionales.
-- Colores de fútbol: azul profundo, azul eléctrico, verde cancha, dorado, rojo y naranja.
-- Carga manual con nombre del jugador.
-- Escaneo asistido con cámara en vivo y recuadro guía.
-- No inventa reconocimiento: si no detecta, permite cargar el número rápido.
-- Tarjetas de inicio clickeables: Tengo, Me faltan y Repetidas.
-- Álbum con buscador, filtros, edición, eliminación y WhatsApp individual.
-- Compartir resumen por WhatsApp.
-- Guardado local en el celular con localStorage.
+## Cambios principales
+- Íconos inferiores más grandes, claros y con estilo de app móvil.
+- Botón Escanear más destacado.
+- Pantalla Compartir con opciones:
+  - Resumen completo
+  - Solo tengo
+  - Solo me faltan
+  - Solo repetidas
+- Vista previa del mensaje.
+- Botón Enviar por WhatsApp.
+- Botón Copiar mensaje.
+- Mantiene guardado local en el celular.
 
-## Cómo subir
-1. Extraé el ZIP.
-2. Entrá a la carpeta `figuscan-v8`.
-3. Subí todos los archivos de adentro al repositorio de GitHub que usa Vercel.
-4. Confirmá cambios.
-5. Esperá que Vercel actualice.
-6. Abrí la app desde el link publicado.
+## Cómo actualizar en GitHub
+1. Entrar a esta carpeta.
+2. Subir todo el contenido al mismo repositorio conectado a Vercel.
+3. Confirmar cambios.
+4. Esperar que Vercel actualice.
+5. Abrir la app en el celular.
 
-## Importante
-Esta versión no usa APIs pagas. El reconocimiento automático perfecto de cualquier figurita requiere una base de imágenes o IA visual paga. Por eso el escaneo es asistido y no guarda datos falsos.
-
-
-## Copa del mundo real / imagen propia
-
-Esta versión está preparada para usar una imagen de copa real si vos tenés derecho/licencia para usarla.
-
-Pasos:
-1. Conseguí tu imagen autorizada en PNG.
-2. Renombrala exactamente como:
-   copa-del-mundo-original.png
-3. Subila dentro de la carpeta:
-   assets/
-4. Volvé a subir los archivos a GitHub.
-5. Vercel actualiza la app automáticamente.
-
-Si el archivo no existe, la app muestra una copa dorada genérica de respaldo.
+No subir el ZIP. Subir los archivos de adentro.
