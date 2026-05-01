@@ -1,4 +1,4 @@
-/* FiguScan Mundial V19 - escaneo más grande + carga rápida múltiple */
+/* FiguScan Mundial V24 - fondo mundialista real en foto + recuadro activa cámara */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 const APP_URL = 'https://figuscan-mundial-app.vercel.app/';
@@ -621,9 +621,9 @@ function scannerScreen(){
     <section class="hero scanner-hero"><div class="logo">${icons.scan}</div><h1>Foto de figurita</h1><p>Encadrá la figurita completa, sacá una foto prolija y guardala con imagen en tu álbum.</p></section>
     ${entryModeSwitch('scanner')}
     <section class="section scan-section scan-section-full">
-      <div class="scanner-wrap scanner-wrap-xl" onclick="scanFrame(true)">
+      <div class="scanner-wrap scanner-wrap-xl" onclick="handleScannerFrameTap(event)">
         <video id="video" class="video video-xl" autoplay playsinline muted></video>
-        <div class="scan-overlay"><div class="scan-text">Centrar la figurita completa en el marco</div><div class="scan-frame scan-frame-xl"><span>Tocá el marco para sacar foto</span></div></div>
+        <div class="scan-overlay"><div class="scan-text">Centrar la figurita completa en el marco</div><div class="scan-frame scan-frame-xl"><span>Tocá el recuadro para activar cámara o sacar foto</span></div></div>
         <div class="auto-scan-badge ${state.scanBusy?'working':''}">${state.scanBusy ? 'Mejorando imagen...' : 'Cámara lista'}</div>
         ${state.cameraError ? cameraFallback() : ''}
       </div>
@@ -636,6 +636,18 @@ function scannerScreen(){
     ${batchQuickSection()}
   </main>`;
 }
+function handleScannerFrameTap(e){
+  if(e) e.stopPropagation();
+  const video = document.getElementById('video');
+  if(!state.scannerStream || state.cameraError || !video || !video.videoWidth){
+    state.cameraError = '';
+    startCamera(true);
+    toast('Activando cámara...', 'warn');
+    return;
+  }
+  scanFrame(true);
+}
+
 function cameraFallback(){
   return `<div class="camera-fallback">
     <div class="camera-fallback-card">
@@ -811,72 +823,146 @@ async function scanFrame(manualTap=false){
 }
 function captureStickerImage(video){
   const vw=video.videoWidth, vh=video.videoHeight;
-  // Recorte más cerrado, para evitar que aparezca demasiado fondo del lugar.
+
+  // Recorte vertical parecido al marco visible.
   const targetRatio = 3 / 4;
-  let ch = Math.floor(vh * .70);
+  let ch = Math.floor(vh * .78);
   let cw = Math.floor(ch * targetRatio);
-  if(cw > vw * .76){ cw = Math.floor(vw * .76); ch = Math.floor(cw / targetRatio); }
+  if(cw > vw * .88){ cw = Math.floor(vw * .88); ch = Math.floor(cw / targetRatio); }
   const sx = Math.max(0, Math.floor((vw-cw)/2));
   const sy = Math.max(0, Math.floor((vh-ch)/2));
 
+  // Canvas auxiliar: intenta ubicar la figurita por borde oscuro/contraste.
+  const tmp=document.createElement('canvas');
+  tmp.width=900;
+  tmp.height=Math.round(900 * ch / cw);
+  const tctx=tmp.getContext('2d', { willReadFrequently:true });
+  tctx.filter='contrast(1.18) brightness(1.06) saturate(1.14)';
+  tctx.drawImage(video,sx,sy,cw,ch,0,0,tmp.width,tmp.height);
+
+  let box = detectStickerBounds(tmp);
+  if(!box) box = { x:0, y:0, w:tmp.width, h:tmp.height };
+
+  const margin = Math.round(Math.min(box.w, box.h) * .035);
+  const nx = Math.max(0, box.x - margin);
+  const ny = Math.max(0, box.y - margin);
+  box = {
+    x: nx,
+    y: ny,
+    w: Math.min(tmp.width - nx, box.w + margin*2),
+    h: Math.min(tmp.height - ny, box.h + margin*2)
+  };
+
+  // Imagen final: fondo mundialista + figurita sobre marco premium.
   const c=document.createElement('canvas');
   c.width=760;
   c.height=1040;
   const ctx=c.getContext('2d');
+  drawWorldCupBackground(ctx,c.width,c.height);
 
-  // Fondo premium relacionado con fútbol/copa: elimina visualmente el fondo del lugar alrededor de la foto.
-  const g=ctx.createLinearGradient(0,0,c.width,c.height);
-  g.addColorStop(0,'#05070d');
-  g.addColorStop(.38,'#101b35');
-  g.addColorStop(.72,'#401021');
-  g.addColorStop(1,'#0b111f');
-  ctx.fillStyle=g;
-  ctx.fillRect(0,0,c.width,c.height);
-
-  ctx.save();
-  ctx.globalAlpha=.18;
-  ctx.strokeStyle='#D4AF37';
-  ctx.lineWidth=18;
-  ctx.beginPath();
-  ctx.arc(c.width*.82,c.height*.18,180,0,Math.PI*2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(c.width*.18,c.height*.82,150,0,Math.PI*2);
-  ctx.stroke();
-  ctx.globalAlpha=.10;
-  for(let y=80;y<c.height;y+=78){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(c.width,y-40); ctx.stroke(); }
-  ctx.restore();
-
-  // Marco interno con borde dorado.
-  const pad=42;
-  const x=pad, y=pad, w=c.width-pad*2, h=c.height-pad*2;
-  roundRect(ctx,x,y,w,h,36);
-  ctx.fillStyle='rgba(255,255,255,.045)';
+  const frameX=64, frameY=70, frameW=c.width-128, frameH=c.height-140;
+  roundRect(ctx,frameX,frameY,frameW,frameH,42);
+  ctx.fillStyle='rgba(255,255,255,.055)';
   ctx.fill();
-  ctx.strokeStyle='rgba(212,175,55,.88)';
+  ctx.strokeStyle='rgba(255,224,138,.92)';
   ctx.lineWidth=5;
   ctx.stroke();
 
-  // Foto recortada y mejorada dentro del marco.
   ctx.save();
-  roundRect(ctx,x+20,y+20,w-40,h-40,28);
+  roundRect(ctx,frameX+18,frameY+18,frameW-36,frameH-36,34);
   ctx.clip();
-  ctx.filter='contrast(1.22) brightness(1.08) saturate(1.18)';
-  ctx.drawImage(video,sx,sy,cw,ch,x+20,y+20,w-40,h-40);
+  ctx.fillStyle='rgba(0,0,0,.26)';
+  ctx.fillRect(frameX+18,frameY+18,frameW-36,frameH-36);
   ctx.restore();
 
-  // Brillo sutil tipo figurita.
+  const innerX=frameX+30, innerY=frameY+30, innerW=frameW-60, innerH=frameH-60;
+  const srcRatio = box.w / box.h;
+  const dstRatio = innerW / innerH;
+  let dw=innerW, dh=innerH;
+  if(srcRatio > dstRatio){ dh = innerW / srcRatio; } else { dw = innerH * srcRatio; }
+  const dx = innerX + (innerW-dw)/2;
+  const dy = innerY + (innerH-dh)/2;
+
+  ctx.save();
+  roundRect(ctx,dx,dy,dw,dh,26);
+  ctx.clip();
+  ctx.filter='contrast(1.22) brightness(1.08) saturate(1.18)';
+  ctx.drawImage(tmp,box.x,box.y,box.w,box.h,dx,dy,dw,dh);
+  ctx.restore();
+
+  roundRect(ctx,dx,dy,dw,dh,26);
+  ctx.strokeStyle='rgba(255,255,255,.22)';
+  ctx.lineWidth=2;
+  ctx.stroke();
+
   const shine=ctx.createLinearGradient(0,0,c.width,c.height);
-  shine.addColorStop(0,'rgba(255,255,255,.22)');
-  shine.addColorStop(.18,'rgba(255,255,255,0)');
-  shine.addColorStop(.55,'rgba(255,255,255,.12)');
+  shine.addColorStop(0,'rgba(255,255,255,.24)');
+  shine.addColorStop(.22,'rgba(255,255,255,0)');
+  shine.addColorStop(.58,'rgba(255,255,255,.13)');
   shine.addColorStop(1,'rgba(255,255,255,0)');
   ctx.fillStyle=shine;
-  roundRect(ctx,x+20,y+20,w-40,h-40,28);
+  roundRect(ctx,frameX+18,frameY+18,frameW-36,frameH-36,34);
   ctx.fill();
 
-  return c.toDataURL('image/jpeg', .88);
+  return c.toDataURL('image/jpeg', .9);
 }
+
+function detectStickerBounds(canvas){
+  const ctx=canvas.getContext('2d', { willReadFrequently:true });
+  const w=canvas.width, h=canvas.height;
+  const data=ctx.getImageData(0,0,w,h).data;
+  let minX=w, minY=h, maxX=0, maxY=0, count=0;
+  const step=3;
+  for(let y=0;y<h;y+=step){
+    for(let x=0;x<w;x+=step){
+      const i=(y*w+x)*4;
+      const r=data[i], g=data[i+1], b=data[i+2];
+      const luma=.299*r+.587*g+.114*b;
+      const max=Math.max(r,g,b), min=Math.min(r,g,b);
+      const sat=max-min;
+      if(luma < 82 || (sat > 70 && luma < 190)){
+        minX=Math.min(minX,x); maxX=Math.max(maxX,x);
+        minY=Math.min(minY,y); maxY=Math.max(maxY,y);
+        count++;
+      }
+    }
+  }
+  const bw=maxX-minX, bh=maxY-minY;
+  if(count < 80 || bw < w*.26 || bh < h*.30) return null;
+  return {x:minX,y:minY,w:bw,h:bh};
+}
+
+function drawWorldCupBackground(ctx,w,h){
+  const g=ctx.createLinearGradient(0,0,w,h);
+  g.addColorStop(0,'#05070d');
+  g.addColorStop(.34,'#101b35');
+  g.addColorStop(.68,'#401021');
+  g.addColorStop(1,'#080b14');
+  ctx.fillStyle=g;
+  ctx.fillRect(0,0,w,h);
+
+  ctx.save();
+  ctx.globalAlpha=.22;
+  ctx.strokeStyle='#D4AF37';
+  ctx.lineWidth=18;
+  ctx.beginPath(); ctx.arc(w*.83,h*.16,185,0,Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(w*.16,h*.84,145,0,Math.PI*2); ctx.stroke();
+  ctx.globalAlpha=.13;
+  ctx.lineWidth=6;
+  for(let y=90;y<h;y+=78){ ctx.beginPath(); ctx.moveTo(-60,y); ctx.lineTo(w+80,y-48); ctx.stroke(); }
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha=.16;
+  ctx.strokeStyle='#FFF1A8';
+  ctx.lineWidth=10;
+  ctx.lineCap='round';
+  roundRect(ctx,w*.38,h*.08,w*.24,h*.13,22); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(w*.50,h*.21); ctx.lineTo(w*.50,h*.30); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(w*.42,h*.32); ctx.lineTo(w*.58,h*.32); ctx.stroke();
+  ctx.restore();
+}
+
 function roundRect(ctx,x,y,w,h,r){
   r=Math.min(r,w/2,h/2);
   ctx.beginPath();

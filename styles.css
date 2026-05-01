@@ -207,3 +207,13 @@ html,body{background:#05070D;color:#F8FAFC;}
 .btn-primary{background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.02)),linear-gradient(135deg,#0F0F0F,#1A1A1A);border-color:#D4AF37;color:#FFF1A8}.btn-gold{background:linear-gradient(135deg,#FFF2B2,#D4AF37 55%,#8A6415);color:#071126;border-color:#FFF1A8}.btn-ghost{background:linear-gradient(180deg,rgba(47,116,255,.18),rgba(47,116,255,.06));border-color:rgba(212,175,55,.28);color:#DBEAFE}.btn-line{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.16);color:#E2E8F0}
 @keyframes luxSweepBtn{0%,58%{transform:translateX(-130%);opacity:0}70%{opacity:1}100%{transform:translateX(130%);opacity:0}}
 @media(max-width:390px){.figu-stage{min-height:310px}.figu-capture-title{align-items:flex-start;flex-direction:column}.figu-capture-title span{text-align:left}.number-control{grid-template-columns:48px 1fr 48px}.scan-data-panel{padding:13px}.scan-data-panel .input{font-size:18px}}
+
+/* V24: recuadro activa cámara y fondo mundialista real detrás de la figurita */
+.scanner-wrap-xl{cursor:pointer;touch-action:manipulation}
+.scan-frame-xl{animation:framePulse 2.2s ease-in-out infinite}
+.scan-frame-xl span{background:rgba(5,7,13,.72)!important;color:#FFE08A!important;border-color:rgba(255,224,138,.38)!important}
+.figu-stage{background:linear-gradient(135deg,#05070d,#101b35 42%,#401021 74%,#080b14)!important}
+.figu-stage .scan-preview{background:#05070d!important;object-fit:contain!important;padding:0!important}
+.sticker-photo{background:linear-gradient(135deg,#05070d,#101b35 55%,#401021)!important;border-color:rgba(255,224,138,.32)!important}
+.sticker-photo img{object-fit:cover;filter:contrast(1.08) saturate(1.08)}
+@keyframes framePulse{0%,100%{box-shadow:0 0 0 999px rgba(0,0,0,.38),0 0 26px rgba(255,217,106,.38)}50%{box-shadow:0 0 0 999px rgba(0,0,0,.38),0 0 42px rgba(255,217,106,.68)}}
