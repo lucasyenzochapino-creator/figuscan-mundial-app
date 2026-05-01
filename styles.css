@@ -309,3 +309,25 @@ html,body{background:#05070D;color:#F8FAFC;}
     min-height:560px!important;
   }
 }
+
+
+/* V30: fotos más nítidas, sin ampliación agresiva, Android/iPhone */
+.scan-preview,
+.sticker-photo,
+.viewer-main-image,
+.viewer-image-wrap img {
+  image-rendering: auto;
+  object-fit: contain !important;
+}
+.figu-stage {
+  background: radial-gradient(circle at 50% 18%, rgba(255,224,138,.18), transparent 34%), linear-gradient(135deg,#070c1c,#11285b 56%,#4b1224) !important;
+}
+.scan-preview {
+  max-width: 100%;
+  height: auto !important;
+  object-fit: contain !important;
+}
+@supports (-webkit-touch-callout: none) {
+  .video-xl { transform: translateZ(0); }
+  .scanner-wrap-xl { -webkit-overflow-scrolling: touch; }
+}

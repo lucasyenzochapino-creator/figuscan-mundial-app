@@ -1,4 +1,4 @@
-const CACHE_NAME = 'figuscan-v29-rescate';
+const CACHE_NAME = 'figuscan-v30-foto-calidad';
 
 self.addEventListener('install', event => {
   self.skipWaiting();

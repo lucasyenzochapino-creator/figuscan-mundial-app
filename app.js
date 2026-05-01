@@ -856,12 +856,13 @@ function getCenteredStickerCrop(canvas){
   const w = canvas.width;
   const h = canvas.height;
 
-  // Recorte fuerte y centrado: quita mesa/pared y prioriza la figurita.
-  let cropW = Math.floor(w * 0.58);
+  // V30: recorte menos agresivo. Antes se ampliaba demasiado y cortaba la figurita.
+  // Mantiene formato de figurita, pero deja aire para que entre completa en Android/iPhone.
+  let cropW = Math.floor(w * 0.78);
   let cropH = Math.floor(cropW / ratio);
 
-  if(cropH > h * 0.84){
-    cropH = Math.floor(h * 0.84);
+  if(cropH > h * 0.92){
+    cropH = Math.floor(h * 0.92);
     cropW = Math.floor(cropH * ratio);
   }
 
@@ -872,40 +873,41 @@ function getCenteredStickerCrop(canvas){
 
 function captureStickerImage(video){
   const vw=video.videoWidth, vh=video.videoHeight;
+  if(!vw || !vh) throw new Error('Video sin dimensiones');
 
-  // Recorte vertical parecido a una figurita. El objetivo es eliminar lo más posible mesa/pared.
+  // Captura central vertical, pensada para Android y iPhone.
+  // NO hacemos zoom fuerte: priorizamos que la figurita entre completa.
   const targetRatio = 3 / 4;
-  let ch = Math.floor(vh * .82);
+  let ch = Math.floor(vh * .90);
   let cw = Math.floor(ch * targetRatio);
-  if(cw > vw * .82){ cw = Math.floor(vw * .82); ch = Math.floor(cw / targetRatio); }
+  if(cw > vw * .92){ cw = Math.floor(vw * .92); ch = Math.floor(cw / targetRatio); }
   const sx = Math.max(0, Math.floor((vw-cw)/2));
   const sy = Math.max(0, Math.floor((vh-ch)/2));
 
   const tmp=document.createElement('canvas');
-  tmp.width=960;
-  tmp.height=Math.round(960 * ch / cw);
+  tmp.width=1440;
+  tmp.height=Math.round(1440 * ch / cw);
   const tctx=tmp.getContext('2d', { willReadFrequently:true });
-  tctx.filter='contrast(1.20) brightness(1.07) saturate(1.16)';
+  tctx.imageSmoothingEnabled = true;
+  tctx.imageSmoothingQuality = 'high';
+  tctx.filter='contrast(1.10) brightness(1.04) saturate(1.10)';
   tctx.drawImage(video,sx,sy,cw,ch,0,0,tmp.width,tmp.height);
 
-  let box = detectStickerBounds(tmp);
-  if(!box) box = { x:0, y:0, w:tmp.width, h:tmp.height };
+  // Recorte suave: no acercar de más. Si la figurita está centrada, entra completa.
+  let box = getCenteredStickerCrop(tmp);
 
-  // En esta versión NO usamos el fondo del lugar como parte principal.
-  // Usamos un recorte centrado fuerte: la cámara debe estar centrada en el marco.
-  const centeredBox = getCenteredStickerCrop(tmp);
-  box = centeredBox;
-
-  // Imagen final: placa coleccionable. El fondo mundialista queda visible detrás de la foto.
+  // Tarjeta final de alta resolución.
   const c=document.createElement('canvas');
-  c.width=760;
-  c.height=1040;
+  c.width=1080;
+  c.height=1480;
   const ctx=c.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   drawWorldCupBackground(ctx,c.width,c.height);
 
-  // Marco exterior dorado tipo figurita especial.
-  const cardX=52, cardY=50, cardW=c.width-104, cardH=c.height-100;
-  roundRect(ctx,cardX,cardY,cardW,cardH,48);
+  const S = c.width / 760;
+  const cardX=52*S, cardY=50*S, cardW=c.width-104*S, cardH=c.height-100*S;
+  roundRect(ctx,cardX,cardY,cardW,cardH,48*S);
   const cardGrad = ctx.createLinearGradient(cardX,cardY,cardX+cardW,cardY+cardH);
   cardGrad.addColorStop(0,'rgba(255,241,168,.24)');
   cardGrad.addColorStop(.45,'rgba(255,255,255,.055)');
@@ -913,151 +915,131 @@ function captureStickerImage(video){
   ctx.fillStyle=cardGrad;
   ctx.fill();
   ctx.strokeStyle='rgba(255,224,138,.95)';
-  ctx.lineWidth=6;
+  ctx.lineWidth=6*S;
   ctx.stroke();
 
-  // Copita/estadio de fondo, visible por arriba y por abajo.
+  // Icono copa/estadio sutil detrás.
   ctx.save();
-  ctx.globalAlpha=.20;
+  ctx.globalAlpha=.18;
   ctx.strokeStyle='#FFF1A8';
-  ctx.lineWidth=8;
-  roundRect(ctx, cardX+cardW*.38, cardY+22, cardW*.24, 78, 20); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(c.width/2, cardY+104); ctx.lineTo(c.width/2, cardY+152); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(c.width/2-56, cardY+168); ctx.lineTo(c.width/2+56, cardY+168); ctx.stroke();
+  ctx.lineWidth=8*S;
+  roundRect(ctx, cardX+cardW*.38, cardY+22*S, cardW*.24, 78*S, 20*S); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(c.width/2, cardY+104*S); ctx.lineTo(c.width/2, cardY+152*S); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(c.width/2-56*S, cardY+168*S); ctx.lineTo(c.width/2+56*S, cardY+168*S); ctx.stroke();
   ctx.restore();
 
-  // Zona foto: más chica para que el fondo mundialista sí se note.
-  const photoX=102, photoY=164, photoW=c.width-204, photoH=690;
-  roundRect(ctx,photoX-10,photoY-10,photoW+20,photoH+20,38);
-  ctx.fillStyle='rgba(5,7,13,.50)';
+  // Zona de foto grande, con fondo propio. La foto va contenida, no recortada ni ampliada de más.
+  const photoX=96*S, photoY=158*S, photoW=c.width-192*S, photoH=780*S;
+  roundRect(ctx,photoX-14*S,photoY-14*S,photoW+28*S,photoH+28*S,42*S);
+  ctx.fillStyle='rgba(5,7,13,.58)';
   ctx.fill();
   ctx.strokeStyle='rgba(255,255,255,.18)';
-  ctx.lineWidth=2;
+  ctx.lineWidth=2*S;
   ctx.stroke();
 
-  const innerX=photoX, innerY=photoY, innerW=photoW, innerH=photoH;
-  const srcRatio = box.w / box.h;
-  const dstRatio = innerW / innerH;
-  let dw=innerW, dh=innerH;
-  if(srcRatio > dstRatio){ dh = innerW / srcRatio; } else { dw = innerH * srcRatio; }
-  const dx = innerX + (innerW-dw)/2;
-  const dy = innerY + (innerH-dh)/2;
-
-  // Fondo contrastado detrás de la figurita: desenfocado + oscuro para no dejar el lugar crudo.
   ctx.save();
-  roundRect(ctx,photoX,photoY,photoW,photoH,30);
+  roundRect(ctx,photoX,photoY,photoW,photoH,34*S);
   ctx.clip();
 
+  // Fondo interno reemplazado: oscuro/dorado, no el fondo real del lugar.
   const bgGrad = ctx.createLinearGradient(photoX, photoY, photoX + photoW, photoY + photoH);
-  bgGrad.addColorStop(0, 'rgba(8,13,28,1)');
-  bgGrad.addColorStop(.55, 'rgba(17,38,84,1)');
-  bgGrad.addColorStop(1, 'rgba(86,19,37,1)');
+  bgGrad.addColorStop(0, 'rgba(7,12,28,1)');
+  bgGrad.addColorStop(.52, 'rgba(15,35,80,1)');
+  bgGrad.addColorStop(1, 'rgba(75,18,36,1)');
   ctx.fillStyle = bgGrad;
   ctx.fillRect(photoX, photoY, photoW, photoH);
 
-  // Usa la foto original muy agrandada y desenfocada solo como textura de fondo.
+  // Textura muy suave de la foto, desenfocada y oscurecida. No domina la imagen.
   ctx.save();
-  ctx.globalAlpha = .10;
-  ctx.filter = 'blur(26px) brightness(.32) saturate(.75)';
-  ctx.drawImage(tmp, box.x, box.y, box.w, box.h, photoX - 50, photoY - 50, photoW + 100, photoH + 100);
+  ctx.globalAlpha = .08;
+  ctx.filter = 'blur(32px) brightness(.34) saturate(.65)';
+  ctx.drawImage(tmp, box.x, box.y, box.w, box.h, photoX - 70*S, photoY - 70*S, photoW + 140*S, photoH + 140*S);
   ctx.restore();
 
-  // Brillos/spotlights para contraste visual.
-  const spot1 = ctx.createRadialGradient(photoX + photoW*.22, photoY + photoH*.18, 10, photoX + photoW*.22, photoY + photoH*.18, photoW*.46);
-  spot1.addColorStop(0, 'rgba(255,224,138,.22)');
+  // Luces para contraste.
+  const spot1 = ctx.createRadialGradient(photoX + photoW*.20, photoY + photoH*.16, 10*S, photoX + photoW*.20, photoY + photoH*.16, photoW*.48);
+  spot1.addColorStop(0, 'rgba(255,224,138,.24)');
   spot1.addColorStop(1, 'rgba(255,224,138,0)');
   ctx.fillStyle = spot1;
   ctx.fillRect(photoX, photoY, photoW, photoH);
-
-  const spot2 = ctx.createRadialGradient(photoX + photoW*.84, photoY + photoH*.80, 10, photoX + photoW*.84, photoY + photoH*.80, photoW*.44);
-  spot2.addColorStop(0, 'rgba(47,116,255,.18)');
+  const spot2 = ctx.createRadialGradient(photoX + photoW*.82, photoY + photoH*.84, 10*S, photoX + photoW*.82, photoY + photoH*.84, photoW*.46);
+  spot2.addColorStop(0, 'rgba(47,116,255,.16)');
   spot2.addColorStop(1, 'rgba(47,116,255,0)');
   ctx.fillStyle = spot2;
   ctx.fillRect(photoX, photoY, photoW, photoH);
 
-  // Toma una versión más cerrada de la figurita para dejar menos fondo alrededor.
-  const focusScale = .84;
-  const focusW = box.w * focusScale;
-  const focusH = box.h * focusScale;
-  const focusX = box.x + (box.w - focusW)/2;
-  const focusY = box.y + (box.h - focusH)/2;
-  const stickerMaxW = photoW * .78;
-  const stickerMaxH = photoH * .82;
-  const focusRatio = focusW / focusH;
-  let stickerW = stickerMaxW, stickerH = stickerMaxH;
-  if(focusRatio > stickerW / stickerH){
-    stickerH = stickerW / focusRatio;
+  // La imagen capturada se dibuja COMPLETA dentro del marco. No se usa focusScale.
+  const srcRatio = box.w / box.h;
+  const maxW = photoW * .82;
+  const maxH = photoH * .78;
+  let stickerW=maxW, stickerH=maxH;
+  if(srcRatio > maxW/maxH){
+    stickerH = stickerW / srcRatio;
   } else {
-    stickerW = stickerH * focusRatio;
+    stickerW = stickerH * srcRatio;
   }
-  const stickerX = photoX + (photoW - stickerW)/2;
-  const stickerY = photoY + (photoH - stickerH)/2 - 10;
+  const stickerX = photoX + (photoW-stickerW)/2;
+  const stickerY = photoY + (photoH-stickerH)/2 - 8*S;
 
-  // Halo detrás de la figurita.
-  const halo = ctx.createRadialGradient(stickerX + stickerW/2, stickerY + stickerH/2, 20, stickerX + stickerW/2, stickerY + stickerH/2, Math.max(stickerW, stickerH)*.62);
-  halo.addColorStop(0, 'rgba(255,255,255,.16)');
+  const halo = ctx.createRadialGradient(stickerX + stickerW/2, stickerY + stickerH/2, 20*S, stickerX + stickerW/2, stickerY + stickerH/2, Math.max(stickerW, stickerH)*.70);
+  halo.addColorStop(0, 'rgba(255,255,255,.18)');
   halo.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = halo;
   ctx.fillRect(photoX, photoY, photoW, photoH);
 
-  // Sombra de la figurita.
   ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,.55)';
-  ctx.shadowBlur = 32;
-  ctx.shadowOffsetY = 18;
-  ctx.fillStyle = 'rgba(0,0,0,.22)';
-  roundRect(ctx, stickerX, stickerY, stickerW, stickerH, 20);
+  ctx.shadowColor = 'rgba(0,0,0,.58)';
+  ctx.shadowBlur = 36*S;
+  ctx.shadowOffsetY = 18*S;
+  ctx.fillStyle = 'rgba(0,0,0,.24)';
+  roundRect(ctx, stickerX, stickerY, stickerW, stickerH, 22*S);
   ctx.fill();
   ctx.restore();
 
-  // Figurita principal sobre fondo contrastado.
   ctx.save();
-  roundRect(ctx, stickerX, stickerY, stickerW, stickerH, 20);
+  roundRect(ctx, stickerX, stickerY, stickerW, stickerH, 22*S);
   ctx.clip();
-  ctx.filter='contrast(1.24) brightness(1.08) saturate(1.20)';
-  ctx.drawImage(tmp, focusX, focusY, focusW, focusH, stickerX, stickerY, stickerW, stickerH);
+  ctx.filter='contrast(1.12) brightness(1.04) saturate(1.10)';
+  ctx.drawImage(tmp, box.x, box.y, box.w, box.h, stickerX, stickerY, stickerW, stickerH);
   ctx.restore();
 
-  // Borde de la figurita.
-  roundRect(ctx, stickerX, stickerY, stickerW, stickerH, 20);
-  ctx.strokeStyle='rgba(255,255,255,.26)';
-  ctx.lineWidth=2;
+  roundRect(ctx, stickerX, stickerY, stickerW, stickerH, 22*S);
+  ctx.strokeStyle='rgba(255,255,255,.28)';
+  ctx.lineWidth=2*S;
   ctx.stroke();
 
   ctx.restore();
 
-  // Borde de la zona foto.
-  roundRect(ctx,photoX,photoY,photoW,photoH,30);
-  ctx.strokeStyle='rgba(255,224,138,.55)';
-  ctx.lineWidth=3;
+  roundRect(ctx,photoX,photoY,photoW,photoH,34*S);
+  ctx.strokeStyle='rgba(255,224,138,.60)';
+  ctx.lineWidth=3*S;
   ctx.stroke();
 
-  // Banda inferior FiguScan. Esto hace que no parezca una foto cruda del lugar.
-  const bandY = 884;
-  roundRect(ctx,92,bandY,576,92,28);
+  // Banda inferior sin texto "figurita destacada".
+  const bandY = 1012*S;
+  roundRect(ctx,92*S,bandY,576*S,92*S,28*S);
   ctx.fillStyle='rgba(5,7,13,.72)';
   ctx.fill();
   ctx.strokeStyle='rgba(255,224,138,.36)';
-  ctx.lineWidth=2;
+  ctx.lineWidth=2*S;
   ctx.stroke();
   ctx.fillStyle='#FFE08A';
-  ctx.font='900 30px Inter, Arial';
-  ctx.fillText('FiguScan Mundial',124,bandY+42);
+  ctx.font=`900 ${30*S}px Inter, Arial`;
+  ctx.fillText('FiguScan Mundial',124*S,bandY+42*S);
   ctx.fillStyle='rgba(226,232,240,.92)';
-  ctx.font='800 18px Inter, Arial';
-  ctx.fillText('Figurita destacada en tu álbum',124,bandY+70);
+  ctx.font=`800 ${18*S}px Inter, Arial`;
+  ctx.fillText('Guardada en tu álbum',124*S,bandY+70*S);
 
-  // Brillo diagonal suave.
   const shine=ctx.createLinearGradient(0,0,c.width,c.height);
-  shine.addColorStop(0,'rgba(255,255,255,.28)');
+  shine.addColorStop(0,'rgba(255,255,255,.24)');
   shine.addColorStop(.18,'rgba(255,255,255,0)');
-  shine.addColorStop(.58,'rgba(255,255,255,.12)');
+  shine.addColorStop(.58,'rgba(255,255,255,.10)');
   shine.addColorStop(1,'rgba(255,255,255,0)');
   ctx.fillStyle=shine;
-  roundRect(ctx,cardX+8,cardY+8,cardW-16,cardH-16,42);
+  roundRect(ctx,cardX+8*S,cardY+8*S,cardW-16*S,cardH-16*S,42*S);
   ctx.fill();
 
-  return c.toDataURL('image/jpeg', .92);
+  return c.toDataURL('image/jpeg', .96);
 }
 
 function detectStickerBounds(canvas){
