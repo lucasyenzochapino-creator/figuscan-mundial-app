@@ -1,4 +1,4 @@
-/* FiguScan Mundial V13 - Premium Dark local-first PWA */
+/* FiguScan Mundial V14 - país editable + nav uniforme */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 
@@ -26,8 +26,40 @@ const COUNTRIES = [
   { id:'japon', name:'Japón', short:'JPN', flag:'🇯🇵', color:'#F472B6' },
   { id:'marruecos', name:'Marruecos', short:'MAR', flag:'🇲🇦', color:'#DC2626' },
 ];
-function countryById(id){ return COUNTRIES.find(c=>c.id===id) || COUNTRIES[0]; }
+function slugifyCountry(value){
+  return String(value || '')
+    .trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g,'-')
+    .replace(/^-+|-+$/g,'') || 'general';
+}
+function customCountryName(id){
+  const found = state?.stickers?.find?.(s => s.country === id && s.countryName);
+  return found?.countryName || '';
+}
+function countryById(id){
+  const found = COUNTRIES.find(c=>c.id===id);
+  if(found) return found;
+  const name = customCountryName(id) || String(id || 'General').replace(/-/g,' ').replace(/\b\w/g, m=>m.toUpperCase());
+  return { id:id || 'general', name, short:name.slice(0,3).toUpperCase(), flag:'⚑', color:'#FFE08A', custom:true };
+}
 function countryLabel(id){ return countryById(id).name; }
+function countryFromInput(value){
+  const raw = String(value || '').trim();
+  if(!raw) return { country:'general', countryName:'General' };
+  const byName = COUNTRIES.find(c => c.name.toLowerCase() === raw.toLowerCase() || c.short.toLowerCase() === raw.toLowerCase());
+  if(byName) return { country:byName.id, countryName:byName.name };
+  return { country:slugifyCountry(raw), countryName:raw };
+}
+function availableCountries(){
+  const map = new Map(COUNTRIES.map(c => [c.id, c]));
+  state.stickers.forEach(s => {
+    const id = s.country || 'general';
+    if(!map.has(id)) map.set(id, countryById(id));
+  });
+  return Array.from(map.values());
+}
 
 const icons = {
   trophy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M17 5h3a2 2 0 0 1 0 4h-3"/><path d="M7 5H4a2 2 0 0 0 0 4h3"/><path d="M9 17h6"/></svg>',
@@ -124,16 +156,18 @@ function formatSticker(s){
   return `N° ${s.number}${name}`;
 }
 
-function addOrUpdateSticker({ number, status, repeatedCount=1, player='', country='general' }){
+function addOrUpdateSticker({ number, status, repeatedCount=1, player='', country='general', countryName='' }){
   number = normalizeNumber(number);
   if(!number){ toast('Ingresá un número de figurita.', 'warn'); return false; }
   const existing = existingByNumber(number);
   const stamp = now();
   const cleanPlayer = String(player || '').trim();
   const cleanCountry = country || 'general';
+  const cleanCountryName = countryName || countryLabel(cleanCountry);
   if(existing){
     if(cleanPlayer) existing.player = cleanPlayer;
     if(cleanCountry) existing.country = cleanCountry;
+    if(cleanCountryName) existing.countryName = cleanCountryName;
     existing.updatedAt = stamp;
 
     if(status === 'have'){
@@ -192,6 +226,7 @@ function addOrUpdateSticker({ number, status, repeatedCount=1, player='', countr
     number,
     player: cleanPlayer,
     country: cleanCountry,
+    countryName: cleanCountryName,
     status,
     repeatedCount: status === 'repeated' ? Math.max(1, Number(repeatedCount)||1) : 0,
     createdAt: stamp,
@@ -270,7 +305,7 @@ function filteredStickers(){
   if(state.search.trim()) {
     const q = state.search.toLowerCase();
     const qn = normalizeNumber(state.search);
-    list = list.filter(s=>String(s.number).includes(qn) || String(s.player||'').toLowerCase().includes(q) || countryLabel(stickerCountry(s)).toLowerCase().includes(q));
+    list = list.filter(s=>String(s.number).includes(qn) || String(s.player||'').toLowerCase().includes(q) || (s.countryName || countryLabel(stickerCountry(s))).toLowerCase().includes(q));
   }
   return list.sort(byNumber);
 }
@@ -348,7 +383,7 @@ function manualScreen(){
       <form class="form" onsubmit="submitManual(event)">
         <div class="field"><label>Número de figurita</label><input class="input" inputmode="numeric" pattern="[0-9]*" id="num" placeholder="Ej: 24" value="${editing ? escapeHtml(editing.number) : ''}" required></div>
         <div class="field"><label>Nombre del jugador</label><input class="input" id="player" placeholder="Ej: Messi" value="${editing ? escapeHtml(editing.player||'') : ''}"></div>
-        <div class="field"><label>Selección / país</label><select class="input" id="country">${countryOptions(editing?.country || 'general')}</select></div>
+        <div class="field"><label>Selección / país</label><input class="input" id="countryInput" list="countryList" placeholder="Escribí Argentina, Brasil..." value="${editing ? escapeHtml(editing.countryName || countryLabel(editing.country || 'general')) : ''}"><datalist id="countryList">${countryOptions(editing?.country || 'general')}</datalist><small class="help">Escribí y elegí una sugerencia. Si no existe, la app agrega ese país.</small></div>
         <div class="field"><label>¿Cómo la querés marcar?</label><div class="state-grid">
           ${stateButton('have', defaultStatus)}
           ${stateButton('missing', defaultStatus)}
@@ -363,7 +398,7 @@ function manualScreen(){
     </section>
   </main>`;
 }
-function countryOptions(active='general'){ return COUNTRIES.map(c=>`<option value="${c.id}" ${active===c.id?'selected':''}>${c.flag} ${c.name}</option>`).join(''); }
+function countryOptions(active='general'){ return availableCountries().map(c=>`<option value="${escapeHtml(c.name)}"></option>`).join(''); }
 function stateButton(status, active){
   return `<button type="button" class="state-option ${status} ${active===status?'active':''}" onclick="chooseManualStatus('${status}')">${statusIcon(status)} <span>${STATUS[status].long}</span></button>`;
 }
@@ -386,17 +421,19 @@ function submitManual(e, again=false){
   const number = normalizeNumber(document.getElementById('num')?.value);
   const player = document.getElementById('player')?.value || '';
   const status = document.getElementById('manualStatus')?.value || 'have';
-  const country = document.getElementById('country')?.value || 'general';
+  const countryData = countryFromInput(document.getElementById('countryInput')?.value || 'General');
+  const country = countryData.country;
+  const countryName = countryData.countryName;
   const repeatedCount = Number(document.getElementById('qtyValue')?.textContent || 1);
   if(state.editingId){
     const s = state.stickers.find(x=>x.id===state.editingId);
     if(s){
-      s.number = number; s.player = player.trim(); s.country = country; s.status = status; s.repeatedCount = status==='repeated' ? Math.max(1,repeatedCount) : 0; s.updatedAt = now();
+      s.number = number; s.player = player.trim(); s.country = country; s.countryName = countryName; s.status = status; s.repeatedCount = status==='repeated' ? Math.max(1,repeatedCount) : 0; s.updatedAt = now();
       saveStickers(); toast('Figurita actualizada.'); state.editingId = null; setView('album',{filter:state.albumFilter});
     }
     return;
   }
-  const ok = addOrUpdateSticker({number, player, country, status, repeatedCount});
+  const ok = addOrUpdateSticker({number, player, country, countryName, status, repeatedCount});
   if(ok){
     if(again){ setView('manual',{manualDefault:status}); }
     else setView('album',{filter:status});
@@ -415,7 +452,7 @@ function albumScreen(){
       <div class="toolbar">
         ${filterChip('all','Todas')}${filterChip('have','Tengo')}${filterChip('missing','Me faltan')}${filterChip('repeated','Repetidas')}
       </div>
-      <div class="toolbar countries-toolbar">${countryChip('all','Todas')}${COUNTRIES.map(c=>countryChip(c.id, c.short)).join('')}</div>
+      <div class="toolbar countries-toolbar">${countryChip('all','Todas')}${availableCountries().map(c=>countryChip(c.id, c.short || c.name.slice(0,3).toUpperCase())).join('')}</div>
       <div class="album-actions">
         <button class="btn btn-primary" onclick="setView('manual',{manualDefault:'${defaultAdd}'})">${icons.plus} Agregar ${state.albumFilter==='missing'?'faltante':state.albumFilter==='repeated'?'repetida':state.albumFilter==='have'?'tengo':'manual'}</button>
         <button class="btn btn-ghost" onclick="state.selected = new Set(); render()">Limpiar selección</button>
@@ -428,7 +465,7 @@ function albumScreen(){
   </main>`;
 }
 function filterChip(key,label){ return `<button class="chip ${state.albumFilter===key?'active':''}" onclick="state.albumFilter='${key}'; state.search=''; state.selected=new Set(); render()">${label}</button>`; }
-function countryChip(key,label){ return `<button class="chip country ${state.countryFilter===key?'active':''}" onclick="state.countryFilter='${key}'; state.selected=new Set(); render()">${key==='all'?'':countryById(key).flag+' '}${label}</button>`; }
+function countryChip(key,label){ const meta = key==='all' ? null : countryById(key); return `<button class="chip country ${state.countryFilter===key?'active':''}" onclick="state.countryFilter='${key}'; state.selected=new Set(); render()">${key==='all'?'':meta.flag+' '}${key==='all'?label:(meta.short || label)}</button>`; }
 function bulkBar(){
   return `<section class="bulkbar"><strong>${state.selected.size} seleccionadas</strong><div class="row"><button class="btn btn-green" onclick="bulkStatus('have')">Tengo</button><button class="btn btn-danger" onclick="bulkStatus('missing')">Me falta</button></div><div class="row"><button class="btn btn-orange" onclick="bulkStatus('repeated')">Repetida</button><button class="btn btn-danger" onclick="bulkDelete()">Eliminar</button></div></section>`;
 }
@@ -438,7 +475,7 @@ function stickerCard(s){
     <button class="select-box ${selected?'on':''}" onclick="toggleSelect('${s.id}')">${selected ? icons.check : ''}</button>
     <div style="padding-left:26px">
       <div class="sticker-top"><div class="number">#${s.number}</div><span class="status-badge ${s.status}">${statusIcon(s.status)} ${STATUS[s.status].label}${s.status==='repeated'?` x${s.repeatedCount||1}`:''}</span></div>
-      <div class="country-line"><span>${countryById(stickerCountry(s)).flag}</span> ${escapeHtml(countryLabel(stickerCountry(s)))}</div>
+      <div class="country-line"><span>${countryById(stickerCountry(s)).flag}</span> ${escapeHtml(s.countryName || countryLabel(stickerCountry(s)))}</div>
       <div class="player">${escapeHtml(s.player || 'Sin jugador')}</div>
       <div class="card-actions">
         <button class="icon-btn" title="Editar" onclick="setView('manual',{editingId:'${s.id}'})">${icons.edit}</button>
@@ -480,7 +517,7 @@ function detectedBox(num){
     <button class="state-option missing" onclick="saveDetected('${num}','missing')">${icons.x} Me falta</button>
   </div><button class="btn btn-primary full" style="margin-top:12px" onclick="state.detectedNumber=''; render(); setTimeout(startCamera,50)">Escanear otra</button></div>`;
 }
-function saveDetected(num,status){ addOrUpdateSticker({number:num,status,repeatedCount:1,country:'general'}); state.detectedNumber=''; state.view='scanner'; render(); setTimeout(startCamera,80); }
+function saveDetected(num,status){ addOrUpdateSticker({number:num,status,repeatedCount:1,country:'general',countryName:'General'}); state.detectedNumber=''; state.view='scanner'; render(); setTimeout(startCamera,80); }
 async function startCamera(){
   const video = document.getElementById('video'); if(!video) return;
   try{

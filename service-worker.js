@@ -1,4 +1,4 @@
-const CACHE = 'figuscan-v13-premium-dark';
+const CACHE = 'figuscan-v14-country-input-dark';
 const ASSETS = ['/', '/index.html', '/styles.css', '/app.js', '/manifest.webmanifest'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
