@@ -1,38 +1,20 @@
-# FiguScan Mundial - versión plana para subir desde celular
+# FiguScan Mundial V3
 
-Esta versión NO usa React/Vite ni carpetas complicadas. Está preparada para GitHub desde celular.
+Versión mejorada para subir desde celular.
 
-## Archivos que tenés que subir
-Subí TODOS estos archivos y carpetas al repositorio:
+## Cambios
+- Mejor aspecto visual.
+- Guardado reforzado: si Firestore falla, guarda en el teléfono como respaldo.
+- Reconocimiento mejorado por OCR con preprocesado de imagen.
+- Imagen más liviana para evitar errores de Firestore.
+- Service worker actualizado para limpiar caché.
 
-- index.html
-- app.js
-- styles.css
-- config.js
-- manifest.webmanifest
-- service-worker.js
-- vercel.json
-- firestore.rules
-- assets
-- README_PASO_A_PASO.md
+## Subir actualización
+1. Entrar al repositorio en GitHub.
+2. Tocar Add file / Upload files.
+3. Subir estos archivos reemplazando los anteriores.
+4. Confirmar cambios.
+5. Vercel redespliega solo.
 
-## Firebase
-Ya viene cargada con tu configuración pública de Firebase en `config.js`.
-
-## Firestore Rules
-Si necesitás volver a pegar reglas, usá el archivo `firestore.rules`.
-
-## Publicación
-1. Crear repositorio nuevo en GitHub.
-2. Subir estos archivos.
-3. Ir a Vercel.
-4. Importar el repositorio.
-5. Deploy.
-
-## Probar
-1. Abrir link de Vercel.
-2. Crear cuenta.
-3. Cargar figuritas.
-4. Probar faltantes/repetidas.
-5. Compartir por WhatsApp.
-6. Agregar amigo con código.
+## Nota
+El reconocimiento perfecto de cualquier figurita de cualquier álbum requiere una base de imágenes o una IA visual. Esta versión reconoce texto visible y permite carga manual.
