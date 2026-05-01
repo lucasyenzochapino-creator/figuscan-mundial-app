@@ -1,4 +1,4 @@
-/* FiguScan Mundial V35 - foto sin zoom agresivo, sin General por defecto */
+/* FiguScan Mundial V36 - fondo real reducido, foto estable y borrado parcial de repetidas */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 const APP_URL = 'https://figuscan-mundial-app.vercel.app/';
@@ -3753,6 +3753,26 @@ function addOrUpdateSticker({ number, status, repeatedCount=1, player='', countr
 function deleteSticker(id){
   const s = state.stickers.find(x=>x.id===id);
   if(!s) return;
+
+  // Si es repetida y tiene cantidad, no borrar todo de golpe.
+  // Primero preguntamos cuántas repetidas quiere quitar.
+  if(s.status === 'repeated' && Number(s.repeatedCount || 0) > 1){
+    state.modal = {
+      kind: 'deleteRepeated',
+      stickerId: id,
+      qty: 1,
+      maxQty: Number(s.repeatedCount) || 1,
+      title: `Borrar repetidas N° ${s.number}`,
+      text: `Tenés ${Number(s.repeatedCount)||1} repetidas. Elegí cuántas querés borrar.`,
+      cancel: 'Cancelar',
+      confirm: 'Borrar',
+      danger: true,
+      onConfirm: () => confirmDeleteRepeated()
+    };
+    render();
+    return;
+  }
+
   state.modal = {
     title: `Eliminar figurita N° ${s.number}`,
     text: 'Esta acción borra la figurita de tu álbum en este celular.',
@@ -3768,6 +3788,38 @@ function deleteSticker(id){
       render();
     }
   };
+  render();
+}
+function changeDeleteQty(delta){
+  if(!state.modal || state.modal.kind !== 'deleteRepeated') return;
+  const max = Number(state.modal.maxQty) || 1;
+  const next = Math.max(1, Math.min(max, (Number(state.modal.qty)||1) + delta));
+  state.modal.qty = next;
+  render();
+}
+function setDeleteAllRepeated(){
+  if(!state.modal || state.modal.kind !== 'deleteRepeated') return;
+  state.modal.qty = Number(state.modal.maxQty) || 1;
+  render();
+}
+function confirmDeleteRepeated(){
+  const m = state.modal;
+  if(!m || m.kind !== 'deleteRepeated') return;
+  const s = state.stickers.find(x=>x.id===m.stickerId);
+  if(!s){ state.modal=null; render(); return; }
+  const current = Number(s.repeatedCount)||1;
+  const qty = Math.max(1, Math.min(current, Number(m.qty)||1));
+  if(qty >= current){
+    state.stickers = state.stickers.filter(x=>x.id!==s.id);
+    state.selected.delete(s.id);
+    toast(`Eliminé todas las repetidas de la N° ${s.number}.`, 'success');
+  }else{
+    s.repeatedCount = current - qty;
+    s.updatedAt = now();
+    toast(`Borré ${qty}. Quedan ${s.repeatedCount} repetidas de la N° ${s.number}.`, 'success');
+  }
+  saveStickers();
+  state.modal = null;
   render();
 }
 function bulkDelete(){
@@ -3944,7 +3996,7 @@ function manualScreen(){
     </section>
   </main>`;
 }
-function countryOptions(active='general'){ return COUNTRIES.map(c=>`<option value="${escapeHtml(c.name)}">${escapeHtml(c.short || '')} ${escapeHtml(c.flag || '')}</option>`).join(''); }
+function countryOptions(active='general'){ return COUNTRIES.filter(c=>c.id !== 'general').map(c=>`<option value="${escapeHtml(c.name)}">${escapeHtml(c.short || '')} ${escapeHtml(c.flag || '')}</option>`).join(''); }
 function stateButton(status, active){
   return `<button type="button" class="state-option ${status} ${active===status?'active':''}" onclick="chooseManualStatus('${status}')">${statusIcon(status)} <span>${STATUS[status].long}</span></button>`;
 }
@@ -4446,34 +4498,38 @@ function captureStickerImage(video){
   ctx.fillStyle=haloBg;
   ctx.fillRect(photoX, photoY, photoW, photoH);
 
-  // La figurita recortada se centra automáticamente y completa dentro del marco.
-  const srcRatio = box.w / box.h;
-  const maxW = photoW * .74;
-  const maxH = photoH * .78;
+  // La figurita se dibuja sobre fondo generado. El recorte intenta volver transparente el fondo real.
+  const cutout = createForegroundCutout(tmp, box);
+  const srcRatio = cutout.width / cutout.height;
+  const maxW = photoW * .84;
+  const maxH = photoH * .84;
   let stickerW=maxW, stickerH=maxH;
   if(srcRatio > maxW/maxH){ stickerH = stickerW / srcRatio; }
   else { stickerW = stickerH * srcRatio; }
   const stickerX = photoX + (photoW-stickerW)/2;
-  const stickerY = photoY + (photoH-stickerH)/2 - 2*S;
+  const stickerY = photoY + (photoH-stickerH)/2;
 
+  // Base clara de contraste detrás de la figurita, no es fondo real.
+  const basePad = 16*S;
   ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,.62)';
+  ctx.shadowColor = 'rgba(0,0,0,.64)';
   ctx.shadowBlur = 38*S;
-  ctx.shadowOffsetY = 20*S;
-  ctx.fillStyle = 'rgba(0,0,0,.30)';
-  roundRect(ctx, stickerX, stickerY, stickerW, stickerH, 20*S);
+  ctx.shadowOffsetY = 22*S;
+  const plateGrad = ctx.createLinearGradient(stickerX, stickerY, stickerX, stickerY+stickerH);
+  plateGrad.addColorStop(0,'rgba(255,255,255,.12)');
+  plateGrad.addColorStop(1,'rgba(0,0,0,.22)');
+  ctx.fillStyle = plateGrad;
+  roundRect(ctx, stickerX-basePad, stickerY-basePad, stickerW+basePad*2, stickerH+basePad*2, 26*S);
   ctx.fill();
   ctx.restore();
 
   ctx.save();
-  roundRect(ctx, stickerX, stickerY, stickerW, stickerH, 20*S);
-  ctx.clip();
-  ctx.filter='contrast(1.10) brightness(1.04) saturate(1.10)';
-  ctx.drawImage(tmp, box.x, box.y, box.w, box.h, stickerX, stickerY, stickerW, stickerH);
+  ctx.filter='contrast(1.08) brightness(1.04) saturate(1.10)';
+  ctx.drawImage(cutout, 0, 0, cutout.width, cutout.height, stickerX, stickerY, stickerW, stickerH);
   ctx.restore();
 
-  roundRect(ctx, stickerX, stickerY, stickerW, stickerH, 20*S);
-  ctx.strokeStyle='rgba(255,255,255,.38)';
+  roundRect(ctx, stickerX-basePad, stickerY-basePad, stickerW+basePad*2, stickerH+basePad*2, 26*S);
+  ctx.strokeStyle='rgba(255,255,255,.30)';
   ctx.lineWidth=2*S;
   ctx.stroke();
 
@@ -4510,43 +4566,136 @@ function captureStickerImage(video){
 
 
 function forceTightStickerCrop(box, maxW, maxH){
-  // V35: no ampliar/cortar de más. Buscamos que entre la figurita completa.
-  // El fondo real se elimina usando un fondo generado detrás; este recorte debe quedarse
-  // lo más cerca posible del cromo sin comerse cabeza, número ni bordes.
-  const targetRatio = 0.70; // ancho / alto aproximado de una figurita
-  const cx = box.x + box.w / 2;
-  const cy = box.y + box.h / 2;
+  // V36: recorte estable. No se agranda de manera agresiva.
+  // Buscamos el centro del cromo y dejamos un margen moderado para no cortar jugador/número.
+  const targetRatio = 0.70; // ancho / alto aproximado de una figurita.
+  let cx = box.x + box.w / 2;
+  let cy = box.y + box.h / 2;
   const boxRatio = box.w / Math.max(1, box.h);
 
-  let w;
-  let h;
+  // Si el detector agarró demasiado entorno, volvemos al centro del marco de cámara.
+  const looksTooWide = boxRatio > 0.92 || box.w > maxW * 0.70 || box.h > maxH * 0.92;
+  if(looksTooWide){
+    cx = maxW / 2;
+    cy = maxH / 2;
+  }
 
-  if(boxRatio > 0.88 || box.w > maxW * 0.62){
-    // El detector tomó demasiado fondo. Usamos un recorte vertical centrado,
-    // pero con más aire que antes para no cortar la figurita.
-    h = Math.min(box.h * 0.94, maxH * 0.84);
-    w = h * targetRatio;
-  }else{
-    // Detector razonable: expandimos un poco para que entre el cromo completo.
-    h = box.h * 1.10;
-    w = Math.max(box.w * 1.08, h * targetRatio);
+  let h = looksTooWide ? maxH * 0.74 : box.h * 1.04;
+  let w = h * targetRatio;
+
+  // Si el ancho detectado es razonable, lo respetamos sin pasarnos.
+  if(!looksTooWide){
+    w = Math.max(w, box.w * 1.02);
     h = w / targetRatio;
   }
 
-  // Límites de seguridad para Android/iPhone: evita zoom agresivo y deformaciones.
-  w = Math.min(w, maxW * 0.60);
-  h = Math.min(h, maxH * 0.86);
-
-  // Mínimos para que no quede microscópica.
-  w = Math.max(w, maxW * 0.34);
+  // Límites: suficiente zoom para quitar fondo, pero sin cortar demasiado.
+  w = Math.min(w, maxW * 0.58);
+  h = Math.min(h, maxH * 0.80);
+  w = Math.max(w, maxW * 0.42);
   h = Math.max(h, w / targetRatio);
 
   let x = Math.round(cx - w / 2);
   let y = Math.round(cy - h / 2);
   x = Math.max(0, Math.min(Math.round(maxW - w), x));
   y = Math.max(0, Math.min(Math.round(maxH - h), y));
-
   return { x, y, w: Math.round(w), h: Math.round(h) };
+}
+
+function createForegroundCutout(sourceCanvas, box){
+  // V36: intenta quitar el fondo real que rodea a la figurita.
+  // Es un recorte local por color de borde + flood-fill desde los bordes.
+  const sw = Math.max(1, Math.round(box.w));
+  const sh = Math.max(1, Math.round(box.h));
+  const cut = document.createElement('canvas');
+  cut.width = sw;
+  cut.height = sh;
+  const ctx = cut.getContext('2d', { willReadFrequently:true });
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(sourceCanvas, box.x, box.y, box.w, box.h, 0, 0, sw, sh);
+
+  const img = ctx.getImageData(0,0,sw,sh);
+  const data = img.data;
+
+  // Muestras de color del borde del recorte: eso normalmente es mesa/pared/fondo real.
+  const samples = [];
+  const sample = (x,y)=>{
+    x=Math.max(0,Math.min(sw-1,x)); y=Math.max(0,Math.min(sh-1,y));
+    const i=(y*sw+x)*4;
+    samples.push([data[i],data[i+1],data[i+2]]);
+  };
+  const step = Math.max(4, Math.round(Math.min(sw,sh)/36));
+  for(let x=0;x<sw;x+=step){ sample(x,0); sample(x,sh-1); }
+  for(let y=0;y<sh;y+=step){ sample(0,y); sample(sw-1,y); }
+
+  const groups = [[],[],[],[]];
+  samples.forEach((s,idx)=>groups[idx%4].push(s));
+  const avgs = groups.filter(g=>g.length).map(g=>{
+    const sum=g.reduce((a,c)=>[a[0]+c[0],a[1]+c[1],a[2]+c[2]],[0,0,0]);
+    return [sum[0]/g.length,sum[1]/g.length,sum[2]/g.length];
+  });
+  const allAvg = samples.reduce((a,c)=>[a[0]+c[0],a[1]+c[1],a[2]+c[2]],[0,0,0]).map(v=>v/Math.max(1,samples.length));
+  avgs.push(allAvg);
+
+  const dist=(r,g,b,c)=>Math.hypot(r-c[0],g-c[1],b-c[2]);
+  const removable = new Uint8Array(sw*sh);
+  for(let y=0;y<sh;y++){
+    for(let x=0;x<sw;x++){
+      const i=(y*sw+x)*4;
+      const r=data[i], g=data[i+1], b=data[i+2];
+      const max=Math.max(r,g,b), min=Math.min(r,g,b);
+      const sat=max-min;
+      const luma=.299*r+.587*g+.114*b;
+      const d = Math.min(...avgs.map(c=>dist(r,g,b,c)));
+      // Color parecido al borde = fondo. También sacamos zonas muy planas cercanas al borde.
+      removable[y*sw+x] = (d < 58 || (d < 76 && sat < 28) || (luma > 232 && sat < 20 && d < 92)) ? 1 : 0;
+    }
+  }
+
+  // Flood fill desde los bordes: solo elimina el fondo conectado con el exterior.
+  const bg = new Uint8Array(sw*sh);
+  const qx = new Int32Array(sw*sh);
+  const qy = new Int32Array(sw*sh);
+  let head=0, tail=0;
+  const push=(x,y)=>{
+    if(x<0||x>=sw||y<0||y>=sh) return;
+    const k=y*sw+x;
+    if(bg[k] || !removable[k]) return;
+    bg[k]=1; qx[tail]=x; qy[tail]=y; tail++;
+  };
+  for(let x=0;x<sw;x++){ push(x,0); push(x,sh-1); }
+  for(let y=0;y<sh;y++){ push(0,y); push(sw-1,y); }
+  while(head<tail){
+    const x=qx[head], y=qy[head]; head++;
+    push(x+1,y); push(x-1,y); push(x,y+1); push(x,y-1);
+  }
+
+  // Limpieza de alfa. Si el detector falló y pretende borrar casi todo, no usamos recorte transparente.
+  let removed=0;
+  for(let i=0;i<bg.length;i++) if(bg[i]) removed++;
+  const ratio = removed / Math.max(1,bg.length);
+  if(ratio > .06 && ratio < .74){
+    for(let y=0;y<sh;y++){
+      for(let x=0;x<sw;x++){
+        const k=y*sw+x;
+        if(!bg[k]) continue;
+        const i=k*4;
+        data[i+3]=0;
+      }
+    }
+    // Suavizado simple en el borde del corte.
+    for(let y=1;y<sh-1;y++){
+      for(let x=1;x<sw-1;x++){
+        const k=y*sw+x;
+        if(bg[k]) continue;
+        const touches = bg[k-1]+bg[k+1]+bg[k-sw]+bg[k+sw];
+        if(touches){ data[k*4+3]=225; }
+      }
+    }
+    ctx.putImageData(img,0,0);
+  }
+  return cut;
 }
 
 function detectDarkStickerBounds(canvas){
@@ -5000,7 +5149,10 @@ function stickerViewerHtml(){
 function modalHtml(){
   if(!state.modal) return '';
   const m = state.modal;
-  return `<div class="modal-back"><div class="modal"><h3>${escapeHtml(m.title)}</h3><p>${escapeHtml(m.text)}</p><div class="modal-actions"><button class="btn btn-line" onclick="state.modal=null; render()">${escapeHtml(m.cancel||'Cancelar')}</button><button class="btn ${m.danger?'btn-danger':'btn-primary'}" onclick="confirmModal()">${escapeHtml(m.confirm||'Confirmar')}</button></div></div></div>`;
+  const extra = m.kind === 'deleteRepeated'
+    ? `<div class="delete-qty-box"><span>Cantidad a borrar</span><div class="qty-picker danger"><button onclick="changeDeleteQty(-1)">−</button><strong>${Number(m.qty)||1}</strong><button onclick="changeDeleteQty(1)">+</button></div><button class="btn btn-line mini" onclick="setDeleteAllRepeated()">Borrar todas (${Number(m.maxQty)||1})</button></div>`
+    : '';
+  return `<div class="modal-back"><div class="modal"><h3>${escapeHtml(m.title)}</h3><p>${escapeHtml(m.text)}</p>${extra}<div class="modal-actions"><button class="btn btn-line" onclick="state.modal=null; render()">${escapeHtml(m.cancel||'Cancelar')}</button><button class="btn ${m.danger?'btn-danger':'btn-primary'}" onclick="confirmModal()">${escapeHtml(m.confirm||'Confirmar')}</button></div></div></div>`;
 }
 function confirmModal(){ const fn = state.modal?.onConfirm; if(fn) fn(); }
 function toastHtml(){ return ''; }
@@ -5026,7 +5178,7 @@ function render(){
   }
 }
 
-window.handleScannerFrameTap=handleScannerFrameTap; window.attachCameraStream=attachCameraStream; window.openStickerViewer=openStickerViewer; window.closeStickerViewer=closeStickerViewer; window.moveViewer=moveViewer; window.removeScanPhoto=removeScanPhoto; window.stepDetectedNumber=stepDetectedNumber; window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.toggleTorch=toggleTorch; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.render=render;
+window.changeDeleteQty=changeDeleteQty; window.setDeleteAllRepeated=setDeleteAllRepeated; window.confirmDeleteRepeated=confirmDeleteRepeated; window.handleScannerFrameTap=handleScannerFrameTap; window.attachCameraStream=attachCameraStream; window.openStickerViewer=openStickerViewer; window.closeStickerViewer=closeStickerViewer; window.moveViewer=moveViewer; window.removeScanPhoto=removeScanPhoto; window.stepDetectedNumber=stepDetectedNumber; window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.toggleTorch=toggleTorch; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.render=render;
 
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('/service-worker.js').catch(()=>{}); }
 render();
