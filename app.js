@@ -1,4 +1,4 @@
-/* FiguScan Mundial V24 - fondo mundialista real en foto + recuadro activa cámara */
+/* FiguScan Mundial V25 - fondo mundialista fuerte + visor de figuritas */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 const APP_URL = 'https://figuscan-mundial-app.vercel.app/';
@@ -106,7 +106,8 @@ let state = {
   autoScanTimer: null,
   autoScanPaused: false,
   shareMode: 'summary',
-  batchStatus: 'have'
+  batchStatus: 'have',
+  viewerId: null
 };
 
 const app = document.getElementById('app');
@@ -592,18 +593,18 @@ function bulkBar(){
 }
 function stickerCard(s){
   const selected = state.selected.has(s.id);
-  return `<article class="sticker-card ${s.status} ${s.status==='repeated'?'shiny':''}">
-    <button class="select-box ${selected?'on':''}" onclick="toggleSelect('${s.id}')">${selected ? icons.check : ''}</button>
+  return `<article class="sticker-card ${s.status} ${s.status==='repeated'?'shiny':''}" onclick="openStickerViewer('${s.id}')">
+    <button class="select-box ${selected?'on':''}" onclick="event.stopPropagation(); toggleSelect('${s.id}')">${selected ? icons.check : ''}</button>
     <div style="padding-left:26px">
       <div class="sticker-top"><div class="number">#${s.number}</div><span class="status-badge ${s.status}">${statusIcon(s.status)} ${STATUS[s.status].label}${s.status==='repeated'?` x${s.repeatedCount||1}`:''}</span></div>
-      ${s.image ? `<div class="sticker-photo"><img src="${s.image}" alt="Figurita ${escapeHtml(s.number)}" loading="lazy"></div>` : ''}
+      ${s.image ? `<div class="sticker-photo"><img src="${s.image}" alt="Figurita ${escapeHtml(s.number)}" loading="lazy"></div>` : `<div class="sticker-photo sticker-photo-empty"><div>${icons.trophy}</div><strong>Sin foto</strong></div>`}
       <div class="country-line"><span>${countryById(stickerCountry(s)).flag}</span> ${escapeHtml(s.countryName || countryLabel(stickerCountry(s)))}</div>
       <div class="player">${escapeHtml(s.player || 'Sin jugador')}</div>
       <div class="card-actions">
-        <button class="icon-btn" title="Editar" onclick="setView('manual',{editingId:'${s.id}'})">${icons.edit}</button>
-        <button class="icon-btn" title="WhatsApp" onclick="shareSingle('${s.id}')">${icons.whatsapp}</button>
-        <button class="icon-btn danger" title="Eliminar" onclick="deleteSticker('${s.id}')">${icons.trash}</button>
-        <button class="icon-btn" title="Cambiar estado" onclick="quickCycle('${s.id}')">${icons.repeat}</button>
+        <button class="icon-btn" title="Editar" onclick="event.stopPropagation(); setView('manual',{editingId:'${s.id}'})">${icons.edit}</button>
+        <button class="icon-btn" title="WhatsApp" onclick="event.stopPropagation(); shareSingle('${s.id}')">${icons.whatsapp}</button>
+        <button class="icon-btn danger" title="Eliminar" onclick="event.stopPropagation(); deleteSticker('${s.id}')">${icons.trash}</button>
+        <button class="icon-btn" title="Cambiar estado" onclick="event.stopPropagation(); quickCycle('${s.id}')">${icons.repeat}</button>
       </div>
     </div>
   </article>`;
@@ -824,26 +825,25 @@ async function scanFrame(manualTap=false){
 function captureStickerImage(video){
   const vw=video.videoWidth, vh=video.videoHeight;
 
-  // Recorte vertical parecido al marco visible.
+  // Recorte vertical parecido a una figurita. El objetivo es eliminar lo más posible mesa/pared.
   const targetRatio = 3 / 4;
-  let ch = Math.floor(vh * .78);
+  let ch = Math.floor(vh * .82);
   let cw = Math.floor(ch * targetRatio);
-  if(cw > vw * .88){ cw = Math.floor(vw * .88); ch = Math.floor(cw / targetRatio); }
+  if(cw > vw * .82){ cw = Math.floor(vw * .82); ch = Math.floor(cw / targetRatio); }
   const sx = Math.max(0, Math.floor((vw-cw)/2));
   const sy = Math.max(0, Math.floor((vh-ch)/2));
 
-  // Canvas auxiliar: intenta ubicar la figurita por borde oscuro/contraste.
   const tmp=document.createElement('canvas');
-  tmp.width=900;
-  tmp.height=Math.round(900 * ch / cw);
+  tmp.width=960;
+  tmp.height=Math.round(960 * ch / cw);
   const tctx=tmp.getContext('2d', { willReadFrequently:true });
-  tctx.filter='contrast(1.18) brightness(1.06) saturate(1.14)';
+  tctx.filter='contrast(1.20) brightness(1.07) saturate(1.16)';
   tctx.drawImage(video,sx,sy,cw,ch,0,0,tmp.width,tmp.height);
 
   let box = detectStickerBounds(tmp);
   if(!box) box = { x:0, y:0, w:tmp.width, h:tmp.height };
 
-  const margin = Math.round(Math.min(box.w, box.h) * .035);
+  const margin = Math.round(Math.min(box.w, box.h) * .015);
   const nx = Math.max(0, box.x - margin);
   const ny = Math.max(0, box.y - margin);
   box = {
@@ -853,29 +853,46 @@ function captureStickerImage(video){
     h: Math.min(tmp.height - ny, box.h + margin*2)
   };
 
-  // Imagen final: fondo mundialista + figurita sobre marco premium.
+  // Imagen final: placa coleccionable. El fondo mundialista queda visible detrás de la foto.
   const c=document.createElement('canvas');
   c.width=760;
   c.height=1040;
   const ctx=c.getContext('2d');
   drawWorldCupBackground(ctx,c.width,c.height);
 
-  const frameX=64, frameY=70, frameW=c.width-128, frameH=c.height-140;
-  roundRect(ctx,frameX,frameY,frameW,frameH,42);
-  ctx.fillStyle='rgba(255,255,255,.055)';
+  // Marco exterior dorado tipo figurita especial.
+  const cardX=52, cardY=50, cardW=c.width-104, cardH=c.height-100;
+  roundRect(ctx,cardX,cardY,cardW,cardH,48);
+  const cardGrad = ctx.createLinearGradient(cardX,cardY,cardX+cardW,cardY+cardH);
+  cardGrad.addColorStop(0,'rgba(255,241,168,.24)');
+  cardGrad.addColorStop(.45,'rgba(255,255,255,.055)');
+  cardGrad.addColorStop(1,'rgba(122,18,48,.22)');
+  ctx.fillStyle=cardGrad;
   ctx.fill();
-  ctx.strokeStyle='rgba(255,224,138,.92)';
-  ctx.lineWidth=5;
+  ctx.strokeStyle='rgba(255,224,138,.95)';
+  ctx.lineWidth=6;
   ctx.stroke();
 
+  // Copita/estadio de fondo, visible por arriba y por abajo.
   ctx.save();
-  roundRect(ctx,frameX+18,frameY+18,frameW-36,frameH-36,34);
-  ctx.clip();
-  ctx.fillStyle='rgba(0,0,0,.26)';
-  ctx.fillRect(frameX+18,frameY+18,frameW-36,frameH-36);
+  ctx.globalAlpha=.20;
+  ctx.strokeStyle='#FFF1A8';
+  ctx.lineWidth=8;
+  roundRect(ctx, cardX+cardW*.38, cardY+22, cardW*.24, 78, 20); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(c.width/2, cardY+104); ctx.lineTo(c.width/2, cardY+152); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(c.width/2-56, cardY+168); ctx.lineTo(c.width/2+56, cardY+168); ctx.stroke();
   ctx.restore();
 
-  const innerX=frameX+30, innerY=frameY+30, innerW=frameW-60, innerH=frameH-60;
+  // Zona foto: más chica para que el fondo mundialista sí se note.
+  const photoX=102, photoY=164, photoW=c.width-204, photoH=690;
+  roundRect(ctx,photoX-10,photoY-10,photoW+20,photoH+20,38);
+  ctx.fillStyle='rgba(5,7,13,.50)';
+  ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,.18)';
+  ctx.lineWidth=2;
+  ctx.stroke();
+
+  const innerX=photoX, innerY=photoY, innerW=photoW, innerH=photoH;
   const srcRatio = box.w / box.h;
   const dstRatio = innerW / innerH;
   let dw=innerW, dh=innerH;
@@ -884,27 +901,46 @@ function captureStickerImage(video){
   const dy = innerY + (innerH-dh)/2;
 
   ctx.save();
-  roundRect(ctx,dx,dy,dw,dh,26);
+  roundRect(ctx,photoX,photoY,photoW,photoH,30);
   ctx.clip();
-  ctx.filter='contrast(1.22) brightness(1.08) saturate(1.18)';
+  ctx.fillStyle='rgba(0,0,0,.28)';
+  ctx.fillRect(photoX,photoY,photoW,photoH);
+  ctx.filter='contrast(1.24) brightness(1.08) saturate(1.20)';
   ctx.drawImage(tmp,box.x,box.y,box.w,box.h,dx,dy,dw,dh);
   ctx.restore();
 
-  roundRect(ctx,dx,dy,dw,dh,26);
-  ctx.strokeStyle='rgba(255,255,255,.22)';
-  ctx.lineWidth=2;
+  // Borde de la foto.
+  roundRect(ctx,photoX,photoY,photoW,photoH,30);
+  ctx.strokeStyle='rgba(255,224,138,.55)';
+  ctx.lineWidth=3;
   ctx.stroke();
 
+  // Banda inferior FiguScan. Esto hace que no parezca una foto cruda del lugar.
+  const bandY = 884;
+  roundRect(ctx,92,bandY,576,92,28);
+  ctx.fillStyle='rgba(5,7,13,.72)';
+  ctx.fill();
+  ctx.strokeStyle='rgba(255,224,138,.36)';
+  ctx.lineWidth=2;
+  ctx.stroke();
+  ctx.fillStyle='#FFE08A';
+  ctx.font='900 30px Inter, Arial';
+  ctx.fillText('FiguScan Mundial',124,bandY+42);
+  ctx.fillStyle='rgba(226,232,240,.92)';
+  ctx.font='800 18px Inter, Arial';
+  ctx.fillText('Figurita guardada en tu álbum',124,bandY+70);
+
+  // Brillo diagonal suave.
   const shine=ctx.createLinearGradient(0,0,c.width,c.height);
-  shine.addColorStop(0,'rgba(255,255,255,.24)');
-  shine.addColorStop(.22,'rgba(255,255,255,0)');
-  shine.addColorStop(.58,'rgba(255,255,255,.13)');
+  shine.addColorStop(0,'rgba(255,255,255,.28)');
+  shine.addColorStop(.18,'rgba(255,255,255,0)');
+  shine.addColorStop(.58,'rgba(255,255,255,.12)');
   shine.addColorStop(1,'rgba(255,255,255,0)');
   ctx.fillStyle=shine;
-  roundRect(ctx,frameX+18,frameY+18,frameW-36,frameH-36,34);
+  roundRect(ctx,cardX+8,cardY+8,cardW-16,cardH-16,42);
   ctx.fill();
 
-  return c.toDataURL('image/jpeg', .9);
+  return c.toDataURL('image/jpeg', .92);
 }
 
 function detectStickerBounds(canvas){
@@ -1178,6 +1214,60 @@ function bottomNav(){
     ${item('share','Compartir',icons.share)}
   </nav>`;
 }
+function openStickerViewer(id){
+  state.viewerId = id;
+  render();
+}
+function closeStickerViewer(){
+  state.viewerId = null;
+  render();
+}
+function currentViewerList(){
+  const list = filteredStickers();
+  if(list.some(s=>s.id===state.viewerId)) return list;
+  return state.stickers.slice().sort(byNumber);
+}
+function moveViewer(dir){
+  const list = currentViewerList();
+  if(!list.length) return;
+  let idx = list.findIndex(s=>s.id===state.viewerId);
+  if(idx < 0) idx = 0;
+  idx = (idx + dir + list.length) % list.length;
+  state.viewerId = list[idx].id;
+  render();
+}
+function stickerViewerHtml(){
+  if(!state.viewerId) return '';
+  const list = currentViewerList();
+  const s = list.find(x=>x.id===state.viewerId) || state.stickers.find(x=>x.id===state.viewerId);
+  if(!s) return '';
+  const idx = Math.max(0, list.findIndex(x=>x.id===s.id));
+  const total = Math.max(1, list.length);
+  return `<div class="viewer-back" onclick="closeStickerViewer()">
+    <div class="viewer-card" onclick="event.stopPropagation()">
+      <div class="viewer-top">
+        <button class="viewer-close" onclick="closeStickerViewer()">×</button>
+        <div><strong>Figurita #${escapeHtml(s.number)}</strong><small>${idx+1} de ${total} en esta sección</small></div>
+      </div>
+      <div class="viewer-image-wrap ${s.status}">
+        ${s.image ? `<img src="${s.image}" alt="Figurita ${escapeHtml(s.number)}">` : `<div class="viewer-placeholder">${icons.trophy}<strong>Sin foto</strong></div>`}
+        <button class="viewer-arrow left" onclick="moveViewer(-1)">${icons.chevron}</button>
+        <button class="viewer-arrow right" onclick="moveViewer(1)">${icons.chevron}</button>
+      </div>
+      <div class="viewer-info">
+        <span class="status-badge ${s.status}">${statusIcon(s.status)} ${STATUS[s.status].label}${s.status==='repeated'?` x${s.repeatedCount||1}`:''}</span>
+        <h3>${escapeHtml(s.player || 'Sin jugador')}</h3>
+        <p>${countryById(stickerCountry(s)).flag} ${escapeHtml(s.countryName || countryLabel(stickerCountry(s)))}</p>
+      </div>
+      <div class="viewer-actions">
+        <button class="btn btn-primary" onclick="setView('manual',{editingId:'${s.id}'}); closeStickerViewer()">${icons.edit} Editar</button>
+        <button class="btn btn-ghost" onclick="shareSingle('${s.id}')">${icons.whatsapp} WhatsApp</button>
+        <button class="btn btn-danger" onclick="deleteSticker('${s.id}'); closeStickerViewer()">${icons.trash} Eliminar</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 function modalHtml(){
   if(!state.modal) return '';
   const m = state.modal;
@@ -1195,11 +1285,11 @@ function render(){
   if(state.view==='scanner') screen = scannerScreen();
   if(state.view==='friends') screen = friendsScreen();
   if(state.view==='share') screen = shareScreen();
-  app.innerHTML = `<div class="app">${appTrophyBg()}${screen}${bottomNav()}${modalHtml()}${toastHtml()}</div>`;
+  app.innerHTML = `<div class="app">${appTrophyBg()}${screen}${bottomNav()}${stickerViewerHtml()}${modalHtml()}${toastHtml()}</div>`;
   if(state.view==='scanner' && !state.scannerStream && !state.cameraError) setTimeout(()=>startCamera(false), 80);
 }
 
-window.removeScanPhoto=removeScanPhoto; window.stepDetectedNumber=stepDetectedNumber; window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.render=render;
+window.openStickerViewer=openStickerViewer; window.closeStickerViewer=closeStickerViewer; window.moveViewer=moveViewer; window.removeScanPhoto=removeScanPhoto; window.stepDetectedNumber=stepDetectedNumber; window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.render=render;
 
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('/service-worker.js').catch(()=>{}); }
 render();
