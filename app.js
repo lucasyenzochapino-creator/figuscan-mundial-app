@@ -1,4 +1,4 @@
-/* FiguScan Mundial V25 - fondo mundialista fuerte + visor de figuritas */
+/* FiguScan Mundial V31 - foto centrada, fondo limpio y flash opcional */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 const APP_URL = 'https://figuscan-mundial-app.vercel.app/';
@@ -66,6 +66,7 @@ const icons = {
   trophy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M17 5h3a2 2 0 0 1 0 4h-3"/><path d="M7 5H4a2 2 0 0 0 0 4h3"/><path d="M9 17h6"/></svg>',
   home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9"/><path d="M9 20v-6h6v6"/></svg>',
   scan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5a1 1 0 0 1 1-1h2"/><path d="M17 4h2a1 1 0 0 1 1 1v2"/><path d="M20 17v2a1 1 0 0 1-1 1h-2"/><path d="M7 20H5a1 1 0 0 1-1-1v-2"/><path d="M7 12h10"/></svg>',
+  flash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg>',
   album: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/><path d="M9 6h7"/><path d="M9 10h7"/></svg>',
   users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
   share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4 20-7Z"/><path d="M22 2 11 13"/></svg>',
@@ -107,7 +108,8 @@ let state = {
   autoScanPaused: false,
   shareMode: 'summary',
   batchStatus: 'have',
-  viewerId: null
+  viewerId: null,
+  torchOn: false
 };
 
 const app = document.getElementById('app');
@@ -643,6 +645,7 @@ function scannerScreen(){
       </div>
       <div class="scan-controls scan-controls-grid">
         <button class="btn btn-primary full" onclick="scanFrame(true)">${icons.image} Sacar foto y guardar imagen</button>
+        <button class="btn btn-ghost full ${state.torchOn?'torch-on':''}" onclick="toggleTorch()">${icons.flash} ${state.torchOn?'Apagar luz':'Luz / flash'}</button>
         <button class="btn btn-ghost full" onclick="setView('manual',{manualDefault:'have'})">Cargar sin foto</button>
       </div>
       <div id="detectedBox">${state.scanCandidate ? detectedBox() : ''}</div>
@@ -675,6 +678,29 @@ function retryCamera(){
   state.cameraError = '';
   state.cameraStarting = false;
   startCamera(true);
+}
+
+async function toggleTorch(){
+  try{
+    if(!state.scannerStream){
+      toast('Activando cámara primero...', 'warn');
+      await startCamera(true);
+    }
+    const track = state.scannerStream?.getVideoTracks?.()[0];
+    if(!track) throw new Error('Sin pista de video');
+    const caps = typeof track.getCapabilities === 'function' ? track.getCapabilities() : {};
+    if(!caps || !caps.torch){
+      toast('Tu navegador no permite controlar el flash. Usá más luz externa.', 'warn');
+      return;
+    }
+    const next = !state.torchOn;
+    await track.applyConstraints({ advanced: [{ torch: next }] });
+    state.torchOn = next;
+    toast(next ? 'Luz activada.' : 'Luz apagada.', 'success');
+    render();
+  }catch(e){
+    toast('No pude activar el flash en este teléfono. Usá luz externa si hace falta.', 'warn');
+  }
 }
 
 function detectedBox(){
@@ -786,6 +812,7 @@ async function startCamera(manual=false){
     state.scannerStream = stream;
     state.cameraStarting = false;
     state.cameraError = '';
+    state.torchOn = false;
 
     // Muy importante: después del permiso puede haber habido un render.
     attachCameraStream();
@@ -812,6 +839,7 @@ function stopCamera(){
   stopAutoScan();
   if(state.scannerStream){ state.scannerStream.getTracks().forEach(t=>t.stop()); state.scannerStream=null; }
   state.cameraStarting = false;
+  state.torchOn = false;
 }
 function startAutoScan(){
   // Desactivado: las figuritas no se comportan como QR. Ahora sacamos foto a demanda.
@@ -875,28 +903,29 @@ function captureStickerImage(video){
   const vw=video.videoWidth, vh=video.videoHeight;
   if(!vw || !vh) throw new Error('Video sin dimensiones');
 
-  // Captura central vertical, pensada para Android y iPhone.
-  // NO hacemos zoom fuerte: priorizamos que la figurita entre completa.
+  // V31: captura central estable para Android/iPhone.
+  // La figurita debe quedar en el marco; luego intentamos recortarla automáticamente.
   const targetRatio = 3 / 4;
-  let ch = Math.floor(vh * .90);
+  let ch = Math.floor(vh * .92);
   let cw = Math.floor(ch * targetRatio);
-  if(cw > vw * .92){ cw = Math.floor(vw * .92); ch = Math.floor(cw / targetRatio); }
+  if(cw > vw * .94){ cw = Math.floor(vw * .94); ch = Math.floor(cw / targetRatio); }
   const sx = Math.max(0, Math.floor((vw-cw)/2));
   const sy = Math.max(0, Math.floor((vh-ch)/2));
 
   const tmp=document.createElement('canvas');
-  tmp.width=1440;
-  tmp.height=Math.round(1440 * ch / cw);
+  tmp.width=1500;
+  tmp.height=Math.round(1500 * ch / cw);
   const tctx=tmp.getContext('2d', { willReadFrequently:true });
   tctx.imageSmoothingEnabled = true;
   tctx.imageSmoothingQuality = 'high';
-  tctx.filter='contrast(1.10) brightness(1.04) saturate(1.10)';
+  tctx.filter='contrast(1.08) brightness(1.03) saturate(1.08)';
   tctx.drawImage(video,sx,sy,cw,ch,0,0,tmp.width,tmp.height);
 
-  // Recorte suave: no acercar de más. Si la figurita está centrada, entra completa.
-  let box = getCenteredStickerCrop(tmp);
+  // Primero intentamos encontrar la figurita real dentro de la foto.
+  // Si no se puede, usamos un recorte central seguro.
+  let detected = detectStickerBounds(tmp);
+  let box = detected ? expandBox(detected, tmp.width, tmp.height, .065) : getCenteredStickerCrop(tmp);
 
-  // Tarjeta final de alta resolución.
   const c=document.createElement('canvas');
   c.width=1080;
   c.height=1480;
@@ -918,22 +947,12 @@ function captureStickerImage(video){
   ctx.lineWidth=6*S;
   ctx.stroke();
 
-  // Icono copa/estadio sutil detrás.
-  ctx.save();
-  ctx.globalAlpha=.18;
-  ctx.strokeStyle='#FFF1A8';
-  ctx.lineWidth=8*S;
-  roundRect(ctx, cardX+cardW*.38, cardY+22*S, cardW*.24, 78*S, 20*S); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(c.width/2, cardY+104*S); ctx.lineTo(c.width/2, cardY+152*S); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(c.width/2-56*S, cardY+168*S); ctx.lineTo(c.width/2+56*S, cardY+168*S); ctx.stroke();
-  ctx.restore();
-
-  // Zona de foto grande, con fondo propio. La foto va contenida, no recortada ni ampliada de más.
+  // Fondo de foto limpio: NO se usa el fondo del lugar.
   const photoX=96*S, photoY=158*S, photoW=c.width-192*S, photoH=780*S;
   roundRect(ctx,photoX-14*S,photoY-14*S,photoW+28*S,photoH+28*S,42*S);
-  ctx.fillStyle='rgba(5,7,13,.58)';
+  ctx.fillStyle='rgba(5,7,13,.72)';
   ctx.fill();
-  ctx.strokeStyle='rgba(255,255,255,.18)';
+  ctx.strokeStyle='rgba(255,255,255,.16)';
   ctx.lineWidth=2*S;
   ctx.stroke();
 
@@ -941,70 +960,62 @@ function captureStickerImage(video){
   roundRect(ctx,photoX,photoY,photoW,photoH,34*S);
   ctx.clip();
 
-  // Fondo interno reemplazado: oscuro/dorado, no el fondo real del lugar.
+  // Fondo sólido/estadio abstracto para que solo importe la figurita.
   const bgGrad = ctx.createLinearGradient(photoX, photoY, photoX + photoW, photoY + photoH);
-  bgGrad.addColorStop(0, 'rgba(7,12,28,1)');
-  bgGrad.addColorStop(.52, 'rgba(15,35,80,1)');
-  bgGrad.addColorStop(1, 'rgba(75,18,36,1)');
+  bgGrad.addColorStop(0, '#061126');
+  bgGrad.addColorStop(.48, '#0d2d68');
+  bgGrad.addColorStop(1, '#4b1224');
   ctx.fillStyle = bgGrad;
   ctx.fillRect(photoX, photoY, photoW, photoH);
 
-  // Textura muy suave de la foto, desenfocada y oscurecida. No domina la imagen.
+  // Patrón sutil tipo cancha/álbum, sin usar la mesa/pared original.
   ctx.save();
-  ctx.globalAlpha = .08;
-  ctx.filter = 'blur(32px) brightness(.34) saturate(.65)';
-  ctx.drawImage(tmp, box.x, box.y, box.w, box.h, photoX - 70*S, photoY - 70*S, photoW + 140*S, photoH + 140*S);
+  ctx.globalAlpha=.18;
+  ctx.strokeStyle='#FFE08A';
+  ctx.lineWidth=3*S;
+  for(let y=photoY+70*S; y<photoY+photoH; y+=82*S){
+    ctx.beginPath(); ctx.moveTo(photoX+28*S,y); ctx.lineTo(photoX+photoW-28*S,y-34*S); ctx.stroke();
+  }
+  ctx.globalAlpha=.13;
+  ctx.beginPath(); ctx.arc(photoX+photoW*.82, photoY+photoH*.22, 105*S, 0, Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(photoX+photoW*.18, photoY+photoH*.84, 92*S, 0, Math.PI*2); ctx.stroke();
   ctx.restore();
 
-  // Luces para contraste.
-  const spot1 = ctx.createRadialGradient(photoX + photoW*.20, photoY + photoH*.16, 10*S, photoX + photoW*.20, photoY + photoH*.16, photoW*.48);
-  spot1.addColorStop(0, 'rgba(255,224,138,.24)');
-  spot1.addColorStop(1, 'rgba(255,224,138,0)');
-  ctx.fillStyle = spot1;
-  ctx.fillRect(photoX, photoY, photoW, photoH);
-  const spot2 = ctx.createRadialGradient(photoX + photoW*.82, photoY + photoH*.84, 10*S, photoX + photoW*.82, photoY + photoH*.84, photoW*.46);
-  spot2.addColorStop(0, 'rgba(47,116,255,.16)');
-  spot2.addColorStop(1, 'rgba(47,116,255,0)');
-  ctx.fillStyle = spot2;
+  // Luz central detrás de la figurita.
+  const haloBg = ctx.createRadialGradient(photoX+photoW/2, photoY+photoH*.48, 20*S, photoX+photoW/2, photoY+photoH*.48, photoW*.58);
+  haloBg.addColorStop(0, 'rgba(255,241,168,.20)');
+  haloBg.addColorStop(1, 'rgba(255,241,168,0)');
+  ctx.fillStyle=haloBg;
   ctx.fillRect(photoX, photoY, photoW, photoH);
 
-  // La imagen capturada se dibuja COMPLETA dentro del marco. No se usa focusScale.
+  // La figurita recortada se centra automáticamente y completa dentro del marco.
   const srcRatio = box.w / box.h;
-  const maxW = photoW * .82;
-  const maxH = photoH * .78;
+  const maxW = photoW * .72;
+  const maxH = photoH * .74;
   let stickerW=maxW, stickerH=maxH;
-  if(srcRatio > maxW/maxH){
-    stickerH = stickerW / srcRatio;
-  } else {
-    stickerW = stickerH * srcRatio;
-  }
+  if(srcRatio > maxW/maxH){ stickerH = stickerW / srcRatio; }
+  else { stickerW = stickerH * srcRatio; }
   const stickerX = photoX + (photoW-stickerW)/2;
-  const stickerY = photoY + (photoH-stickerH)/2 - 8*S;
-
-  const halo = ctx.createRadialGradient(stickerX + stickerW/2, stickerY + stickerH/2, 20*S, stickerX + stickerW/2, stickerY + stickerH/2, Math.max(stickerW, stickerH)*.70);
-  halo.addColorStop(0, 'rgba(255,255,255,.18)');
-  halo.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = halo;
-  ctx.fillRect(photoX, photoY, photoW, photoH);
+  const stickerY = photoY + (photoH-stickerH)/2 - 4*S;
 
   ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,.58)';
-  ctx.shadowBlur = 36*S;
-  ctx.shadowOffsetY = 18*S;
-  ctx.fillStyle = 'rgba(0,0,0,.24)';
-  roundRect(ctx, stickerX, stickerY, stickerW, stickerH, 22*S);
+  ctx.shadowColor = 'rgba(0,0,0,.62)';
+  ctx.shadowBlur = 38*S;
+  ctx.shadowOffsetY = 20*S;
+  ctx.fillStyle = 'rgba(0,0,0,.30)';
+  roundRect(ctx, stickerX, stickerY, stickerW, stickerH, 20*S);
   ctx.fill();
   ctx.restore();
 
   ctx.save();
-  roundRect(ctx, stickerX, stickerY, stickerW, stickerH, 22*S);
+  roundRect(ctx, stickerX, stickerY, stickerW, stickerH, 20*S);
   ctx.clip();
-  ctx.filter='contrast(1.12) brightness(1.04) saturate(1.10)';
+  ctx.filter='contrast(1.10) brightness(1.04) saturate(1.10)';
   ctx.drawImage(tmp, box.x, box.y, box.w, box.h, stickerX, stickerY, stickerW, stickerH);
   ctx.restore();
 
-  roundRect(ctx, stickerX, stickerY, stickerW, stickerH, 22*S);
-  ctx.strokeStyle='rgba(255,255,255,.28)';
+  roundRect(ctx, stickerX, stickerY, stickerW, stickerH, 20*S);
+  ctx.strokeStyle='rgba(255,255,255,.38)';
   ctx.lineWidth=2*S;
   ctx.stroke();
 
@@ -1015,7 +1026,7 @@ function captureStickerImage(video){
   ctx.lineWidth=3*S;
   ctx.stroke();
 
-  // Banda inferior sin texto "figurita destacada".
+  // Banda inferior simple.
   const bandY = 1012*S;
   roundRect(ctx,92*S,bandY,576*S,92*S,28*S);
   ctx.fillStyle='rgba(5,7,13,.72)';
@@ -1031,9 +1042,9 @@ function captureStickerImage(video){
   ctx.fillText('Guardada en tu álbum',124*S,bandY+70*S);
 
   const shine=ctx.createLinearGradient(0,0,c.width,c.height);
-  shine.addColorStop(0,'rgba(255,255,255,.24)');
+  shine.addColorStop(0,'rgba(255,255,255,.20)');
   shine.addColorStop(.18,'rgba(255,255,255,0)');
-  shine.addColorStop(.58,'rgba(255,255,255,.10)');
+  shine.addColorStop(.58,'rgba(255,255,255,.08)');
   shine.addColorStop(1,'rgba(255,255,255,0)');
   ctx.fillStyle=shine;
   roundRect(ctx,cardX+8*S,cardY+8*S,cardW-16*S,cardH-16*S,42*S);
@@ -1045,26 +1056,74 @@ function captureStickerImage(video){
 function detectStickerBounds(canvas){
   const ctx=canvas.getContext('2d', { willReadFrequently:true });
   const w=canvas.width, h=canvas.height;
+  const step=7;
+  const gw=Math.ceil(w/step), gh=Math.ceil(h/step);
   const data=ctx.getImageData(0,0,w,h).data;
-  let minX=w, minY=h, maxX=0, maxY=0, count=0;
-  const step=3;
-  for(let y=0;y<h;y+=step){
-    for(let x=0;x<w;x+=step){
+  const mask=new Uint8Array(gw*gh);
+
+  // Ignoramos bordes extremos. La figurita debería estar dentro del marco central.
+  const marginX=w*.06, marginY=h*.04;
+  for(let gy=0; gy<gh; gy++){
+    const y=Math.min(h-1, gy*step);
+    for(let gx=0; gx<gw; gx++){
+      const x=Math.min(w-1, gx*step);
+      if(x<marginX || x>w-marginX || y<marginY || y>h-marginY) continue;
       const i=(y*w+x)*4;
       const r=data[i], g=data[i+1], b=data[i+2];
       const luma=.299*r+.587*g+.114*b;
       const max=Math.max(r,g,b), min=Math.min(r,g,b);
       const sat=max-min;
-      if(luma < 82 || (sat > 70 && luma < 190)){
-        minX=Math.min(minX,x); maxX=Math.max(maxX,x);
-        minY=Math.min(minY,y); maxY=Math.max(maxY,y);
-        count++;
-      }
+      // Bordes negros de la figurita + colores fuertes del cromo.
+      const salient = (luma < 92) || (sat > 58 && luma < 235);
+      if(salient) mask[gy*gw+gx]=1;
     }
   }
-  const bw=maxX-minX, bh=maxY-minY;
-  if(count < 80 || bw < w*.26 || bh < h*.30) return null;
-  return {x:minX,y:minY,w:bw,h:bh};
+
+  const seen=new Uint8Array(gw*gh);
+  let best=null;
+  const cx=w/2, cy=h/2;
+  const stack=[];
+  const dirs=[1,-1,gw,-gw,gw+1,gw-1,-gw+1,-gw-1];
+
+  for(let idx=0; idx<mask.length; idx++){
+    if(!mask[idx] || seen[idx]) continue;
+    seen[idx]=1; stack.length=0; stack.push(idx);
+    let minGx=gw, minGy=gh, maxGx=0, maxGy=0, area=0;
+    while(stack.length){
+      const cur=stack.pop();
+      const gx=cur%gw, gy=Math.floor(cur/gw);
+      area++;
+      if(gx<minGx) minGx=gx; if(gx>maxGx) maxGx=gx;
+      if(gy<minGy) minGy=gy; if(gy>maxGy) maxGy=gy;
+      for(const d of dirs){
+        const ni=cur+d;
+        if(ni<0 || ni>=mask.length || seen[ni] || !mask[ni]) continue;
+        const ngx=ni%gw;
+        if(Math.abs(ngx-gx)>1) continue;
+        seen[ni]=1; stack.push(ni);
+      }
+    }
+    const bx=minGx*step, by=minGy*step, bw=(maxGx-minGx+1)*step, bh=(maxGy-minGy+1)*step;
+    if(area<28 || bw<w*.16 || bh<h*.18) continue;
+    const compCx=bx+bw/2, compCy=by+bh/2;
+    const dist=Math.hypot((compCx-cx)/w, (compCy-cy)/h);
+    const centerBoost=Math.max(0, 1.15-dist*2.2);
+    const shapePenalty = (bh/bw < 1.05 || bh/bw > 2.4) ? .55 : 1;
+    const score=area * (1+centerBoost) * shapePenalty;
+    if(!best || score>best.score) best={x:bx,y:by,w:bw,h:bh,score};
+  }
+
+  if(!best) return null;
+  return {x:best.x,y:best.y,w:best.w,h:best.h};
+}
+
+function expandBox(box, maxW, maxH, pct=.06){
+  const mx=box.w*pct, my=box.h*pct;
+  const x=Math.max(0, Math.floor(box.x-mx));
+  const y=Math.max(0, Math.floor(box.y-my));
+  const r=Math.min(maxW, Math.ceil(box.x+box.w+mx));
+  const b=Math.min(maxH, Math.ceil(box.y+box.h+my));
+  return {x,y,w:r-x,h:b-y};
 }
 
 function drawWorldCupBackground(ctx,w,h){
@@ -1395,7 +1454,7 @@ function render(){
   }
 }
 
-window.handleScannerFrameTap=handleScannerFrameTap; window.attachCameraStream=attachCameraStream; window.openStickerViewer=openStickerViewer; window.closeStickerViewer=closeStickerViewer; window.moveViewer=moveViewer; window.removeScanPhoto=removeScanPhoto; window.stepDetectedNumber=stepDetectedNumber; window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.render=render;
+window.handleScannerFrameTap=handleScannerFrameTap; window.attachCameraStream=attachCameraStream; window.openStickerViewer=openStickerViewer; window.closeStickerViewer=closeStickerViewer; window.moveViewer=moveViewer; window.removeScanPhoto=removeScanPhoto; window.stepDetectedNumber=stepDetectedNumber; window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.toggleTorch=toggleTorch; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.render=render;
 
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('/service-worker.js').catch(()=>{}); }
 render();
