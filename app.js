@@ -148,6 +148,19 @@ function setView(view, opts={}){
   if(view === 'scanner') state.cameraError = '';
   render();
 }
+
+function centerScannerFrame(){
+  if(state.view !== 'scanner') return;
+  const el = document.querySelector('.scanner-wrap');
+  if(!el) return;
+  try{
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }catch(e){
+    const y = Math.max(0, el.getBoundingClientRect().top + window.scrollY - 90);
+    window.scrollTo(0, y);
+  }
+}
+
 function toast(message, type='success'){
   haptic(type === 'warn' ? 'warn' : 'success');
   state.toast = { message, type };
@@ -735,7 +748,7 @@ function saveBatchQuick(){
   state.view='album'; state.albumFilter=status; render();
 }
 
-async function startCamera(manual=false){
+async async function startCamera(manual=false){
   if(state.view !== 'scanner') return;
   let video = document.getElementById('video');
   if(!video) return;
@@ -828,7 +841,7 @@ async function scanFrame(manualTap=false){
       image,
       rawText: ''
     };
-    toast('Foto lista. Completá los datos y guardá.', 'success');
+    toast('Foto lista con fondo corregido. Completá los datos y guardá.', 'success');
     haptic('success');
   }catch(e){
     toast('No pude sacar la foto. Probá de nuevo o cargá manual.', 'warn');
@@ -837,6 +850,26 @@ async function scanFrame(manualTap=false){
   render();
   setTimeout(startCamera,50);
 }
+
+function getCenteredStickerCrop(canvas){
+  const ratio = 3 / 4;
+  const w = canvas.width;
+  const h = canvas.height;
+
+  // Recorte fuerte y centrado: quita mesa/pared y prioriza la figurita.
+  let cropW = Math.floor(w * 0.58);
+  let cropH = Math.floor(cropW / ratio);
+
+  if(cropH > h * 0.84){
+    cropH = Math.floor(h * 0.84);
+    cropW = Math.floor(cropH * ratio);
+  }
+
+  const x = Math.max(0, Math.floor((w - cropW) / 2));
+  const y = Math.max(0, Math.floor((h - cropH) / 2));
+  return { x, y, w: cropW, h: cropH };
+}
+
 function captureStickerImage(video){
   const vw=video.videoWidth, vh=video.videoHeight;
 
@@ -858,15 +891,10 @@ function captureStickerImage(video){
   let box = detectStickerBounds(tmp);
   if(!box) box = { x:0, y:0, w:tmp.width, h:tmp.height };
 
-  const margin = Math.round(Math.min(box.w, box.h) * .015);
-  const nx = Math.max(0, box.x - margin);
-  const ny = Math.max(0, box.y - margin);
-  box = {
-    x: nx,
-    y: ny,
-    w: Math.min(tmp.width - nx, box.w + margin*2),
-    h: Math.min(tmp.height - ny, box.h + margin*2)
-  };
+  // En esta versión NO usamos el fondo del lugar como parte principal.
+  // Usamos un recorte centrado fuerte: la cámara debe estar centrada en el marco.
+  const centeredBox = getCenteredStickerCrop(tmp);
+  box = centeredBox;
 
   // Imagen final: placa coleccionable. El fondo mundialista queda visible detrás de la foto.
   const c=document.createElement('canvas');
@@ -929,8 +957,8 @@ function captureStickerImage(video){
 
   // Usa la foto original muy agrandada y desenfocada solo como textura de fondo.
   ctx.save();
-  ctx.globalAlpha = .32;
-  ctx.filter = 'blur(22px) brightness(.52) saturate(1.1)';
+  ctx.globalAlpha = .10;
+  ctx.filter = 'blur(26px) brightness(.32) saturate(.75)';
   ctx.drawImage(tmp, box.x, box.y, box.w, box.h, photoX - 50, photoY - 50, photoW + 100, photoH + 100);
   ctx.restore();
 
@@ -1377,9 +1405,11 @@ function render(){
   app.innerHTML = `<div class="app">${appTrophyBg()}${screen}${bottomNav()}${stickerViewerHtml()}${modalHtml()}${toastHtml()}</div>`;
   if(state.view==='scanner') {
     setTimeout(()=>{
+      centerScannerFrame();
       if(state.scannerStream) attachCameraStream();
       else if(!state.cameraError) startCamera(false);
-    }, 30);
+    }, 80);
+    setTimeout(centerScannerFrame, 420);
   }
 }
 

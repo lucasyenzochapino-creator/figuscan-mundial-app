@@ -249,3 +249,63 @@ html,body{background:#05070D;color:#F8FAFC;}
 .viewer-arrow{position:absolute;z-index:2;top:50%;transform:translateY(-50%);width:48px;height:64px;border-radius:20px;background:rgba(5,7,13,.70);border:1px solid rgba(255,224,138,.34);color:#FFE08A;display:grid;place-items:center;box-shadow:0 12px 32px rgba(0,0,0,.32)}.viewer-arrow svg{width:32px;height:32px}.viewer-arrow.left{left:10px;transform:translateY(-50%) rotate(180deg)}.viewer-arrow.right{right:10px}
 .viewer-info{padding:14px 8px 8px}.viewer-info h3{font-size:26px;margin:12px 0 4px}.viewer-info p{margin:0;color:#CBD5E1;font-weight:900}.viewer-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:8px}.viewer-actions .btn-danger{grid-column:1/-1}
 @media(max-width:390px){.viewer-image-wrap{min-height:430px}.viewer-card{border-radius:28px}.viewer-arrow{width:42px;height:58px}.sticker-photo{height:146px!important;min-height:146px}}
+
+
+/* V28: escáner centrado automáticamente y más cómodo */
+.scanner-screen{
+  scroll-margin-top:0;
+}
+.scanner-screen .topbar,
+.scanner-screen .scanner-hero,
+.scanner-screen .entry-switch-wrap{
+  max-width:640px;
+  margin-left:auto;
+  margin-right:auto;
+}
+.scanner-screen .scanner-hero{
+  padding-top:14px!important;
+  padding-bottom:14px!important;
+}
+.scanner-screen .scanner-hero h1{
+  font-size:30px!important;
+}
+.scanner-screen .scanner-hero p{
+  font-size:15px!important;
+}
+.scan-section-full{
+  scroll-margin-top:76px;
+}
+.scanner-wrap-xl{
+  min-height:72vh!important;
+}
+.video-xl{
+  height:72vh!important;
+}
+.scan-frame-xl{
+  width:84%!important;
+  height:72%!important;
+  border-radius:34px!important;
+}
+.scan-frame-xl span{
+  font-size:13px!important;
+  max-width:78%;
+  text-align:center;
+}
+@media(max-width:430px){
+  .scanner-screen .scanner-hero{
+    display:none;
+  }
+  .scanner-screen .entry-switch-wrap{
+    margin-top:4px;
+  }
+  .scan-section-full{
+    margin-top:8px!important;
+  }
+  .scanner-wrap-xl{
+    min-height:74vh!important;
+  }
+  .video-xl{
+    height:74vh!important;
+    min-height:560px!important;
+  }
+}
