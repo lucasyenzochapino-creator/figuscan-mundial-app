@@ -1,4 +1,4 @@
-/* FiguScan Mundial V12 - local-first PWA */
+/* FiguScan Mundial V13 - Premium Dark local-first PWA */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 
@@ -7,6 +7,27 @@ const STATUS = {
   missing: { label: 'Me falta', long: 'Me falta', cls: 'missing', color: '#E23131' },
   repeated: { label: 'Repetida', long: 'Repetida', cls: 'repeated', color: '#F28B13' },
 };
+
+
+const COUNTRIES = [
+  { id:'general', name:'General', short:'GEN', flag:'⚽', color:'#FFD166' },
+  { id:'argentina', name:'Argentina', short:'ARG', flag:'🇦🇷', color:'#74C0FC' },
+  { id:'brasil', name:'Brasil', short:'BRA', flag:'🇧🇷', color:'#2DD36F' },
+  { id:'francia', name:'Francia', short:'FRA', flag:'🇫🇷', color:'#4D96FF' },
+  { id:'uruguay', name:'Uruguay', short:'URU', flag:'🇺🇾', color:'#7DD3FC' },
+  { id:'espana', name:'España', short:'ESP', flag:'🇪🇸', color:'#FF6B6B' },
+  { id:'inglaterra', name:'Inglaterra', short:'ING', flag:'🏴', color:'#F8FAFC' },
+  { id:'alemania', name:'Alemania', short:'ALE', flag:'🇩🇪', color:'#FACC15' },
+  { id:'italia', name:'Italia', short:'ITA', flag:'🇮🇹', color:'#22C55E' },
+  { id:'portugal', name:'Portugal', short:'POR', flag:'🇵🇹', color:'#EF4444' },
+  { id:'paises-bajos', name:'Países Bajos', short:'NED', flag:'🇳🇱', color:'#FB923C' },
+  { id:'mexico', name:'México', short:'MEX', flag:'🇲🇽', color:'#10B981' },
+  { id:'usa', name:'Estados Unidos', short:'USA', flag:'🇺🇸', color:'#60A5FA' },
+  { id:'japon', name:'Japón', short:'JPN', flag:'🇯🇵', color:'#F472B6' },
+  { id:'marruecos', name:'Marruecos', short:'MAR', flag:'🇲🇦', color:'#DC2626' },
+];
+function countryById(id){ return COUNTRIES.find(c=>c.id===id) || COUNTRIES[0]; }
+function countryLabel(id){ return countryById(id).name; }
 
 const icons = {
   trophy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M17 5h3a2 2 0 0 1 0 4h-3"/><path d="M7 5H4a2 2 0 0 0 0 4h3"/><path d="M9 17h6"/></svg>',
@@ -35,6 +56,7 @@ let state = {
   stickers: loadStickers(),
   user: localStorage.getItem(USER_KEY) || 'Lucas',
   albumFilter: 'all',
+  countryFilter: 'all',
   search: '',
   selected: new Set(),
   modal: null,
@@ -83,20 +105,35 @@ function counts(){
     total: state.stickers.length
   };
 }
+
+function stickerCountry(s){ return s.country || 'general'; }
+function countryStats(){
+  const map = new Map();
+  state.stickers.forEach(s=>{
+    const id = stickerCountry(s);
+    if(!map.has(id)) map.set(id,{ id, total:0, have:0, missing:0, repeated:0 });
+    const row = map.get(id); row.total += 1; row[s.status] += 1;
+  });
+  return Array.from(map.values()).sort((a,b)=>b.total-a.total).slice(0,8);
+}
+function progressPercent(row){ return row.total ? Math.round((row.have / row.total) * 100) : 0; }
+
 function existingByNumber(number){ return state.stickers.find(s => String(s.number) === String(number)); }
 function formatSticker(s){
   const name = s.player ? ` - ${s.player}` : '';
   return `N° ${s.number}${name}`;
 }
 
-function addOrUpdateSticker({ number, status, repeatedCount=1, player='' }){
+function addOrUpdateSticker({ number, status, repeatedCount=1, player='', country='general' }){
   number = normalizeNumber(number);
   if(!number){ toast('Ingresá un número de figurita.', 'warn'); return false; }
   const existing = existingByNumber(number);
   const stamp = now();
   const cleanPlayer = String(player || '').trim();
+  const cleanCountry = country || 'general';
   if(existing){
     if(cleanPlayer) existing.player = cleanPlayer;
+    if(cleanCountry) existing.country = cleanCountry;
     existing.updatedAt = stamp;
 
     if(status === 'have'){
@@ -154,6 +191,7 @@ function addOrUpdateSticker({ number, status, repeatedCount=1, player='' }){
     id: uid(),
     number,
     player: cleanPlayer,
+    country: cleanCountry,
     status,
     repeatedCount: status === 'repeated' ? Math.max(1, Number(repeatedCount)||1) : 0,
     createdAt: stamp,
@@ -228,9 +266,15 @@ function toggleSelect(id){
 function filteredStickers(){
   let list = [...state.stickers];
   if(state.albumFilter !== 'all') list = list.filter(s=>s.status===state.albumFilter);
-  if(state.search.trim()) list = list.filter(s=>String(s.number).includes(normalizeNumber(state.search)) || String(s.player||'').toLowerCase().includes(state.search.toLowerCase()));
+  if(state.countryFilter !== 'all') list = list.filter(s=>stickerCountry(s)===state.countryFilter);
+  if(state.search.trim()) {
+    const q = state.search.toLowerCase();
+    const qn = normalizeNumber(state.search);
+    list = list.filter(s=>String(s.number).includes(qn) || String(s.player||'').toLowerCase().includes(q) || countryLabel(stickerCountry(s)).toLowerCase().includes(q));
+  }
   return list.sort(byNumber);
 }
+
 
 function statusIcon(status){
   if(status==='have') return icons.check;
@@ -248,10 +292,10 @@ function homeScreen(){
   const c = counts();
   return `<main class="screen">
     ${topbar(`<button class="pill" onclick="setView('album',{filter:'all'})">Mi álbum</button>`)}
-    <section class="hero">
-      <div class="logo">${icons.ball}</div>
-      <h1>Organizá tu álbum en segundos</h1>
-      <p>Escaneá figuritas, marcá repetidas y compartí tus cambios por WhatsApp.</p>
+    <section class="hero premium-hero">
+      <div class="shine-ball">${icons.trophy}</div>
+      <h1>Tu álbum, listo para cambiar</h1>
+      <p>Escaneá, cargá faltantes y compartí listas con estilo mundialista.</p>
       <div class="hero-actions">
         <button class="btn btn-gold" onclick="setView('scanner')">${icons.scan} Escanear ahora</button>
         <button class="btn btn-white" onclick="setView('manual',{manualDefault:'have'})">${icons.plus} Agregar manual</button>
@@ -276,7 +320,18 @@ function homeScreen(){
         <button class="quick-card" onclick="setView('share')">${icons.share}<br>Compartir</button>
       </div>
     </section>
+
+    <section class="section progress-section">
+      <div class="section-title"><h2>Progreso por selección</h2><span class="muted">motivación</span></div>
+      ${countryProgressHtml()}
+    </section>
   </main>`;
+}
+
+function countryProgressHtml(){
+  const rows = countryStats();
+  if(!rows.length) return `<p class="muted">Cuando cargues figuritas, vas a ver el avance por selección.</p>`;
+  return `<div class="country-progress-list">${rows.map(row=>{ const c=countryById(row.id); const pct=progressPercent(row); return `<button class="country-progress" onclick="state.countryFilter='${row.id}'; setView('album',{filter:'all'})"><span class="flag">${c.flag}</span><span><strong>${c.name}</strong><small>${row.have}/${row.total} obtenidas</small></span><b>${pct}%</b><i><em style="width:${pct}%"></em></i></button>`; }).join('')}</div>`;
 }
 
 function manualScreen(){
@@ -293,6 +348,7 @@ function manualScreen(){
       <form class="form" onsubmit="submitManual(event)">
         <div class="field"><label>Número de figurita</label><input class="input" inputmode="numeric" pattern="[0-9]*" id="num" placeholder="Ej: 24" value="${editing ? escapeHtml(editing.number) : ''}" required></div>
         <div class="field"><label>Nombre del jugador</label><input class="input" id="player" placeholder="Ej: Messi" value="${editing ? escapeHtml(editing.player||'') : ''}"></div>
+        <div class="field"><label>Selección / país</label><select class="input" id="country">${countryOptions(editing?.country || 'general')}</select></div>
         <div class="field"><label>¿Cómo la querés marcar?</label><div class="state-grid">
           ${stateButton('have', defaultStatus)}
           ${stateButton('missing', defaultStatus)}
@@ -307,6 +363,7 @@ function manualScreen(){
     </section>
   </main>`;
 }
+function countryOptions(active='general'){ return COUNTRIES.map(c=>`<option value="${c.id}" ${active===c.id?'selected':''}>${c.flag} ${c.name}</option>`).join(''); }
 function stateButton(status, active){
   return `<button type="button" class="state-option ${status} ${active===status?'active':''}" onclick="chooseManualStatus('${status}')">${statusIcon(status)} <span>${STATUS[status].long}</span></button>`;
 }
@@ -329,16 +386,17 @@ function submitManual(e, again=false){
   const number = normalizeNumber(document.getElementById('num')?.value);
   const player = document.getElementById('player')?.value || '';
   const status = document.getElementById('manualStatus')?.value || 'have';
+  const country = document.getElementById('country')?.value || 'general';
   const repeatedCount = Number(document.getElementById('qtyValue')?.textContent || 1);
   if(state.editingId){
     const s = state.stickers.find(x=>x.id===state.editingId);
     if(s){
-      s.number = number; s.player = player.trim(); s.status = status; s.repeatedCount = status==='repeated' ? Math.max(1,repeatedCount) : 0; s.updatedAt = now();
+      s.number = number; s.player = player.trim(); s.country = country; s.status = status; s.repeatedCount = status==='repeated' ? Math.max(1,repeatedCount) : 0; s.updatedAt = now();
       saveStickers(); toast('Figurita actualizada.'); state.editingId = null; setView('album',{filter:state.albumFilter});
     }
     return;
   }
-  const ok = addOrUpdateSticker({number, player, status, repeatedCount});
+  const ok = addOrUpdateSticker({number, player, country, status, repeatedCount});
   if(ok){
     if(again){ setView('manual',{manualDefault:status}); }
     else setView('album',{filter:status});
@@ -357,6 +415,7 @@ function albumScreen(){
       <div class="toolbar">
         ${filterChip('all','Todas')}${filterChip('have','Tengo')}${filterChip('missing','Me faltan')}${filterChip('repeated','Repetidas')}
       </div>
+      <div class="toolbar countries-toolbar">${countryChip('all','Todas')}${COUNTRIES.map(c=>countryChip(c.id, c.short)).join('')}</div>
       <div class="album-actions">
         <button class="btn btn-primary" onclick="setView('manual',{manualDefault:'${defaultAdd}'})">${icons.plus} Agregar ${state.albumFilter==='missing'?'faltante':state.albumFilter==='repeated'?'repetida':state.albumFilter==='have'?'tengo':'manual'}</button>
         <button class="btn btn-ghost" onclick="state.selected = new Set(); render()">Limpiar selección</button>
@@ -369,6 +428,7 @@ function albumScreen(){
   </main>`;
 }
 function filterChip(key,label){ return `<button class="chip ${state.albumFilter===key?'active':''}" onclick="state.albumFilter='${key}'; state.search=''; state.selected=new Set(); render()">${label}</button>`; }
+function countryChip(key,label){ return `<button class="chip country ${state.countryFilter===key?'active':''}" onclick="state.countryFilter='${key}'; state.selected=new Set(); render()">${key==='all'?'':countryById(key).flag+' '}${label}</button>`; }
 function bulkBar(){
   return `<section class="bulkbar"><strong>${state.selected.size} seleccionadas</strong><div class="row"><button class="btn btn-green" onclick="bulkStatus('have')">Tengo</button><button class="btn btn-danger" onclick="bulkStatus('missing')">Me falta</button></div><div class="row"><button class="btn btn-orange" onclick="bulkStatus('repeated')">Repetida</button><button class="btn btn-danger" onclick="bulkDelete()">Eliminar</button></div></section>`;
 }
@@ -378,6 +438,7 @@ function stickerCard(s){
     <button class="select-box ${selected?'on':''}" onclick="toggleSelect('${s.id}')">${selected ? icons.check : ''}</button>
     <div style="padding-left:26px">
       <div class="sticker-top"><div class="number">#${s.number}</div><span class="status-badge ${s.status}">${statusIcon(s.status)} ${STATUS[s.status].label}${s.status==='repeated'?` x${s.repeatedCount||1}`:''}</span></div>
+      <div class="country-line"><span>${countryById(stickerCountry(s)).flag}</span> ${escapeHtml(countryLabel(stickerCountry(s)))}</div>
       <div class="player">${escapeHtml(s.player || 'Sin jugador')}</div>
       <div class="card-actions">
         <button class="icon-btn" title="Editar" onclick="setView('manual',{editingId:'${s.id}'})">${icons.edit}</button>
@@ -413,13 +474,13 @@ function scannerScreen(){
   </main>`;
 }
 function detectedBox(num){
-  return `<div class="detected"><div class="muted">Figurita detectada</div><div class="big">N° ${num}</div><div class="state-grid" style="margin-top:12px">
+  return `<div class="detected scan-success"><div class="particles"><i></i><i></i><i></i><i></i><i></i></div><div class="muted">Escaneo exitoso</div><div class="big">N° ${num}</div><div class="state-grid" style="margin-top:12px">
     <button class="state-option have" onclick="saveDetected('${num}','have')">${icons.check} La tengo</button>
     <button class="state-option repeated" onclick="saveDetected('${num}','repeated')">${icons.repeat} Repetida</button>
     <button class="state-option missing" onclick="saveDetected('${num}','missing')">${icons.x} Me falta</button>
   </div><button class="btn btn-primary full" style="margin-top:12px" onclick="state.detectedNumber=''; render(); setTimeout(startCamera,50)">Escanear otra</button></div>`;
 }
-function saveDetected(num,status){ addOrUpdateSticker({number:num,status,repeatedCount:1}); setView('album',{filter:status}); }
+function saveDetected(num,status){ addOrUpdateSticker({number:num,status,repeatedCount:1,country:'general'}); state.detectedNumber=''; state.view='scanner'; render(); setTimeout(startCamera,80); }
 async function startCamera(){
   const video = document.getElementById('video'); if(!video) return;
   try{
@@ -498,24 +559,30 @@ function shareScreen(){
   </main>`;
 }
 function shareOption(mode,label,icon){ return `<button class="share-card ${state.shareMode===mode?'active':''}" onclick="state.shareMode='${mode}'; render()">${icon}<br>${label}</button>`; }
+function stickerText(s){ const c = countryById(stickerCountry(s)); return `*${c.short}* N° ${s.number}${s.player?` - *${s.player}*`:''}`; }
 function listFor(status){
   const arr = state.stickers.filter(s=>s.status===status).sort(byNumber);
-  if(status==='repeated') return arr.length ? arr.map(s=>`N° ${s.number}${s.player?` - ${s.player}`:''} x${s.repeatedCount||1}`).join('\n') : 'Sin figuritas cargadas';
-  return arr.length ? arr.map(s=>`N° ${s.number}${s.player?` - ${s.player}`:''}`).join(', ') : 'Sin figuritas cargadas';
+  if(status==='repeated') return arr.length ? arr.map(s=>`${stickerText(s)} x${s.repeatedCount||1}`).join('\n') : 'Sin figuritas cargadas';
+  return arr.length ? arr.map(s=>stickerText(s)).join('\n') : 'Sin figuritas cargadas';
 }
+
 function buildShareMessage(mode){
-  const header = `╔══════════════════════╗\n   FIGUSCAN MUNDIAL\n╚══════════════════════╝`;
-  if(mode==='have') return `${header}\n\nTENGO ESTAS FIGURITAS:\n${listFor('have')}\n\n¿Te sirve alguna para cambiar?`;
-  if(mode==='missing') return `${header}\n\nME FALTAN ESTAS FIGURITAS:\n${listFor('missing')}\n\n¿Tenés alguna para cambiar?`;
-  if(mode==='repeated') return `${header}\n\nTENGO ESTAS REPETIDAS:\n${listFor('repeated')}\n\n¿Necesitás alguna?`;
-  return `${header}\n\nTENGO:\n${listFor('have')}\n\nME FALTAN:\n${listFor('missing')}\n\nREPETIDAS:\n${listFor('repeated')}\n\nOrganizado con FiguScan Mundial.`;
+  const header = `🏆 *FIGUSCAN MUNDIAL*\n━━━━━━━━━━━━━━━━━━━━`;
+  if(mode==='have') return `${header}\n\n✅ *TENGO ESTAS FIGURITAS:*\n${listFor('have')}\n\n¿Te sirve alguna para cambiar? ⚽`;
+  if(mode==='missing') return `${header}\n\n❌ *ME FALTAN ESTAS FIGURITAS:*\n${listFor('missing')}\n\n¿Tenés alguna para intercambiar?`;
+  if(mode==='repeated') return `${header}\n\n🔁 *TENGO REPETIDAS:*\n${listFor('repeated')}\n\n¿Necesitás alguna? Hagamos cambio.`;
+  return `${header}\n\n✅ *TENGO:*\n${listFor('have')}\n\n❌ *ME FALTAN:*\n${listFor('missing')}\n\n🔁 *REPETIDAS:*\n${listFor('repeated')}\n\nOrganizado con *FiguScan Mundial*.`;
 }
+
 function buildSingleStickerMessage(s){
-  const head = `FiguScan Mundial\n────────────────`;
-  if(s.status==='missing') return `${head}\nMe falta la figurita N° ${s.number}${s.player?` - ${s.player}`:''}.\n¿La tenés para cambiar?`;
-  if(s.status==='repeated') return `${head}\nTengo repetida la figurita N° ${s.number}${s.player?` - ${s.player}`:''} x${s.repeatedCount||1}.\n¿La necesitás?`;
-  return `${head}\nTengo la figurita N° ${s.number}${s.player?` - ${s.player}`:''}.\n¿Te sirve?`;
+  const c = countryById(stickerCountry(s));
+  const head = `🏆 *FiguScan Mundial*\n━━━━━━━━━━━━━━━━━━━━`;
+  const figu = `${c.flag} *${c.name}* - N° ${s.number}${s.player?` - *${s.player}*`:''}`;
+  if(s.status==='missing') return `${head}\nMe falta la figurita ${figu}.\n¿La tenés para cambiar? ⚽`;
+  if(s.status==='repeated') return `${head}\nTengo repetida la figurita ${figu} x${s.repeatedCount||1}.\n¿La necesitás?`;
+  return `${head}\nTengo la figurita ${figu}.\n¿Te sirve para cambiar?`;
 }
+
 function openWhatsApp(){ window.open(`https://wa.me/?text=${encodeURIComponent(buildShareMessage(state.shareMode))}`,'_blank'); }
 function shareSingle(id){
   const s = state.stickers.find(x=>x.id===id); if(!s) return;

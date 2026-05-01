@@ -3,8 +3,8 @@
   "short_name": "FiguScan",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#071A4B",
-  "theme_color": "#071A4B",
+  "background_color": "#05070D",
+  "theme_color": "#7A1230",
   "icons": [
     { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png" }
