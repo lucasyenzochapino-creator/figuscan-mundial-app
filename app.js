@@ -1,6 +1,7 @@
-/* FiguScan Mundial V15 - fix guardado faltantes + filtros visibles */
+/* FiguScan Mundial V18 - necesario: álbum por país, progreso, WhatsApp pasión mundial, haptics y shiny */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
+const APP_URL = 'https://figuscan-mundial-app.vercel.app/';
 
 const STATUS = {
   have: { label: 'Tengo', long: 'La tengo', cls: 'have', color: '#18A957' },
@@ -110,6 +111,12 @@ function loadStickers(){
 function saveStickers(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state.stickers)); }
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 function now(){ return new Date().toISOString(); }
+function haptic(type='tap'){
+  if(!navigator.vibrate) return;
+  if(type === 'success') navigator.vibrate([18, 35, 18]);
+  else if(type === 'warn') navigator.vibrate([35]);
+  else navigator.vibrate(12);
+}
 function normalizeNumber(value){
   const v = String(value || '').replace(/[^0-9]/g,'').replace(/^0+(?=\d)/,'');
   return v;
@@ -132,6 +139,7 @@ function setView(view, opts={}){
   render();
 }
 function toast(message, type='success'){
+  haptic(type === 'warn' ? 'warn' : 'success');
   state.toast = { message, type };
   render();
   setTimeout(()=>{ state.toast=null; render(); }, 2600);
@@ -388,7 +396,31 @@ function homeScreen(){
 function countryProgressHtml(){
   const rows = countryStats();
   if(!rows.length) return `<p class="muted">Cuando cargues figuritas, vas a ver el avance por selección.</p>`;
-  return `<div class="country-progress-list">${rows.map(row=>{ const c=countryById(row.id); const pct=progressPercent(row); return `<button class="country-progress" onclick="state.countryFilter='${row.id}'; setView('album',{filter:'all'})"><span class="flag">${c.flag}</span><span><strong>${c.name}</strong><small>${row.have}/${row.total} obtenidas</small></span><b>${pct}%</b><i><em style="width:${pct}%"></em></i></button>`; }).join('')}</div>`;
+  return `<div class="country-progress-list">${rows.map(row=>{ const c=countryById(row.id); const pct=progressPercent(row); return `<button class="country-progress" onclick="selectCountry('${row.id}')"><span class="flag">${c.flag}</span><span><strong>${c.name}</strong><small>${row.have}/${row.total} obtenidas</small></span><b>${pct}%</b><i><em style="width:${pct}%"></em></i></button>`; }).join('')}</div>`;
+}
+function selectCountry(id){
+  state.countryFilter = id || 'all';
+  state.countrySearch = '';
+  state.selected = new Set();
+  state.view = 'album';
+  haptic('tap');
+  render();
+}
+function countryCarouselHtml(){
+  const rows = countryStats();
+  const allActive = state.countryFilter === 'all' && !state.countrySearch.trim();
+  const total = state.stickers.length;
+  const items = [`<button class="country-tile ${allActive?'active':''}" onclick="selectCountry('all')"><span class="tile-flag">${icons.album}</span><strong>Ver todo</strong><small>${total} figuritas</small><i><em style="width:100%"></em></i></button>`];
+  const seen = new Set(rows.map(r=>r.id));
+  rows.forEach(row=>{
+    const c = countryById(row.id); const pct = progressPercent(row); const active = state.countryFilter === row.id;
+    items.push(`<button class="country-tile ${active?'active':''}" onclick="selectCountry('${row.id}')"><span class="tile-flag">${c.flag}</span><strong>${c.name}</strong><small>${row.have}/${row.total} tengo</small><b>${pct}%</b><i><em style="width:${pct}%"></em></i></button>`);
+  });
+  availableCountries().filter(c=>!seen.has(c.id)).slice(0,8).forEach(c=>{
+    const active = state.countryFilter === c.id;
+    items.push(`<button class="country-tile ${active?'active':''}" onclick="selectCountry('${c.id}')"><span class="tile-flag">${c.flag}</span><strong>${c.name}</strong><small>Sin progreso</small><i><em style="width:0%"></em></i></button>`);
+  });
+  return `<div class="country-carousel">${items.join('')}</div>`;
 }
 
 function entryModeSwitch(current){
@@ -497,6 +529,18 @@ function submitManual(e, again=false){
 }
 
 
+function albumCountryHeaderHtml(){
+  if(state.countryFilter === 'all' && !state.countrySearch.trim()) return `<div class="album-country-title"><div>${icons.ball}<span>Vista global</span></div><small>${state.stickers.length} figuritas cargadas</small></div>`;
+  const id = state.countryFilter !== 'all' ? state.countryFilter : '';
+  const name = state.countrySearch.trim() || (id ? countryLabel(id) : 'País');
+  const list = state.stickers.filter(s => id ? stickerCountry(s)===id : normalizeText(s.countryName || countryLabel(stickerCountry(s))).includes(normalizeText(name)));
+  const have = list.filter(s=>s.status==='have').length;
+  const total = list.length;
+  const pct = total ? Math.round((have/total)*100) : 0;
+  const meta = id ? countryById(id) : {flag:'⚑', name};
+  return `<div class="album-country-title active-country"><div><span class="country-big-flag">${meta.flag}</span><span>${escapeHtml(name)}</span></div><small>${have}/${total} tengo · ${pct}%</small><i><em style="width:${pct}%"></em></i></div>`;
+}
+
 function albumScreen(){
   const list = filteredStickers();
   const filterLabel = state.albumFilter==='all'?'Todas':STATUS[state.albumFilter].label;
@@ -505,6 +549,8 @@ function albumScreen(){
     ${topbar(`<button class="pill" onclick="setView('share')">Compartir</button>`)}
     <section class="section album-head">
       <div class="section-title"><h2>Mi álbum</h2><span class="muted">${filterLabel}</span></div>
+      ${albumCountryHeaderHtml()}
+      ${countryCarouselHtml()}
       <div class="album-search-grid">
         <input class="search" placeholder="Buscar número o jugador" value="${escapeHtml(state.search)}" oninput="state.search=this.value; render()">
         <div class="country-search-wrap">
@@ -535,7 +581,7 @@ function bulkBar(){
 }
 function stickerCard(s){
   const selected = state.selected.has(s.id);
-  return `<article class="sticker-card ${s.status}">
+  return `<article class="sticker-card ${s.status} ${s.status==='repeated'?'shiny':''}">
     <button class="select-box ${selected?'on':''}" onclick="toggleSelect('${s.id}')">${selected ? icons.check : ''}</button>
     <div style="padding-left:26px">
       <div class="sticker-top"><div class="number">#${s.number}</div><span class="status-badge ${s.status}">${statusIcon(s.status)} ${STATUS[s.status].label}${s.status==='repeated'?` x${s.repeatedCount||1}`:''}</span></div>
@@ -661,7 +707,7 @@ function shareScreen(){
   </main>`;
 }
 function shareOption(mode,label,icon){ return `<button class="share-card ${state.shareMode===mode?'active':''}" onclick="state.shareMode='${mode}'; render()">${icon}<br>${label}</button>`; }
-function stickerText(s){ const c = countryById(stickerCountry(s)); return `*${c.short}* N° ${s.number}${s.player?` - *${s.player}*`:''}`; }
+function stickerText(s){ const c = countryById(stickerCountry(s)); return `${c.flag} *${c.name}* · N° ${s.number}${s.player?` · *${s.player}*`:''}`; }
 function listFor(status){
   const arr = state.stickers.filter(s=>s.status===status).sort(byNumber);
   if(status==='repeated') return arr.length ? arr.map(s=>`${stickerText(s)} x${s.repeatedCount||1}`).join('\n') : 'Sin figuritas cargadas';
@@ -669,20 +715,68 @@ function listFor(status){
 }
 
 function buildShareMessage(mode){
-  const header = `🏆 *FIGUSCAN MUNDIAL*\n━━━━━━━━━━━━━━━━━━━━`;
-  if(mode==='have') return `${header}\n\n✅ *TENGO ESTAS FIGURITAS:*\n${listFor('have')}\n\n¿Te sirve alguna para cambiar? ⚽`;
-  if(mode==='missing') return `${header}\n\n❌ *ME FALTAN ESTAS FIGURITAS:*\n${listFor('missing')}\n\n¿Tenés alguna para intercambiar?`;
-  if(mode==='repeated') return `${header}\n\n🔁 *TENGO REPETIDAS:*\n${listFor('repeated')}\n\n¿Necesitás alguna? Hagamos cambio.`;
-  return `${header}\n\n✅ *TENGO:*\n${listFor('have')}\n\n❌ *ME FALTAN:*\n${listFor('missing')}\n\n🔁 *REPETIDAS:*\n${listFor('repeated')}\n\nOrganizado con *FiguScan Mundial*.`;
+  const header = `🏆 *FIGUSCAN MUNDIAL*
+━━━━━━━━━━━━━━━━━━━━`;
+  const footer = `
+
+Checkeá mi álbum acá:
+${APP_URL}`;
+  if(mode==='have') return `${header}
+
+✅ *TENGO PARA CAMBIAR O MOSTRAR:*
+${listFor('have')}
+
+¿Te sirve alguna? Avisame y cambiamos. ⚽${footer}`;
+  if(mode==='missing') return `${header}
+
+❌ *ME FALTAN ESTAS PARA COMPLETAR:*
+${listFor('missing')}
+
+¿Tenés alguna repetida? Avisame y hacemos cambio. 🏟️${footer}`;
+  if(mode==='repeated') return `${header}
+
+🔁 *MIS REPETIDAS PARA CAMBIAR:*
+${listFor('repeated')}
+
+¿Necesitás alguna? Vamos que llenamos el álbum. ⚽${footer}`;
+  return `${header}
+
+✅ *TENGO:*
+${listFor('have')}
+
+❌ *ME FALTAN:*
+${listFor('missing')}
+
+🔁 *REPETIDAS:*
+${listFor('repeated')}
+
+Organizado con *FiguScan Mundial*.${footer}`;
 }
 
 function buildSingleStickerMessage(s){
   const c = countryById(stickerCountry(s));
-  const head = `🏆 *FiguScan Mundial*\n━━━━━━━━━━━━━━━━━━━━`;
-  const figu = `${c.flag} *${c.name}* - N° ${s.number}${s.player?` - *${s.player}*`:''}`;
-  if(s.status==='missing') return `${head}\nMe falta la figurita ${figu}.\n¿La tenés para cambiar? ⚽`;
-  if(s.status==='repeated') return `${head}\nTengo repetida la figurita ${figu} x${s.repeatedCount||1}.\n¿La necesitás?`;
-  return `${head}\nTengo la figurita ${figu}.\n¿Te sirve para cambiar?`;
+  const head = `🏆 *FiguScan Mundial*
+━━━━━━━━━━━━━━━━━━━━`;
+  const figu = `${c.flag} *${c.name}* · N° ${s.number}${s.player?` · *${s.player}*`:''}`;
+  const footer = `
+
+Mi álbum está en FiguScan:
+${APP_URL}`;
+  if(s.status==='missing') return `${head}
+¡Che! Me falta esta para el álbum:
+${figu}
+
+¿La tenés repetida? Avisame y cambiamos. ⚽${footer}`;
+  if(s.status==='repeated') return `${head}
+Tengo repetida esta figurita:
+${figu} x${s.repeatedCount||1}
+
+¿La necesitás? Hagamos cambio. 🏆${footer}`;
+  return `${head}
+Tengo esta figurita:
+${figu}
+
+¿Te sirve para cambiar? ⚽${footer}`;
 }
 
 function openWhatsApp(){ window.open(`https://wa.me/?text=${encodeURIComponent(buildShareMessage(state.shareMode))}`,'_blank'); }
@@ -761,7 +855,7 @@ function render(){
   if(state.view==='scanner') setTimeout(startCamera, 150);
 }
 
-window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.startCamera=startCamera; window.confirmModal=confirmModal; window.state=state; window.render=render;
+window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.startCamera=startCamera; window.confirmModal=confirmModal; window.state=state; window.render=render;
 
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('/service-worker.js').catch(()=>{}); }
 render();
