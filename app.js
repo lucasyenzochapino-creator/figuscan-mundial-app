@@ -90,6 +90,7 @@ let state = {
   albumFilter: 'all',
   countryFilter: 'all',
   search: '',
+  countrySearch: '',
   selected: new Set(),
   modal: null,
   toast: null,
@@ -112,6 +113,12 @@ function now(){ return new Date().toISOString(); }
 function normalizeNumber(value){
   const v = String(value || '').replace(/[^0-9]/g,'').replace(/^0+(?=\d)/,'');
   return v;
+}
+function normalizeText(value){
+  return String(value || '')
+    .trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase();
 }
 function byNumber(a,b){ return Number(a.number) - Number(b.number); }
 function setView(view, opts={}){
@@ -314,9 +321,13 @@ function filteredStickers(){
   if(state.albumFilter !== 'all') list = list.filter(s=>s.status===state.albumFilter);
   if(state.countryFilter !== 'all') list = list.filter(s=>stickerCountry(s)===state.countryFilter);
   if(state.search.trim()) {
-    const q = state.search.toLowerCase();
+    const q = normalizeText(state.search);
     const qn = normalizeNumber(state.search);
-    list = list.filter(s=>String(s.number).includes(qn) || String(s.player||'').toLowerCase().includes(q) || (s.countryName || countryLabel(stickerCountry(s))).toLowerCase().includes(q));
+    list = list.filter(s=>String(s.number).includes(qn) || normalizeText(s.player||'').includes(q));
+  }
+  if(state.countrySearch.trim()) {
+    const cq = normalizeText(state.countrySearch);
+    list = list.filter(s=>normalizeText(s.countryName || countryLabel(stickerCountry(s))).includes(cq));
   }
   return list.sort(byNumber);
 }
@@ -380,6 +391,13 @@ function countryProgressHtml(){
   return `<div class="country-progress-list">${rows.map(row=>{ const c=countryById(row.id); const pct=progressPercent(row); return `<button class="country-progress" onclick="state.countryFilter='${row.id}'; setView('album',{filter:'all'})"><span class="flag">${c.flag}</span><span><strong>${c.name}</strong><small>${row.have}/${row.total} obtenidas</small></span><b>${pct}%</b><i><em style="width:${pct}%"></em></i></button>`; }).join('')}</div>`;
 }
 
+function entryModeSwitch(current){
+  return `<section class="entry-switch-wrap"><div class="entry-switch">
+    <button class="entry-switch-btn ${current==='scanner'?'active':''}" onclick="setView('scanner')">${icons.scan}<span>Escanear</span></button>
+    <button class="entry-switch-btn ${current==='manual'?'active':''}" onclick="setView('manual',{manualDefault:'have'})">${icons.plus}<span>Agregar manualmente</span></button>
+  </div><p class="entry-switch-help">Elegí si querés leer la figurita con cámara o cargarla a mano.</p></section>`;
+}
+
 function manualScreen(){
   const editing = state.editingId ? state.stickers.find(s=>s.id===state.editingId) : null;
   const defaultStatus = editing ? editing.status : state.manualDefault;
@@ -390,6 +408,7 @@ function manualScreen(){
       <h1>${editing ? 'Editar figurita' : 'Agregar figurita'}</h1>
       <p>${editing ? 'Actualizá el número, jugador, estado o cantidad.' : 'Cargala por número. Si ya la tenés, la app la pasa a repetida automáticamente.'}</p>
     </section>
+    ${entryModeSwitch('manual')}
     <section class="section">
       <form class="form" onsubmit="submitManual(event)">
         <div class="field"><label>Número de figurita</label><input class="input" inputmode="numeric" pattern="[0-9]*" id="num" placeholder="Ej: 24" value="${editing ? escapeHtml(editing.number) : ''}" required></div>
@@ -486,7 +505,13 @@ function albumScreen(){
     ${topbar(`<button class="pill" onclick="setView('share')">Compartir</button>`)}
     <section class="section album-head">
       <div class="section-title"><h2>Mi álbum</h2><span class="muted">${filterLabel}</span></div>
-      <input class="search" placeholder="Buscar número o jugador" value="${escapeHtml(state.search)}" oninput="state.search=this.value; render()">
+      <div class="album-search-grid">
+        <input class="search" placeholder="Buscar número o jugador" value="${escapeHtml(state.search)}" oninput="state.search=this.value; render()">
+        <div class="country-search-wrap">
+          <input class="search" list="albumCountryList" placeholder="Buscar país" value="${escapeHtml(state.countrySearch)}" oninput="state.countrySearch=this.value; render()">
+          <datalist id="albumCountryList">${availableCountries().map(c=>`<option value="${escapeHtml(c.name)}"></option>`).join('')}</datalist>
+        </div>
+      </div>
       <div class="toolbar">
         ${filterChip('all','Todas')}${filterChip('have','Tengo')}${filterChip('missing','Me faltan')}${filterChip('repeated','Repetidas')}
       </div>
@@ -494,6 +519,7 @@ function albumScreen(){
       <div class="album-actions">
         <button class="btn btn-primary" onclick="setView('manual',{manualDefault:'${defaultAdd}'})">${icons.plus} Agregar ${state.albumFilter==='missing'?'faltante':state.albumFilter==='repeated'?'repetida':state.albumFilter==='have'?'tengo':'manual'}</button>
         <button class="btn btn-ghost" onclick="state.selected = new Set(); render()">Limpiar selección</button>
+        <button class="btn btn-line" onclick="state.search=''; state.countrySearch=''; state.countryFilter='all'; render()">Limpiar búsqueda</button>
       </div>
     </section>
     ${state.selected.size ? bulkBar() : ''}
@@ -535,6 +561,7 @@ function scannerScreen(){
   return `<main class="screen">
     ${topbar(`<button class="pill" onclick="setView('home')">Inicio</button>`)}
     <section class="hero"><div class="logo">${icons.scan}</div><h1>Escanear figurita</h1><p>Apuntá al número. Si no lo detecta, lo cargás manual en segundos.</p></section>
+    ${entryModeSwitch('scanner')}
     <section class="section">
       <div class="scanner-wrap">
         <video id="video" class="video" autoplay playsinline muted></video>
