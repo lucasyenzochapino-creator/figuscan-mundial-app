@@ -900,16 +900,90 @@ function captureStickerImage(video){
   const dx = innerX + (innerW-dw)/2;
   const dy = innerY + (innerH-dh)/2;
 
+  // Fondo contrastado detrás de la figurita: desenfocado + oscuro para no dejar el lugar crudo.
   ctx.save();
   roundRect(ctx,photoX,photoY,photoW,photoH,30);
   ctx.clip();
-  ctx.fillStyle='rgba(0,0,0,.28)';
-  ctx.fillRect(photoX,photoY,photoW,photoH);
-  ctx.filter='contrast(1.24) brightness(1.08) saturate(1.20)';
-  ctx.drawImage(tmp,box.x,box.y,box.w,box.h,dx,dy,dw,dh);
+
+  const bgGrad = ctx.createLinearGradient(photoX, photoY, photoX + photoW, photoY + photoH);
+  bgGrad.addColorStop(0, 'rgba(8,13,28,1)');
+  bgGrad.addColorStop(.55, 'rgba(17,38,84,1)');
+  bgGrad.addColorStop(1, 'rgba(86,19,37,1)');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(photoX, photoY, photoW, photoH);
+
+  // Usa la foto original muy agrandada y desenfocada solo como textura de fondo.
+  ctx.save();
+  ctx.globalAlpha = .32;
+  ctx.filter = 'blur(22px) brightness(.52) saturate(1.1)';
+  ctx.drawImage(tmp, box.x, box.y, box.w, box.h, photoX - 50, photoY - 50, photoW + 100, photoH + 100);
   ctx.restore();
 
-  // Borde de la foto.
+  // Brillos/spotlights para contraste visual.
+  const spot1 = ctx.createRadialGradient(photoX + photoW*.22, photoY + photoH*.18, 10, photoX + photoW*.22, photoY + photoH*.18, photoW*.46);
+  spot1.addColorStop(0, 'rgba(255,224,138,.22)');
+  spot1.addColorStop(1, 'rgba(255,224,138,0)');
+  ctx.fillStyle = spot1;
+  ctx.fillRect(photoX, photoY, photoW, photoH);
+
+  const spot2 = ctx.createRadialGradient(photoX + photoW*.84, photoY + photoH*.80, 10, photoX + photoW*.84, photoY + photoH*.80, photoW*.44);
+  spot2.addColorStop(0, 'rgba(47,116,255,.18)');
+  spot2.addColorStop(1, 'rgba(47,116,255,0)');
+  ctx.fillStyle = spot2;
+  ctx.fillRect(photoX, photoY, photoW, photoH);
+
+  // Toma una versión más cerrada de la figurita para dejar menos fondo alrededor.
+  const focusScale = .84;
+  const focusW = box.w * focusScale;
+  const focusH = box.h * focusScale;
+  const focusX = box.x + (box.w - focusW)/2;
+  const focusY = box.y + (box.h - focusH)/2;
+  const stickerMaxW = photoW * .78;
+  const stickerMaxH = photoH * .82;
+  const focusRatio = focusW / focusH;
+  let stickerW = stickerMaxW, stickerH = stickerMaxH;
+  if(focusRatio > stickerW / stickerH){
+    stickerH = stickerW / focusRatio;
+  } else {
+    stickerW = stickerH * focusRatio;
+  }
+  const stickerX = photoX + (photoW - stickerW)/2;
+  const stickerY = photoY + (photoH - stickerH)/2 - 10;
+
+  // Halo detrás de la figurita.
+  const halo = ctx.createRadialGradient(stickerX + stickerW/2, stickerY + stickerH/2, 20, stickerX + stickerW/2, stickerY + stickerH/2, Math.max(stickerW, stickerH)*.62);
+  halo.addColorStop(0, 'rgba(255,255,255,.16)');
+  halo.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = halo;
+  ctx.fillRect(photoX, photoY, photoW, photoH);
+
+  // Sombra de la figurita.
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,.55)';
+  ctx.shadowBlur = 32;
+  ctx.shadowOffsetY = 18;
+  ctx.fillStyle = 'rgba(0,0,0,.22)';
+  roundRect(ctx, stickerX, stickerY, stickerW, stickerH, 20);
+  ctx.fill();
+  ctx.restore();
+
+  // Figurita principal sobre fondo contrastado.
+  ctx.save();
+  roundRect(ctx, stickerX, stickerY, stickerW, stickerH, 20);
+  ctx.clip();
+  ctx.filter='contrast(1.24) brightness(1.08) saturate(1.20)';
+  ctx.drawImage(tmp, focusX, focusY, focusW, focusH, stickerX, stickerY, stickerW, stickerH);
+  ctx.restore();
+
+  // Borde de la figurita.
+  roundRect(ctx, stickerX, stickerY, stickerW, stickerH, 20);
+  ctx.strokeStyle='rgba(255,255,255,.26)';
+  ctx.lineWidth=2;
+  ctx.stroke();
+
+  ctx.restore();
+
+  // Borde de la zona foto.
   roundRect(ctx,photoX,photoY,photoW,photoH,30);
   ctx.strokeStyle='rgba(255,224,138,.55)';
   ctx.lineWidth=3;
@@ -928,7 +1002,7 @@ function captureStickerImage(video){
   ctx.fillText('FiguScan Mundial',124,bandY+42);
   ctx.fillStyle='rgba(226,232,240,.92)';
   ctx.font='800 18px Inter, Arial';
-  ctx.fillText('Figurita guardada en tu álbum',124,bandY+70);
+  ctx.fillText('Figurita destacada en tu álbum',124,bandY+70);
 
   // Brillo diagonal suave.
   const shine=ctx.createLinearGradient(0,0,c.width,c.height);
