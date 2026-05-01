@@ -1,4 +1,4 @@
-/* FiguScan Mundial V31 - foto centrada, fondo limpio y flash opcional */
+/* FiguScan Mundial V32 - cámara estable, flash flotante y recorte centrado */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 const APP_URL = 'https://figuscan-mundial-app.vercel.app/';
@@ -138,8 +138,14 @@ function normalizeText(value){
 }
 function byNumber(a,b){ return Number(a.number) - Number(b.number); }
 function setView(view, opts={}){
-  stopCamera();
+  const stayingOnScanner = state.view === 'scanner' && view === 'scanner';
+  if(!stayingOnScanner) stopCamera();
   state.view = view;
+  if(stayingOnScanner) {
+    state.cameraError = '';
+    state.scanBusy = false;
+    setTimeout(()=>{ centerScannerFrame(); startCamera(false); }, 60);
+  }
   if(opts.filter) state.albumFilter = opts.filter;
   if(opts.manualDefault) state.manualDefault = opts.manualDefault;
   if(opts.editingId !== undefined) state.editingId = opts.editingId;
@@ -166,8 +172,30 @@ function centerScannerFrame(){
 function toast(message, type='success'){
   haptic(type === 'warn' ? 'warn' : 'success');
   state.toast = { message, type };
+
+  // No re-renderizar toda la pantalla mientras la cámara está viva.
+  // En Android/iPhone eso recreaba el <video> y parecía que la cámara se prendía y apagaba.
+  if(state.view === 'scanner' && state.scannerStream){
+    showFloatingToast(message, type);
+    clearTimeout(state.toastTimer);
+    state.toastTimer = setTimeout(()=>{ state.toast=null; removeFloatingToast(); }, 2600);
+    return;
+  }
+
   render();
-  setTimeout(()=>{ state.toast=null; render(); }, 2600);
+  clearTimeout(state.toastTimer);
+  state.toastTimer = setTimeout(()=>{ state.toast=null; render(); }, 2600);
+}
+function showFloatingToast(message, type='success'){
+  removeFloatingToast();
+  const el = document.createElement('div');
+  el.className = `toast ${type === 'warn' ? 'warn' : 'success'}`;
+  el.setAttribute('data-floating-toast','true');
+  el.innerHTML = `${type === 'warn' ? icons.repeat : icons.check}<span>${escapeHtml(message)}</span>`;
+  document.body.appendChild(el);
+}
+function removeFloatingToast(){
+  document.querySelectorAll('[data-floating-toast]').forEach(el=>el.remove());
 }
 function counts(){
   return {
@@ -639,13 +667,13 @@ function scannerScreen(){
     <section class="section scan-section scan-section-full">
       <div class="scanner-wrap scanner-wrap-xl" onclick="handleScannerFrameTap(event)">
         <video id="video" class="video video-xl" autoplay playsinline muted></video>
+        <button class="torch-float ${state.torchOn?'on':''}" onclick="event.stopPropagation(); toggleTorch()" aria-label="Activar luz">${icons.flash}</button>
         <div class="scan-overlay"><div class="scan-text">Centrar la figurita completa en el marco</div><div class="scan-frame scan-frame-xl"><span>Tocá el recuadro para activar cámara o sacar foto</span></div></div>
         <div class="auto-scan-badge ${state.scanBusy?'working':''}">${state.scanBusy ? 'Mejorando imagen...' : 'Cámara lista'}</div>
         ${state.cameraError ? cameraFallback() : ''}
       </div>
       <div class="scan-controls scan-controls-grid">
         <button class="btn btn-primary full" onclick="scanFrame(true)">${icons.image} Sacar foto y guardar imagen</button>
-        <button class="btn btn-ghost full ${state.torchOn?'torch-on':''}" onclick="toggleTorch()">${icons.flash} ${state.torchOn?'Apagar luz':'Luz / flash'}</button>
         <button class="btn btn-ghost full" onclick="setView('manual',{manualDefault:'have'})">Cargar sin foto</button>
       </div>
       <div id="detectedBox">${state.scanCandidate ? detectedBox() : ''}</div>
@@ -776,11 +804,11 @@ function saveBatchQuick(){
 
 async function startCamera(manual=false){
   if(state.view !== 'scanner') return;
-  let video = document.getElementById('video');
+  const video = document.getElementById('video');
   if(!video) return;
 
-  // Si ya hay stream, puede haberse perdido al re-renderizar. Re-adjuntar siempre.
-  if(state.scannerStream && !manual){
+  // Si ya hay stream, NO lo apagamos. Solo lo volvemos a pegar al video actual.
+  if(state.scannerStream){
     attachCameraStream();
     return;
   }
@@ -794,16 +822,12 @@ async function startCamera(manual=false){
       throw new Error('Este navegador no permite usar cámara desde esta pantalla.');
     }
 
-    if(state.scannerStream){
-      state.scannerStream.getTracks().forEach(t=>t.stop());
-      state.scannerStream = null;
-    }
-
     const constraints = {
       video: {
         facingMode: { ideal: 'environment' },
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        aspectRatio: { ideal: 3 / 4 }
       },
       audio: false
     };
@@ -813,8 +837,6 @@ async function startCamera(manual=false){
     state.cameraStarting = false;
     state.cameraError = '';
     state.torchOn = false;
-
-    // Muy importante: después del permiso puede haber habido un render.
     attachCameraStream();
   }catch(e){
     state.cameraStarting = false;
@@ -837,6 +859,7 @@ function attachCameraStream(){
 }
 function stopCamera(){
   stopAutoScan();
+  removeFloatingToast();
   if(state.scannerStream){ state.scannerStream.getTracks().forEach(t=>t.stop()); state.scannerStream=null; }
   state.cameraStarting = false;
   state.torchOn = false;
@@ -857,7 +880,7 @@ async function scanFrame(manualTap=false){
     return;
   }
   state.scanBusy = true;
-  toast('Sacando foto y mejorando imagen...', 'warn');
+  showFloatingToast('Sacando foto y mejorando imagen...', 'warn');
   try{
     const image = captureStickerImage(video);
     state.autoScanPaused = true;
@@ -876,7 +899,7 @@ async function scanFrame(manualTap=false){
   }
   state.scanBusy = false;
   render();
-  setTimeout(startCamera,50);
+  setTimeout(()=>attachCameraStream(),80);
 }
 
 function getCenteredStickerCrop(canvas){
@@ -884,13 +907,13 @@ function getCenteredStickerCrop(canvas){
   const w = canvas.width;
   const h = canvas.height;
 
-  // V30: recorte menos agresivo. Antes se ampliaba demasiado y cortaba la figurita.
-  // Mantiene formato de figurita, pero deja aire para que entre completa en Android/iPhone.
-  let cropW = Math.floor(w * 0.78);
+  // Respaldo centrado: más cerrado para que no se vea tanto la mesa/pared.
+  // El usuario debe ubicar la figurita dentro del marco; este crop evita ampliarla de más.
+  let cropW = Math.floor(w * 0.58);
   let cropH = Math.floor(cropW / ratio);
 
-  if(cropH > h * 0.92){
-    cropH = Math.floor(h * 0.92);
+  if(cropH > h * 0.86){
+    cropH = Math.floor(h * 0.86);
     cropW = Math.floor(cropH * ratio);
   }
 
@@ -913,8 +936,8 @@ function captureStickerImage(video){
   const sy = Math.max(0, Math.floor((vh-ch)/2));
 
   const tmp=document.createElement('canvas');
-  tmp.width=1500;
-  tmp.height=Math.round(1500 * ch / cw);
+  tmp.width=1800;
+  tmp.height=Math.round(1800 * ch / cw);
   const tctx=tmp.getContext('2d', { willReadFrequently:true });
   tctx.imageSmoothingEnabled = true;
   tctx.imageSmoothingQuality = 'high';
@@ -924,7 +947,7 @@ function captureStickerImage(video){
   // Primero intentamos encontrar la figurita real dentro de la foto.
   // Si no se puede, usamos un recorte central seguro.
   let detected = detectStickerBounds(tmp);
-  let box = detected ? expandBox(detected, tmp.width, tmp.height, .065) : getCenteredStickerCrop(tmp);
+  let box = detected ? expandBox(detected, tmp.width, tmp.height, .11) : getCenteredStickerCrop(tmp);
 
   const c=document.createElement('canvas');
   c.width=1080;
@@ -990,8 +1013,8 @@ function captureStickerImage(video){
 
   // La figurita recortada se centra automáticamente y completa dentro del marco.
   const srcRatio = box.w / box.h;
-  const maxW = photoW * .72;
-  const maxH = photoH * .74;
+  const maxW = photoW * .78;
+  const maxH = photoH * .80;
   let stickerW=maxW, stickerH=maxH;
   if(srcRatio > maxW/maxH){ stickerH = stickerW / srcRatio; }
   else { stickerW = stickerH * srcRatio; }
@@ -1054,67 +1077,71 @@ function captureStickerImage(video){
 }
 
 function detectStickerBounds(canvas){
-  const ctx=canvas.getContext('2d', { willReadFrequently:true });
-  const w=canvas.width, h=canvas.height;
-  const step=7;
-  const gw=Math.ceil(w/step), gh=Math.ceil(h/step);
-  const data=ctx.getImageData(0,0,w,h).data;
-  const mask=new Uint8Array(gw*gh);
+  const ctx = canvas.getContext('2d', { willReadFrequently:true });
+  const w = canvas.width, h = canvas.height;
+  const data = ctx.getImageData(0,0,w,h).data;
+  const step = 5;
+  const xs = [];
+  const ys = [];
+  const centerX = w / 2;
+  const centerY = h / 2;
 
-  // Ignoramos bordes extremos. La figurita debería estar dentro del marco central.
-  const marginX=w*.06, marginY=h*.04;
-  for(let gy=0; gy<gh; gy++){
-    const y=Math.min(h-1, gy*step);
-    for(let gx=0; gx<gw; gx++){
-      const x=Math.min(w-1, gx*step);
-      if(x<marginX || x>w-marginX || y<marginY || y>h-marginY) continue;
-      const i=(y*w+x)*4;
+  // Buscamos píxeles que probablemente pertenezcan al cromo:
+  // borde negro, camiseta/cancha con color fuerte, texto oscuro y zonas contrastadas.
+  // El fondo de mesa/pared suele ser claro y con poca saturación, por eso queda afuera.
+  for(let y=Math.floor(h*.04); y<h*.96; y+=step){
+    for(let x=Math.floor(w*.05); x<w*.95; x+=step){
+      const i = (y*w+x)*4;
       const r=data[i], g=data[i+1], b=data[i+2];
-      const luma=.299*r+.587*g+.114*b;
       const max=Math.max(r,g,b), min=Math.min(r,g,b);
       const sat=max-min;
-      // Bordes negros de la figurita + colores fuertes del cromo.
-      const salient = (luma < 92) || (sat > 58 && luma < 235);
-      if(salient) mask[gy*gw+gx]=1;
-    }
-  }
+      const luma=.299*r+.587*g+.114*b;
 
-  const seen=new Uint8Array(gw*gh);
-  let best=null;
-  const cx=w/2, cy=h/2;
-  const stack=[];
-  const dirs=[1,-1,gw,-gw,gw+1,gw-1,-gw+1,-gw-1];
+      // Centro pesa más: el usuario encuadra la figurita en el recuadro.
+      const dx = Math.abs(x-centerX)/w;
+      const dy = Math.abs(y-centerY)/h;
+      const nearCenter = dx < .38 && dy < .44;
 
-  for(let idx=0; idx<mask.length; idx++){
-    if(!mask[idx] || seen[idx]) continue;
-    seen[idx]=1; stack.length=0; stack.push(idx);
-    let minGx=gw, minGy=gh, maxGx=0, maxGy=0, area=0;
-    while(stack.length){
-      const cur=stack.pop();
-      const gx=cur%gw, gy=Math.floor(cur/gw);
-      area++;
-      if(gx<minGx) minGx=gx; if(gx>maxGx) maxGx=gx;
-      if(gy<minGy) minGy=gy; if(gy>maxGy) maxGy=gy;
-      for(const d of dirs){
-        const ni=cur+d;
-        if(ni<0 || ni>=mask.length || seen[ni] || !mask[ni]) continue;
-        const ngx=ni%gw;
-        if(Math.abs(ngx-gx)>1) continue;
-        seen[ni]=1; stack.push(ni);
+      const darkBorder = luma < 105;
+      const richColor = sat > 46 && luma > 28 && luma < 238;
+      const strongText = luma < 150 && sat > 24;
+
+      if(nearCenter && (darkBorder || richColor || strongText)){
+        xs.push(x);
+        ys.push(y);
       }
     }
-    const bx=minGx*step, by=minGy*step, bw=(maxGx-minGx+1)*step, bh=(maxGy-minGy+1)*step;
-    if(area<28 || bw<w*.16 || bh<h*.18) continue;
-    const compCx=bx+bw/2, compCy=by+bh/2;
-    const dist=Math.hypot((compCx-cx)/w, (compCy-cy)/h);
-    const centerBoost=Math.max(0, 1.15-dist*2.2);
-    const shapePenalty = (bh/bw < 1.05 || bh/bw > 2.4) ? .55 : 1;
-    const score=area * (1+centerBoost) * shapePenalty;
-    if(!best || score>best.score) best={x:bx,y:by,w:bw,h:bh,score};
   }
 
-  if(!best) return null;
-  return {x:best.x,y:best.y,w:best.w,h:best.h};
+  if(xs.length < 90) return null;
+
+  xs.sort((a,b)=>a-b);
+  ys.sort((a,b)=>a-b);
+  const q = (arr,p)=>arr[Math.max(0, Math.min(arr.length-1, Math.floor(arr.length*p)))];
+  let x1=q(xs,.015), x2=q(xs,.985), y1=q(ys,.015), y2=q(ys,.985);
+
+  let bw=x2-x1, bh=y2-y1;
+  if(bw < w*.18 || bh < h*.22) return null;
+
+  // Llevar el recorte hacia formato de figurita vertical si quedó raro.
+  const targetRatio = 3/4;
+  const cx=(x1+x2)/2, cy=(y1+y2)/2;
+  const ratio = bw / bh;
+  if(ratio > .92){
+    bh = bw / targetRatio;
+  } else if(ratio < .48){
+    bw = bh * targetRatio;
+  }
+
+  // Si el detector se fue demasiado grande, usar fallback centrado más limpio.
+  if(bw > w*.84 || bh > h*.92) return null;
+
+  x1 = Math.max(0, Math.floor(cx - bw/2));
+  y1 = Math.max(0, Math.floor(cy - bh/2));
+  x2 = Math.min(w, Math.ceil(cx + bw/2));
+  y2 = Math.min(h, Math.ceil(cy + bh/2));
+
+  return { x:x1, y:y1, w:x2-x1, h:y2-y1 };
 }
 
 function expandBox(box, maxW, maxH, pct=.06){
