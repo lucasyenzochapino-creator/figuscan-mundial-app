@@ -1,4 +1,4 @@
-/* FiguScan Mundial V37 - modal de repetidas claro y foto estable */
+/* FiguScan Mundial V45 - foto con fondo blanco, tonos originales, sin zoom forzado, sin disparos múltiples */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 const APP_URL = 'https://figuscan-mundial-app.vercel.app/';
@@ -67,7 +67,7 @@ const COUNTRIES = [
     "id": "inglaterra",
     "name": "Inglaterra",
     "short": "ENG",
-    "flag": "🏴",
+    "flag": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     "color": "#EF4444",
     "aliases": [
       "England",
@@ -3548,6 +3548,7 @@ let state = {
   cameraStarting: false,
   cameraError: '',
   scanBusy: false,
+  lastScanAt: 0,
   detectedNumber: '',
   scanCandidate: null,
   autoScanTimer: null,
@@ -4208,6 +4209,8 @@ function scannerScreen(){
 }
 function handleScannerFrameTap(e){
   if(e) e.stopPropagation();
+  // V45: bloqueamos taps mientras se procesa o ya hay foto pendiente.
+  if(state.scanBusy || state.scanCandidate) return;
   const video = document.getElementById('video');
   if(!state.scannerStream || state.cameraError || !video || !video.videoWidth){
     state.cameraError = '';
@@ -4404,6 +4407,11 @@ function stopAutoScan(){
 }
 async function scanFrame(manualTap=false){
   if(state.scanBusy) return;
+  // V45: si ya hay foto candidata en pantalla, no sacamos otra.
+  if(state.scanCandidate) return;
+  const now = Date.now();
+  if(state.lastScanAt && now - state.lastScanAt < 700) return;
+  state.lastScanAt = now;
   const video = document.getElementById('video');
   if(!video || !video.videoWidth){
     startCamera(true);
@@ -4430,7 +4438,8 @@ async function scanFrame(manualTap=false){
   }
   state.scanBusy = false;
   render();
-  setTimeout(startCamera,50);
+  // V45: si ya hay candidato, no reiniciamos cámara (la pantalla ya muestra la foto).
+  if(!state.scanCandidate) setTimeout(startCamera,50);
 }
 
 function getCenteredStickerCrop(canvas){
@@ -4457,29 +4466,16 @@ function captureStickerImage(video){
   const vw=video.videoWidth, vh=video.videoHeight;
   if(!vw || !vh) throw new Error('Video sin dimensiones');
 
-  // V41: captura central, sin filtros agresivos y sin overlays encima de la figurita.
-  // Objetivo: que el fondo generado quede detrás y la figurita se vea limpia, completa y nítida.
+  // V45: foto SIN zoom forzado, fondo BLANCO detrás de la figurita,
+  // SIN filtros de color/contraste/saturación. Mantiene el marco dorado de la app.
+  // - No usamos detectStickerBounds ni createForegroundCutout (alteraban tonos y agrandaban).
+  // - Recorte central generoso 3:4 con object-fit:contain dentro del área de foto.
   const targetRatio = 3 / 4;
-  let ch = Math.floor(vh * .94);
+  let ch = Math.floor(vh * 0.94);
   let cw = Math.floor(ch * targetRatio);
-  if(cw > vw * .96){ cw = Math.floor(vw * .96); ch = Math.floor(cw / targetRatio); }
+  if(cw > vw * 0.96){ cw = Math.floor(vw * 0.96); ch = Math.floor(cw / targetRatio); }
   const sx = Math.max(0, Math.floor((vw-cw)/2));
   const sy = Math.max(0, Math.floor((vh-ch)/2));
-
-  const tmp=document.createElement('canvas');
-  tmp.width=1600;
-  tmp.height=Math.round(1600 * ch / cw);
-  const tctx=tmp.getContext('2d', { willReadFrequently:true });
-  tctx.imageSmoothingEnabled = true;
-  tctx.imageSmoothingQuality = 'high';
-  tctx.filter='contrast(1.03) brightness(1.02) saturate(1.04)';
-  tctx.drawImage(video,sx,sy,cw,ch,0,0,tmp.width,tmp.height);
-  tctx.filter='none';
-
-  // Detectamos la figurita, pero NO aplicamos recortes transparentes ni colores por encima.
-  // El error anterior venía de intentar borrar el fondo y terminaba manchando/tapando la imagen.
-  const detected = detectDarkStickerBounds(tmp) || detectStickerBounds(tmp);
-  const box = buildCleanStickerBox(detected, tmp.width, tmp.height);
 
   const c=document.createElement('canvas');
   c.width=1080;
@@ -4487,117 +4483,77 @@ function captureStickerImage(video){
   const ctx=c.getContext('2d');
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  drawWorldCupBackground(ctx,c.width,c.height);
+
+  // Fondo BLANCO en TODO el canvas (atrás de la foto siempre blanco).
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, c.width, c.height);
 
   const S = c.width / 760;
+
+  // Marco dorado decorativo (mantiene la identidad visual del álbum, sin ruido).
   const cardX=52*S, cardY=50*S, cardW=c.width-104*S, cardH=c.height-100*S;
   roundRect(ctx,cardX,cardY,cardW,cardH,48*S);
-  const cardGrad = ctx.createLinearGradient(cardX,cardY,cardX+cardW,cardY+cardH);
-  cardGrad.addColorStop(0,'rgba(255,241,168,.24)');
-  cardGrad.addColorStop(.45,'rgba(255,255,255,.055)');
-  cardGrad.addColorStop(1,'rgba(122,18,48,.22)');
-  ctx.fillStyle=cardGrad;
-  ctx.fill();
-  ctx.strokeStyle='rgba(255,224,138,.95)';
+  ctx.strokeStyle='#D4AF37';
   ctx.lineWidth=6*S;
   ctx.stroke();
 
+  // Área de foto.
   const photoX=96*S, photoY=158*S, photoW=c.width-192*S, photoH=780*S;
-  roundRect(ctx,photoX-14*S,photoY-14*S,photoW+28*S,photoH+28*S,42*S);
-  ctx.fillStyle='rgba(5,7,13,.72)';
-  ctx.fill();
-  ctx.strokeStyle='rgba(255,255,255,.16)';
-  ctx.lineWidth=2*S;
+
+  // Borde sutil alrededor del área de foto.
+  roundRect(ctx,photoX-10*S,photoY-10*S,photoW+20*S,photoH+20*S,42*S);
+  ctx.strokeStyle='rgba(212,175,55,.55)';
+  ctx.lineWidth=3*S;
   ctx.stroke();
 
+  // Fondo BLANCO específico del área de foto (refuerza por si cambia el color del canvas más adelante).
   ctx.save();
   roundRect(ctx,photoX,photoY,photoW,photoH,34*S);
   ctx.clip();
-
-  // Fondo generado. No se dibuja la mesa/pared/tela como fondo.
-  const bgGrad = ctx.createLinearGradient(photoX, photoY, photoX + photoW, photoY + photoH);
-  bgGrad.addColorStop(0, '#061126');
-  bgGrad.addColorStop(.50, '#102e67');
-  bgGrad.addColorStop(1, '#4b1224');
-  ctx.fillStyle = bgGrad;
+  ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(photoX, photoY, photoW, photoH);
 
-  ctx.save();
-  ctx.globalAlpha=.18;
-  ctx.strokeStyle='#FFE08A';
-  ctx.lineWidth=3*S;
-  for(let y=photoY+70*S; y<photoY+photoH; y+=82*S){
-    ctx.beginPath(); ctx.moveTo(photoX+28*S,y); ctx.lineTo(photoX+photoW-28*S,y-34*S); ctx.stroke();
+  // Dibujar el video con object-fit:contain dentro del área (NO se fuerza zoom).
+  // Si la figurita se ve con espacio blanco a los lados, bien: respeta su forma natural.
+  const cropRatio = cw / ch;
+  const photoRatio = photoW / photoH;
+  let drawW, drawH;
+  if(cropRatio > photoRatio){
+    drawW = photoW;
+    drawH = photoW / cropRatio;
+  } else {
+    drawH = photoH;
+    drawW = photoH * cropRatio;
   }
-  ctx.globalAlpha=.13;
-  ctx.beginPath(); ctx.arc(photoX+photoW*.82, photoY+photoH*.22, 105*S, 0, Math.PI*2); ctx.stroke();
-  ctx.beginPath(); ctx.arc(photoX+photoW*.18, photoY+photoH*.84, 92*S, 0, Math.PI*2); ctx.stroke();
+  const drawX = photoX + (photoW - drawW) / 2;
+  const drawY = photoY + (photoH - drawH) / 2;
+
+  // SIN ningún filter. Tonos del original 100% intactos.
+  ctx.drawImage(video, sx, sy, cw, ch, drawX, drawY, drawW, drawH);
   ctx.restore();
 
-  const haloBg = ctx.createRadialGradient(photoX+photoW/2, photoY+photoH*.48, 20*S, photoX+photoW/2, photoY+photoH*.48, photoW*.58);
-  haloBg.addColorStop(0, 'rgba(255,241,168,.18)');
-  haloBg.addColorStop(1, 'rgba(255,241,168,0)');
-  ctx.fillStyle=haloBg;
-  ctx.fillRect(photoX, photoY, photoW, photoH);
-
-  const srcRatio = box.w / Math.max(1, box.h);
-  const maxW = photoW * .76;
-  const maxH = photoH * .82;
-  let stickerW=maxW, stickerH=maxH;
-  if(srcRatio > maxW/maxH){ stickerH = stickerW / srcRatio; }
-  else { stickerW = stickerH * srcRatio; }
-  const stickerX = photoX + (photoW-stickerW)/2;
-  const stickerY = photoY + (photoH-stickerH)/2;
-
-  const basePad = 18*S;
-  ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,.66)';
-  ctx.shadowBlur = 34*S;
-  ctx.shadowOffsetY = 18*S;
-  const plateGrad = ctx.createLinearGradient(stickerX, stickerY, stickerX, stickerY+stickerH);
-  plateGrad.addColorStop(0,'rgba(255,255,255,.10)');
-  plateGrad.addColorStop(1,'rgba(0,0,0,.28)');
-  ctx.fillStyle = plateGrad;
-  roundRect(ctx, stickerX-basePad, stickerY-basePad, stickerW+basePad*2, stickerH+basePad*2, 26*S);
-  ctx.fill();
-  ctx.restore();
-
-  // Dibujo limpio: usa recorte transparente para quitar fondo real conectado a los bordes.
-  // No se pinta ninguna capa de color encima de la figurita.
-  const cleanCut = createForegroundCutout(tmp, box);
-  ctx.save();
-  roundRect(ctx, stickerX, stickerY, stickerW, stickerH, 18*S);
-  ctx.clip();
-  ctx.filter='contrast(1.04) brightness(1.025) saturate(1.06)';
-  ctx.drawImage(cleanCut, 0, 0, cleanCut.width, cleanCut.height, stickerX, stickerY, stickerW, stickerH);
-  ctx.filter='none';
-  ctx.restore();
-
-  roundRect(ctx, stickerX-basePad, stickerY-basePad, stickerW+basePad*2, stickerH+basePad*2, 26*S);
-  ctx.strokeStyle='rgba(255,255,255,.26)';
-  ctx.lineWidth=2*S;
-  ctx.stroke();
-
-  ctx.restore();
-
+  // Borde dorado fino del área de foto.
   roundRect(ctx,photoX,photoY,photoW,photoH,34*S);
-  ctx.strokeStyle='rgba(255,224,138,.60)';
-  ctx.lineWidth=3*S;
-  ctx.stroke();
-
-  const bandY = 1018*S;
-  roundRect(ctx,108*S,bandY,544*S,64*S,24*S);
-  ctx.fillStyle='rgba(5,7,13,.46)';
-  ctx.fill();
-  ctx.strokeStyle='rgba(255,224,138,.22)';
+  ctx.strokeStyle='rgba(212,175,55,.65)';
   ctx.lineWidth=2*S;
   ctx.stroke();
-  ctx.fillStyle='rgba(255,224,138,.92)';
-  ctx.font=`900 ${22*S}px Inter, Arial`;
-  ctx.fillText('FiguScan Mundial',136*S,bandY+40*S);
 
-  // Sin brillo final encima: ese overlay estaba generando una mancha sobre algunas figuritas.
-  return c.toDataURL('image/jpeg', .97);
+  // Banda inferior con el nombre de la app (dentro del marco, no se corta).
+  const bandY = photoY + photoH + 14*S;
+  const bandH = 30*S;
+  roundRect(ctx, 108*S, bandY, 544*S, bandH, 14*S);
+  ctx.fillStyle = 'rgba(212,175,55,.10)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(212,175,55,.55)';
+  ctx.lineWidth = 2*S;
+  ctx.stroke();
+  ctx.fillStyle = '#8A6415';
+  ctx.font = `900 ${15*S}px Inter, Arial`;
+  ctx.textBaseline = 'middle';
+  ctx.fillText('FiguScan Mundial', 130*S, bandY + bandH/2);
+  ctx.textBaseline = 'alphabetic';
+
+  return c.toDataURL('image/jpeg', 0.97);
 }
 
 function buildCleanStickerBox(detected, maxW, maxH){

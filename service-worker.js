@@ -1,4 +1,4 @@
-const CACHE_NAME = 'figuscan-v38-buscador-pais-cantidad';
+const CACHE_NAME = 'figuscan-v45-foto-blanca-sin-zoom';
 
 self.addEventListener('install', event => {
   self.skipWaiting();
