@@ -1,4 +1,4 @@
-const CACHE_NAME = 'figuscan-v47-deteccion-color-fondo-blanco';
+const CACHE_NAME = 'figuscan-v48-bbox-saturacion-sin-floodfill';
 
 self.addEventListener('install', event => {
   self.skipWaiting();
