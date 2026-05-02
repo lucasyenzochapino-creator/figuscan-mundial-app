@@ -1,4 +1,4 @@
-/* FiguScan Mundial V46 - recorta figurita y la pone sobre fondo blanco, sin deformar, sin cambiar tonos */
+/* FiguScan Mundial V47 - recorta figurita y la pone sobre fondo blanco, sin deformar, sin cambiar tonos */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 const APP_URL = 'https://figuscan-mundial-app.vercel.app/';
@@ -4209,7 +4209,7 @@ function scannerScreen(){
 }
 function handleScannerFrameTap(e){
   if(e) e.stopPropagation();
-  // V46: bloqueamos taps mientras se procesa o ya hay foto pendiente.
+  // V47: bloqueamos taps mientras se procesa o ya hay foto pendiente.
   if(state.scanBusy || state.scanCandidate) return;
   const video = document.getElementById('video');
   if(!state.scannerStream || state.cameraError || !video || !video.videoWidth){
@@ -4407,7 +4407,7 @@ function stopAutoScan(){
 }
 async function scanFrame(manualTap=false){
   if(state.scanBusy) return;
-  // V46: si ya hay foto candidata en pantalla, no sacamos otra.
+  // V47: si ya hay foto candidata en pantalla, no sacamos otra.
   if(state.scanCandidate) return;
   const now = Date.now();
   if(state.lastScanAt && now - state.lastScanAt < 700) return;
@@ -4438,7 +4438,7 @@ async function scanFrame(manualTap=false){
   }
   state.scanBusy = false;
   render();
-  // V46: si ya hay candidato, no reiniciamos cámara (la pantalla ya muestra la foto).
+  // V47: si ya hay candidato, no reiniciamos cámara (la pantalla ya muestra la foto).
   if(!state.scanCandidate) setTimeout(startCamera,50);
 }
 
@@ -4466,11 +4466,11 @@ function captureStickerImage(video){
   const vw=video.videoWidth, vh=video.videoHeight;
   if(!vw || !vh) throw new Error('Video sin dimensiones');
 
-  // V46: detectamos el rectángulo de la figurita y dibujamos SOLO ese recorte
-  // sobre fondo blanco. Lo de atrás (mesa, tela, mano) nunca se ve.
-  // - SIN deformar: aspect ratio del recorte detectado se respeta (object-fit: contain).
+  // V47: detectamos la figurita, BORRAMOS el fondo real (mesa, tela, mano)
+  // con flood fill desde los bordes y la dibujamos SOBRE FONDO BLANCO.
+  // - SIN deformar: aspect ratio del recorte se respeta.
   // - SIN cambios de tono: no aplicamos ningún filter de color.
-  // - SIN zoom forzado: dejamos un margen del 8% alrededor para que la figurita "respire".
+  // - SIN zoom forzado: margen del 8% para que la figurita no quede pegada al marco.
   const targetRatio = 3 / 4;
   let ch = Math.floor(vh * 0.94);
   let cw = Math.floor(ch * targetRatio);
@@ -4488,29 +4488,19 @@ function captureStickerImage(video){
   // Sin filtros: tonos intactos.
   tctx.drawImage(video, sx, sy, cw, ch, 0, 0, tmp.width, tmp.height);
 
-  // Detectamos el bbox de la figurita (busca el marco oscuro / cromo coloreado).
-  // Si no encuentra, usamos un bbox generoso central.
-  let box = detectDarkStickerBounds(tmp) || detectStickerBounds(tmp);
-  if(!box){
-    const fw = Math.floor(tmp.width * 0.74);
-    const fh = Math.floor(tmp.height * 0.86);
-    box = {
-      x: Math.floor((tmp.width - fw)/2),
-      y: Math.floor((tmp.height - fh)/2),
-      w: fw,
-      h: fh
-    };
-  } else {
-    // Pequeño padding (~3%) para no cortar el borde de la figurita por error de 1-2 px.
-    const padX = Math.floor(box.w * 0.03);
-    const padY = Math.floor(box.h * 0.03);
-    box = {
-      x: Math.max(0, box.x - padX),
-      y: Math.max(0, box.y - padY),
-      w: Math.min(tmp.width  - Math.max(0, box.x - padX), box.w + padX*2),
-      h: Math.min(tmp.height - Math.max(0, box.y - padY), box.h + padY*2)
-    };
-  }
+  // Detectamos el bbox de la figurita.
+  // V47: probamos primero por saturación de color (más robusta vs mesas/telas oscuras),
+  // luego por marco oscuro, luego por bordes generales.
+  const detected = detectColorfulStickerBounds(tmp)
+                || detectDarkStickerBounds(tmp)
+                || detectStickerBounds(tmp);
+  // buildCleanStickerBox limita el bbox y le da el aspect ratio típico de figurita.
+  // Si detectó algo, lo refina; si no, devuelve un bbox central seguro.
+  const box = buildCleanStickerBox(detected, tmp.width, tmp.height);
+
+  // CUTOUT REAL: borra el fondo (mesa, tela) con flood fill desde los bordes del bbox.
+  // Lo que queda con alpha=0 va a dejar ver el BLANCO que pintamos atrás.
+  const cleanCut = createForegroundCutout(tmp, box);
 
   const c=document.createElement('canvas');
   c.width=1080;
@@ -4525,7 +4515,7 @@ function captureStickerImage(video){
 
   const S = c.width / 760;
 
-  // Marco dorado decorativo.
+  // Marco externo dorado (estilo álbum Panini).
   const cardX=52*S, cardY=50*S, cardW=c.width-104*S, cardH=c.height-100*S;
   roundRect(ctx,cardX,cardY,cardW,cardH,48*S);
   ctx.strokeStyle='#D4AF37';
@@ -4535,29 +4525,28 @@ function captureStickerImage(video){
   // Área de foto.
   const photoX=96*S, photoY=158*S, photoW=c.width-192*S, photoH=780*S;
 
-  // Borde sutil alrededor del área de foto.
+  // Marco INTERNO dorado (estilo Panini) alrededor del área de foto.
   roundRect(ctx,photoX-10*S,photoY-10*S,photoW+20*S,photoH+20*S,42*S);
   ctx.strokeStyle='rgba(212,175,55,.55)';
   ctx.lineWidth=3*S;
   ctx.stroke();
 
-  // Área de foto: fondo BLANCO. Acá va a ir SOLO la figurita recortada.
+  // Área de foto: pintamos BLANCO. El cutout va a dejar ver el blanco donde había mesa.
   ctx.save();
   roundRect(ctx,photoX,photoY,photoW,photoH,34*S);
   ctx.clip();
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(photoX, photoY, photoW, photoH);
 
-  // Dejamos margen del 8% en cada lado para que la figurita no quede pegada al borde.
+  // Margen del 8% para que la figurita "respire" dentro del marco.
   const innerPad = 0.08;
   const innerW = photoW * (1 - innerPad*2);
   const innerH = photoH * (1 - innerPad*2);
   const innerX = photoX + photoW * innerPad;
   const innerY = photoY + photoH * innerPad;
 
-  // object-fit: contain respetando aspect ratio REAL del bbox detectado.
-  // Si la figurita es 3:4, se dibuja 3:4. NO se estira.
-  const boxRatio = box.w / box.h;
+  // object-fit: contain respetando aspect ratio del bbox detectado.
+  const boxRatio = cleanCut.width / cleanCut.height;
   const innerRatio = innerW / innerH;
   let drawW, drawH;
   if(boxRatio > innerRatio){
@@ -4570,9 +4559,9 @@ function captureStickerImage(video){
   const drawX = innerX + (innerW - drawW) / 2;
   const drawY = innerY + (innerH - drawH) / 2;
 
-  // Dibujamos SOLO el bbox recortado del frame original. El resto del área queda en BLANCO.
+  // Dibujamos el cutout. Los pixels transparentes muestran el BLANCO de atrás.
   // Sin filter: tonos del original 100% intactos.
-  ctx.drawImage(tmp, box.x, box.y, box.w, box.h, drawX, drawY, drawW, drawH);
+  ctx.drawImage(cleanCut, 0, 0, cleanCut.width, cleanCut.height, drawX, drawY, drawW, drawH);
   ctx.restore();
 
   // Borde dorado fino del área de foto.
@@ -4707,10 +4696,12 @@ function createForegroundCutout(sourceCanvas, box){
   }
 
   // Limpieza de alfa. Si el detector falló y pretende borrar casi todo, no usamos recorte transparente.
+  // V47: subimos el threshold superior de 0.74 a 0.92 para que el cutout se aplique también
+  // cuando la mesa ocupa gran parte del bbox.
   let removed=0;
   for(let i=0;i<bg.length;i++) if(bg[i]) removed++;
   const ratio = removed / Math.max(1,bg.length);
-  if(ratio > .06 && ratio < .74){
+  if(ratio > .04 && ratio < .92){
     for(let y=0;y<sh;y++){
       for(let x=0;x<sw;x++){
         const k=y*sw+x;
@@ -4731,6 +4722,69 @@ function createForegroundCutout(sourceCanvas, box){
     ctx.putImageData(img,0,0);
   }
   return cut;
+}
+
+// V47: detección por saturación de color. Las figuritas tienen colores
+// saturados (camisetas rojas/azules, campo verde, cromados) mientras que
+// fondos comunes (mesa de madera, pared, sábana) tienen baja saturación.
+// Esto resuelve el caso donde detectDarkStickerBounds confunde la mesa
+// marrón con el marco negro de la figurita.
+function detectColorfulStickerBounds(canvas){
+  const ctx=canvas.getContext('2d', { willReadFrequently:true });
+  const w=canvas.width, h=canvas.height;
+  const data=ctx.getImageData(0,0,w,h).data;
+  const step=6;
+  const gw=Math.ceil(w/step), gh=Math.ceil(h/step);
+  const mask=new Uint8Array(gw*gh);
+  const marginX=w*.04, marginY=h*.04;
+
+  for(let gy=0; gy<gh; gy++){
+    const y=Math.min(h-1, gy*step);
+    for(let gx=0; gx<gw; gx++){
+      const x=Math.min(w-1, gx*step);
+      if(x<marginX || x>w-marginX || y<marginY || y>h-marginY) continue;
+      const i=(y*w+x)*4;
+      const r=data[i], g=data[i+1], b=data[i+2];
+      const max=Math.max(r,g,b), min=Math.min(r,g,b);
+      const sat=max-min;
+      const luma=.299*r+.587*g+.114*b;
+      // Pixel "saturado" = colorido. Maderas/telas en general tienen sat<55.
+      // Las figuritas tienen áreas con sat>=70 (camisetas, campo, escudo).
+      if(sat >= 70 && luma > 30 && luma < 240) mask[gy*gw+gx]=1;
+    }
+  }
+
+  // Encontrar bbox de TODOS los pixels saturados (no flood fill — solo el rango).
+  let minGx=gw, minGy=gh, maxGx=0, maxGy=0, count=0;
+  for(let gy=0; gy<gh; gy++){
+    for(let gx=0; gx<gw; gx++){
+      if(!mask[gy*gw+gx]) continue;
+      count++;
+      if(gx<minGx) minGx=gx; if(gx>maxGx) maxGx=gx;
+      if(gy<minGy) minGy=gy; if(gy>maxGy) maxGy=gy;
+    }
+  }
+
+  // Necesitamos al menos un mínimo de pixels saturados para considerar válido.
+  if(count < (gw*gh) * 0.04) return null;
+
+  const bx=minGx*step, by=minGy*step;
+  const bw=(maxGx-minGx+1)*step, bh=(maxGy-minGy+1)*step;
+
+  // Sanity check: la figurita es vertical (alto > ancho normalmente).
+  // Si el bbox es muy ancho horizontalmente (>1.2:1), probablemente no es figurita.
+  const ratio = bw / bh;
+  if(ratio > 1.3 || bw < w*.15 || bh < h*.20) return null;
+
+  // Expandimos ~6% para incluir el marco oscuro alrededor (no es saturado pero pertenece a la figurita).
+  const padX = Math.floor(bw * 0.06);
+  const padY = Math.floor(bh * 0.06);
+  return {
+    x: Math.max(0, bx - padX),
+    y: Math.max(0, by - padY),
+    w: Math.min(w - Math.max(0, bx - padX), bw + padX*2),
+    h: Math.min(h - Math.max(0, by - padY), bh + padY*2)
+  };
 }
 
 function detectDarkStickerBounds(canvas){

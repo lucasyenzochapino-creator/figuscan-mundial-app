@@ -1,4 +1,4 @@
-const CACHE_NAME = 'figuscan-v46-recorte-figurita-fondo-blanco';
+const CACHE_NAME = 'figuscan-v47-deteccion-color-fondo-blanco';
 
 self.addEventListener('install', event => {
   self.skipWaiting();
