@@ -1,4 +1,4 @@
-const CACHE_NAME = 'figuscan-v45-foto-blanca-sin-zoom';
+const CACHE_NAME = 'figuscan-v46-recorte-figurita-fondo-blanco';
 
 self.addEventListener('install', event => {
   self.skipWaiting();

@@ -1,4 +1,4 @@
-/* FiguScan Mundial V45 - foto con fondo blanco, tonos originales, sin zoom forzado, sin disparos múltiples */
+/* FiguScan Mundial V46 - recorta figurita y la pone sobre fondo blanco, sin deformar, sin cambiar tonos */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 const APP_URL = 'https://figuscan-mundial-app.vercel.app/';
@@ -4209,7 +4209,7 @@ function scannerScreen(){
 }
 function handleScannerFrameTap(e){
   if(e) e.stopPropagation();
-  // V45: bloqueamos taps mientras se procesa o ya hay foto pendiente.
+  // V46: bloqueamos taps mientras se procesa o ya hay foto pendiente.
   if(state.scanBusy || state.scanCandidate) return;
   const video = document.getElementById('video');
   if(!state.scannerStream || state.cameraError || !video || !video.videoWidth){
@@ -4407,7 +4407,7 @@ function stopAutoScan(){
 }
 async function scanFrame(manualTap=false){
   if(state.scanBusy) return;
-  // V45: si ya hay foto candidata en pantalla, no sacamos otra.
+  // V46: si ya hay foto candidata en pantalla, no sacamos otra.
   if(state.scanCandidate) return;
   const now = Date.now();
   if(state.lastScanAt && now - state.lastScanAt < 700) return;
@@ -4438,7 +4438,7 @@ async function scanFrame(manualTap=false){
   }
   state.scanBusy = false;
   render();
-  // V45: si ya hay candidato, no reiniciamos cámara (la pantalla ya muestra la foto).
+  // V46: si ya hay candidato, no reiniciamos cámara (la pantalla ya muestra la foto).
   if(!state.scanCandidate) setTimeout(startCamera,50);
 }
 
@@ -4466,16 +4466,51 @@ function captureStickerImage(video){
   const vw=video.videoWidth, vh=video.videoHeight;
   if(!vw || !vh) throw new Error('Video sin dimensiones');
 
-  // V45: foto SIN zoom forzado, fondo BLANCO detrás de la figurita,
-  // SIN filtros de color/contraste/saturación. Mantiene el marco dorado de la app.
-  // - No usamos detectStickerBounds ni createForegroundCutout (alteraban tonos y agrandaban).
-  // - Recorte central generoso 3:4 con object-fit:contain dentro del área de foto.
+  // V46: detectamos el rectángulo de la figurita y dibujamos SOLO ese recorte
+  // sobre fondo blanco. Lo de atrás (mesa, tela, mano) nunca se ve.
+  // - SIN deformar: aspect ratio del recorte detectado se respeta (object-fit: contain).
+  // - SIN cambios de tono: no aplicamos ningún filter de color.
+  // - SIN zoom forzado: dejamos un margen del 8% alrededor para que la figurita "respire".
   const targetRatio = 3 / 4;
   let ch = Math.floor(vh * 0.94);
   let cw = Math.floor(ch * targetRatio);
   if(cw > vw * 0.96){ cw = Math.floor(vw * 0.96); ch = Math.floor(cw / targetRatio); }
   const sx = Math.max(0, Math.floor((vw-cw)/2));
   const sy = Math.max(0, Math.floor((vh-ch)/2));
+
+  // Capturamos el frame del video a un canvas temporal a buena resolución.
+  const tmp=document.createElement('canvas');
+  tmp.width=1400;
+  tmp.height=Math.round(1400 * ch / cw);
+  const tctx=tmp.getContext('2d', { willReadFrequently:true });
+  tctx.imageSmoothingEnabled = true;
+  tctx.imageSmoothingQuality = 'high';
+  // Sin filtros: tonos intactos.
+  tctx.drawImage(video, sx, sy, cw, ch, 0, 0, tmp.width, tmp.height);
+
+  // Detectamos el bbox de la figurita (busca el marco oscuro / cromo coloreado).
+  // Si no encuentra, usamos un bbox generoso central.
+  let box = detectDarkStickerBounds(tmp) || detectStickerBounds(tmp);
+  if(!box){
+    const fw = Math.floor(tmp.width * 0.74);
+    const fh = Math.floor(tmp.height * 0.86);
+    box = {
+      x: Math.floor((tmp.width - fw)/2),
+      y: Math.floor((tmp.height - fh)/2),
+      w: fw,
+      h: fh
+    };
+  } else {
+    // Pequeño padding (~3%) para no cortar el borde de la figurita por error de 1-2 px.
+    const padX = Math.floor(box.w * 0.03);
+    const padY = Math.floor(box.h * 0.03);
+    box = {
+      x: Math.max(0, box.x - padX),
+      y: Math.max(0, box.y - padY),
+      w: Math.min(tmp.width  - Math.max(0, box.x - padX), box.w + padX*2),
+      h: Math.min(tmp.height - Math.max(0, box.y - padY), box.h + padY*2)
+    };
+  }
 
   const c=document.createElement('canvas');
   c.width=1080;
@@ -4484,13 +4519,13 @@ function captureStickerImage(video){
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
-  // Fondo BLANCO en TODO el canvas (atrás de la foto siempre blanco).
+  // Fondo BLANCO en TODO el canvas.
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 0, c.width, c.height);
 
   const S = c.width / 760;
 
-  // Marco dorado decorativo (mantiene la identidad visual del álbum, sin ruido).
+  // Marco dorado decorativo.
   const cardX=52*S, cardY=50*S, cardW=c.width-104*S, cardH=c.height-100*S;
   roundRect(ctx,cardX,cardY,cardW,cardH,48*S);
   ctx.strokeStyle='#D4AF37';
@@ -4506,30 +4541,38 @@ function captureStickerImage(video){
   ctx.lineWidth=3*S;
   ctx.stroke();
 
-  // Fondo BLANCO específico del área de foto (refuerza por si cambia el color del canvas más adelante).
+  // Área de foto: fondo BLANCO. Acá va a ir SOLO la figurita recortada.
   ctx.save();
   roundRect(ctx,photoX,photoY,photoW,photoH,34*S);
   ctx.clip();
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(photoX, photoY, photoW, photoH);
 
-  // Dibujar el video con object-fit:contain dentro del área (NO se fuerza zoom).
-  // Si la figurita se ve con espacio blanco a los lados, bien: respeta su forma natural.
-  const cropRatio = cw / ch;
-  const photoRatio = photoW / photoH;
-  let drawW, drawH;
-  if(cropRatio > photoRatio){
-    drawW = photoW;
-    drawH = photoW / cropRatio;
-  } else {
-    drawH = photoH;
-    drawW = photoH * cropRatio;
-  }
-  const drawX = photoX + (photoW - drawW) / 2;
-  const drawY = photoY + (photoH - drawH) / 2;
+  // Dejamos margen del 8% en cada lado para que la figurita no quede pegada al borde.
+  const innerPad = 0.08;
+  const innerW = photoW * (1 - innerPad*2);
+  const innerH = photoH * (1 - innerPad*2);
+  const innerX = photoX + photoW * innerPad;
+  const innerY = photoY + photoH * innerPad;
 
-  // SIN ningún filter. Tonos del original 100% intactos.
-  ctx.drawImage(video, sx, sy, cw, ch, drawX, drawY, drawW, drawH);
+  // object-fit: contain respetando aspect ratio REAL del bbox detectado.
+  // Si la figurita es 3:4, se dibuja 3:4. NO se estira.
+  const boxRatio = box.w / box.h;
+  const innerRatio = innerW / innerH;
+  let drawW, drawH;
+  if(boxRatio > innerRatio){
+    drawW = innerW;
+    drawH = innerW / boxRatio;
+  } else {
+    drawH = innerH;
+    drawW = innerH * boxRatio;
+  }
+  const drawX = innerX + (innerW - drawW) / 2;
+  const drawY = innerY + (innerH - drawH) / 2;
+
+  // Dibujamos SOLO el bbox recortado del frame original. El resto del área queda en BLANCO.
+  // Sin filter: tonos del original 100% intactos.
+  ctx.drawImage(tmp, box.x, box.y, box.w, box.h, drawX, drawY, drawW, drawH);
   ctx.restore();
 
   // Borde dorado fino del área de foto.
@@ -4538,7 +4581,7 @@ function captureStickerImage(video){
   ctx.lineWidth=2*S;
   ctx.stroke();
 
-  // Banda inferior con el nombre de la app (dentro del marco, no se corta).
+  // Banda inferior con el nombre de la app.
   const bandY = photoY + photoH + 14*S;
   const bandH = 30*S;
   roundRect(ctx, 108*S, bandY, 544*S, bandH, 14*S);
