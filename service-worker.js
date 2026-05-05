@@ -1,4 +1,4 @@
-const CACHE_NAME = 'figuscan-v54-chips-pais-bandera-input';
+const CACHE_NAME = 'figuscan-v55-comunidad-sin-servidor-ocr-mejorado';
 
 self.addEventListener('install', event => {
   self.skipWaiting();

@@ -1,4 +1,4 @@
-/* FiguScan Mundial V54 - chips de país legibles + badge de bandera al escribir país */
+/* FiguScan Mundial V55 - comunidad de intercambios sin servidor + OCR mejorado (4 zonas) */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 const APP_URL = 'https://figuscan-mundial-app.vercel.app/';
@@ -3454,7 +3454,7 @@ const COUNTRIES = [
   }
 ];
 function reinforceCountryCatalog(){
-  // V54: corregimos selecciones británicas reales del ranking FIFA y alias comunes.
+  // V55: corregimos selecciones británicas reales del ranking FIFA y alias comunes.
   // En versiones anteriores algunas aparecían como “Reino Unido”, lo que confundía la búsqueda.
   const fixes = {
     'inglaterra': { name:'Inglaterra', short:'ENG', flag:'🏴', aliases:['England','Inglaterra','ENG','English','St George'] },
@@ -3587,10 +3587,16 @@ let state = {
   batchStatus: 'have',
   viewerId: null,
   torchOn: false,
-  lastCountryId: '',     // V54: recuerda último país elegido entre cargas
-  lastCountryName: '',   // V54: idem
-  ocrBusy: false,        // V54: OCR del número en background
-  soundEnabled: true     // V54: sonido al guardar
+  lastCountryId: '',
+  lastCountryName: '',
+  ocrBusy: false,
+  soundEnabled: true,
+  // V55: comunidad sin servidor — perfil del usuario y amigos importados
+  profile: null,         // {alias, color, createdAt}
+  friends: [],           // [{alias, color, stickers:[...], importedAt, code}]
+  friendsView: 'list',   // 'list' | 'detail' | 'import'
+  friendsActive: null,   // alias del amigo abierto
+  friendsImportText: ''  // textarea temporal de import
 };
 
 const app = document.getElementById('app');
@@ -3600,7 +3606,7 @@ function loadStickers(){
 }
 function saveStickers(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state.stickers)); }
 
-// V54: persistir último país elegido + preferencia de sonido
+// V55: persistir último país elegido + preferencia de sonido
 function loadPrefs(){
   try {
     const p = JSON.parse(localStorage.getItem('figuscan_prefs_v1') || '{}');
@@ -3624,6 +3630,177 @@ function rememberCountry(id, name){
   state.lastCountryName = name || '';
   savePrefs();
 }
+
+// ============================================================
+// V55: COMUNIDAD SIN SERVIDOR
+// - Perfil con alias (no nombre real, no email).
+// - Codificación compacta del álbum para compartir por QR/link.
+// - Import de álbum de otro coleccionista → matching de intercambios.
+// - Cero ubicación. Cero servidor. Cero datos personales.
+// - Pensado para que padres compartan código con padres por WhatsApp,
+//   y los chicos vean qué intercambiar SIN exponer datos sensibles.
+// ============================================================
+
+const PROFILE_KEY = 'figuscan_profile_v1';
+const FRIENDS_KEY = 'figuscan_friends_v1';
+const PROFILE_COLORS = ['#22C55E','#2F74FF','#D6A83A','#EC4899','#A855F7','#06B6D4','#F97316','#EF4444'];
+
+function loadProfile(){
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    if(raw) state.profile = JSON.parse(raw);
+  } catch {}
+}
+function saveProfile(){
+  try { localStorage.setItem(PROFILE_KEY, JSON.stringify(state.profile)); } catch {}
+}
+function ensureProfile(){
+  if(state.profile && state.profile.alias) return state.profile;
+  const n = Math.floor(Math.random() * 9000) + 1000;
+  state.profile = {
+    alias: 'Coleccionista ' + n,
+    color: PROFILE_COLORS[Math.floor(Math.random() * PROFILE_COLORS.length)],
+    createdAt: new Date().toISOString()
+  };
+  saveProfile();
+  return state.profile;
+}
+function setProfileAlias(value){
+  ensureProfile();
+  const clean = String(value || '').trim().slice(0, 24);
+  if(!clean){ toast('El apodo no puede estar vacío.', 'warn'); return; }
+  state.profile.alias = clean;
+  saveProfile();
+  toast(`Apodo guardado: ${clean}`, 'success');
+  render();
+}
+function setProfileColor(color){
+  ensureProfile();
+  state.profile.color = color;
+  saveProfile();
+  render();
+}
+
+function loadFriends(){
+  try {
+    const raw = localStorage.getItem(FRIENDS_KEY);
+    if(raw) state.friends = JSON.parse(raw) || [];
+  } catch { state.friends = []; }
+}
+function saveFriends(){
+  try { localStorage.setItem(FRIENDS_KEY, JSON.stringify(state.friends)); } catch {}
+}
+
+// Codificación compacta del álbum:
+// formato: FS1|alias|color|H:1,2,3,4|M:5,6,7|R:8x2,9x3
+//   - FS1 = magic + versión
+//   - H = "tengo", M = "me falta", R = "repetidas" (con x cantidad)
+// Compactado para QR. Sin nombres de jugador, sin imágenes (privacidad).
+function buildAlbumCode(){
+  ensureProfile();
+  const have = [], missing = [], repeated = [];
+  state.stickers.forEach(s => {
+    const n = Number(s.number);
+    if(!n) return;
+    if(s.status === 'have') have.push(n);
+    else if(s.status === 'missing') missing.push(n);
+    else if(s.status === 'repeated') repeated.push(n + 'x' + (Number(s.repeatedCount) || 1));
+  });
+  have.sort((a,b)=>a-b);
+  missing.sort((a,b)=>a-b);
+  repeated.sort((a,b)=>parseInt(a) - parseInt(b));
+  const alias = String(state.profile.alias || 'Anónimo').replace(/\|/g,' ').slice(0,24);
+  const color = state.profile.color || '#2F74FF';
+  return `FS1|${alias}|${color}|H:${have.join(',')}|M:${missing.join(',')}|R:${repeated.join(',')}`;
+}
+function parseAlbumCode(code){
+  if(!code) return null;
+  const clean = String(code).trim();
+  if(!clean.startsWith('FS1|')) return null;
+  const parts = clean.split('|');
+  if(parts.length < 6) return null;
+  const alias = (parts[1] || 'Amigo').slice(0, 24) || 'Amigo';
+  const color = /^#[0-9a-f]{6}$/i.test(parts[2] || '') ? parts[2] : '#2F74FF';
+  const parseList = (prefix) => {
+    const seg = parts.find(p => p.startsWith(prefix + ':'));
+    if(!seg) return [];
+    const body = seg.slice(prefix.length + 1);
+    if(!body) return [];
+    return body.split(',').filter(Boolean);
+  };
+  const have = parseList('H').map(n=>Number(n)).filter(n=>n>0);
+  const missing = parseList('M').map(n=>Number(n)).filter(n=>n>0);
+  const repeated = parseList('R').map(item => {
+    const [num, qty] = item.split('x');
+    return { number: Number(num), count: Math.max(1, Number(qty) || 1) };
+  }).filter(r => r.number > 0);
+  return { alias, color, have, missing, repeated };
+}
+
+function importFriendCode(rawCode){
+  const parsed = parseAlbumCode(rawCode);
+  if(!parsed){
+    toast('Código inválido. Pedile a tu amigo que comparta su código de FiguScan.', 'warn');
+    playErrorSound();
+    return false;
+  }
+  // Reemplazar si ya existía un amigo con el mismo alias
+  const idx = state.friends.findIndex(f => f.alias === parsed.alias);
+  const friend = {
+    alias: parsed.alias,
+    color: parsed.color,
+    have: parsed.have,
+    missing: parsed.missing,
+    repeated: parsed.repeated,
+    importedAt: new Date().toISOString()
+  };
+  if(idx >= 0) state.friends[idx] = friend;
+  else state.friends.unshift(friend);
+  saveFriends();
+  toast(`Cargado el álbum de ${parsed.alias}.`, 'success');
+  playSuccessSound();
+  state.friendsActive = parsed.alias;
+  state.friendsView = 'detail';
+  render();
+  return true;
+}
+
+function removeFriend(alias){
+  state.friends = state.friends.filter(f => f.alias !== alias);
+  saveFriends();
+  if(state.friendsActive === alias){
+    state.friendsActive = null;
+    state.friendsView = 'list';
+  }
+  toast(`${alias} eliminado.`, 'warn');
+  render();
+}
+
+// Matching de intercambio entre yo y un amigo:
+// - "él tiene repetidas que a mí me faltan" (+ cantidad de repetidas que tiene)
+// - "yo tengo repetidas que a él le faltan" (+ cantidad mía)
+function matchExchange(friend){
+  const myMissing = new Set(state.stickers.filter(s=>s.status==='missing').map(s=>Number(s.number)));
+  const myRepeatedMap = new Map();
+  state.stickers.filter(s=>s.status==='repeated').forEach(s => {
+    myRepeatedMap.set(Number(s.number), Number(s.repeatedCount) || 1);
+  });
+  const friendRepeatedMap = new Map();
+  (friend.repeated || []).forEach(r => friendRepeatedMap.set(r.number, r.count));
+  const friendMissing = new Set(friend.missing || []);
+
+  const heGivesMe = []; // él tiene repetida + a mí me falta
+  for(const [num, count] of friendRepeatedMap){
+    if(myMissing.has(num)) heGivesMe.push({ number: num, count });
+  }
+  const iGiveHim = []; // yo tengo repetida + a él le falta
+  for(const [num, count] of myRepeatedMap){
+    if(friendMissing.has(num)) iGiveHim.push({ number: num, count });
+  }
+  heGivesMe.sort((a,b)=>a.number-b.number);
+  iGiveHim.sort((a,b)=>a.number-b.number);
+  return { heGivesMe, iGiveHim };
+}
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 function now(){ return new Date().toISOString(); }
 function haptic(type='tap'){
@@ -3633,7 +3810,7 @@ function haptic(type='tap'){
   else navigator.vibrate(12);
 }
 
-// V54: sonido de "ding" al guardar exitoso. Web Audio API, sin assets.
+// V55: sonido de "ding" al guardar exitoso. Web Audio API, sin assets.
 // Pensado para cargas en serie: que vos cambies la figurita debajo de la cámara
 // y escuches el "ding" sin tener que mirar la pantalla.
 let _audioCtx = null;
@@ -4138,7 +4315,7 @@ function fillCountryInput(inputId, value){
   try{ el.focus({ preventScroll:true }); }catch(e){ el.focus(); }
 }
 
-// V54: muestra la bandera del país detectado al lado del input mientras se escribe
+// V55: muestra la bandera del país detectado al lado del input mientras se escribe
 function updateCountryBadge(inputId){
   const input = document.getElementById(inputId);
   const badge = document.getElementById(inputId + '_flag');
@@ -4419,7 +4596,7 @@ async function toggleTorch(e){
 
 function detectedBox(){
   const c = state.scanCandidate || { number:'', player:'', country:'general', countryName:'', image:'' };
-  // V54: si la foto venía sin país detectado, sugerimos el último elegido.
+  // V55: si la foto venía sin país detectado, sugerimos el último elegido.
   let preCountryId = c.country || 'general';
   let preCountryName = c.countryName || '';
   if((!preCountryId || preCountryId === 'general') && state.lastCountryId){
@@ -4462,13 +4639,13 @@ function saveDetected(status){
   const player = document.getElementById('detectedPlayer')?.value || c.player || '';
   const countryRaw = document.getElementById('detectedCountry')?.value || c.countryName || '';
   const parsed = countryFromInput(countryRaw);
-  rememberCountry(parsed.country, parsed.countryName); // V54
+  rememberCountry(parsed.country, parsed.countryName); // V55
   addOrUpdateSticker({number:num,status,repeatedCount:1,player,country:parsed.country,countryName:parsed.countryName,image:c.image || ''});
   state.countryFilter='all'; state.search=''; state.detectedNumber=''; state.scanCandidate=null; state.autoScanPaused=false; state.view='scanner'; render(); setTimeout(startCamera,80);
 }
 function batchQuickSection(){
   const active = state.batchStatus || 'have';
-  // V54: pre-cargar último país elegido
+  // V55: pre-cargar último país elegido
   const preCountry = state.lastCountryName || '';
   return `<section class="section batch-quick">
     <div class="section-title"><h2>Cargar varias rápido</h2><span class="muted">sin volver atrás</span></div>
@@ -4507,12 +4684,12 @@ function saveBatchQuick(){
   if(!nums.length){ toast('Escribí al menos un número.', 'warn'); return; }
   const status = state.batchStatus || 'have';
   const parsed = countryFromInput(document.getElementById('batchCountryInput')?.value || '');
-  rememberCountry(parsed.country, parsed.countryName); // V54
+  rememberCountry(parsed.country, parsed.countryName); // V55
   const repeatedCount = status === 'repeated' ? Math.max(1, Number(document.getElementById('batchQtyValue')?.textContent || 1)) : 1;
   nums.forEach(n => addOrUpdateSticker({ number:n, status, repeatedCount, country:parsed.country, countryName:parsed.countryName }));
   state.countryFilter='all'; state.search=''; state.countrySearch='';
   haptic('success');
-  playSuccessSound(); // V54
+  playSuccessSound(); // V55
   const countryText = parsed.countryName ? ` de ${parsed.countryName}` : '';
   toast(`Guardé ${nums.length} figuritas${countryText} como ${STATUS[status].label}.`, 'success');
   state.view='album'; state.albumFilter=status; render();
@@ -4618,7 +4795,7 @@ async function scanFrame(manualTap=false){
       image,
       rawText: ''
     };
-    // V54: aviso si la foto salió borrosa. No bloquea, solo informa.
+    // V55: aviso si la foto salió borrosa. No bloquea, solo informa.
     const sharp = state._lastSharpness;
     if(sharp != null && sharp < 60){
       toast('Foto algo borrosa. Si querés, sacá otra con la cámara más quieta.', 'warn');
@@ -4626,7 +4803,7 @@ async function scanFrame(manualTap=false){
       toast('Foto lista.', 'success');
     }
     haptic('success');
-    // V54: lanzar OCR en background. Si encuentra el número, lo pre-llena.
+    // V55: lanzar OCR en background. Si encuentra el número, lo pre-llena.
     state.ocrBusy = true;
     setTimeout(() => runNumberOCR(), 50);
   }catch(e){
@@ -4658,7 +4835,7 @@ function getCenteredStickerCrop(canvas){
   return { x, y, w: cropW, h: cropH };
 }
 
-// V54: varianza de Laplaciano para medir nitidez. Devuelve un score: cuanto más alto, más nítida.
+// V55: varianza de Laplaciano para medir nitidez. Devuelve un score: cuanto más alto, más nítida.
 // Por debajo de ~80 normalmente está borrosa. Es heurística, sirve para avisar al usuario.
 function measureSharpness(canvas, box){
   try {
@@ -4695,53 +4872,70 @@ function measureSharpness(canvas, box){
   } catch { return null; }
 }
 
-// V54: OCR del número de figurita usando Tesseract.js (ya cargado en index.html).
+// V55: OCR del número de figurita usando Tesseract.js (ya cargado en index.html).
 // Corre en background después de la captura. Si encuentra un número, lo pre-llena
 // en el form. Si no, deja el campo vacío para que cargues a mano (sin molestar).
 async function runNumberOCR(){
-  if(typeof Tesseract === 'undefined') return; // librería no cargada → no hacer nada
+  if(typeof Tesseract === 'undefined') return;
   if(state.ocrBusy) return;
   if(!state._lastCapture) return;
   const { tmp, box } = state._lastCapture;
   if(!tmp || !box) return;
 
   state.ocrBusy = true;
-  try {
-    // Recortamos la franja inferior derecha de la figurita (donde está el número en Panini Mundial).
-    // Probamos esa zona primero porque es donde aparece el "546", "24", etc.
-    const ocrCanvas = document.createElement('canvas');
-    const ow = Math.floor(box.w * 0.32);
-    const oh = Math.floor(box.h * 0.13);
-    const ox = Math.floor(box.x + box.w - ow - box.w*0.02);
-    const oy = Math.floor(box.y + box.h - oh - box.h*0.02);
-    ocrCanvas.width = ow * 2;
-    ocrCanvas.height = oh * 2;
-    const octx = ocrCanvas.getContext('2d', { willReadFrequently: true });
-    // Reescalamos 2x para que Tesseract tenga más píxeles. Aumentamos contraste.
-    octx.imageSmoothingEnabled = true;
-    octx.imageSmoothingQuality = 'high';
-    octx.filter = 'grayscale(1) contrast(1.6) brightness(1.05)';
-    octx.drawImage(tmp, ox, oy, ow, oh, 0, 0, ocrCanvas.width, ocrCanvas.height);
-    octx.filter = 'none';
 
-    const result = await Tesseract.recognize(ocrCanvas, 'eng', {
-      tessedit_char_whitelist: '0123456789'
-    });
-    const text = String(result?.data?.text || '').replace(/[^0-9]/g, '');
-    if(text && text.length >= 1 && text.length <= 4){
-      // Pre-llenar input si todavía está vacío
-      if(state.scanCandidate && !state.scanCandidate.number){
-        state.scanCandidate.number = text;
-        const inp = document.getElementById('detectedNum');
-        if(inp && !inp.value) inp.value = text;
-        toast(`Número detectado: ${text}`, 'success');
+  // V55: probar varias zonas donde Panini imprime el número (depende de la figurita).
+  // Inferior derecho, inferior izquierdo, superior derecho, superior izquierdo.
+  // El primero que devuelva un número válido (1-4 dígitos) gana.
+  const zones = [
+    { x: 0.66, y: 0.85, w: 0.32, h: 0.13 }, // inferior derecha (más común)
+    { x: 0.02, y: 0.85, w: 0.32, h: 0.13 }, // inferior izquierda
+    { x: 0.66, y: 0.02, w: 0.32, h: 0.13 }, // superior derecha
+    { x: 0.02, y: 0.02, w: 0.32, h: 0.13 }, // superior izquierda
+  ];
+
+  let detected = '';
+  for(const z of zones){
+    if(detected) break;
+    try {
+      const ow = Math.floor(box.w * z.w);
+      const oh = Math.floor(box.h * z.h);
+      const ox = Math.floor(box.x + box.w * z.x);
+      const oy = Math.floor(box.y + box.h * z.y);
+      if(ow < 20 || oh < 12) continue;
+      const ocrCanvas = document.createElement('canvas');
+      ocrCanvas.width = ow * 3;  // 3x para más resolución
+      ocrCanvas.height = oh * 3;
+      const octx = ocrCanvas.getContext('2d', { willReadFrequently: true });
+      octx.imageSmoothingEnabled = true;
+      octx.imageSmoothingQuality = 'high';
+      octx.filter = 'grayscale(1) contrast(1.8) brightness(1.05)';
+      octx.drawImage(tmp, ox, oy, ow, oh, 0, 0, ocrCanvas.width, ocrCanvas.height);
+      octx.filter = 'none';
+
+      const result = await Tesseract.recognize(ocrCanvas, 'eng', {
+        tessedit_char_whitelist: '0123456789',
+        tessedit_pageseg_mode: '7' // single text line — más preciso para números cortos
+      });
+      const raw = String(result?.data?.text || '');
+      const matches = raw.match(/\d{1,4}/g) || [];
+      // Tomar el match más largo (probablemente el número de la figurita)
+      const best = matches.sort((a,b) => b.length - a.length)[0];
+      if(best && best.length >= 1 && best.length <= 4){
+        const n = Number(best);
+        if(n > 0 && n <= 999){ detected = String(n); }
       }
-    }
-  } catch(e) {
-    // Silencio. OCR es opcional: si falla, no rompe nada.
+    } catch(e) { /* siguiente zona */ }
   }
+
+  if(detected && state.scanCandidate && !state.scanCandidate.number){
+    state.scanCandidate.number = detected;
+    const inp = document.getElementById('detectedNum');
+    if(inp && !inp.value) inp.value = detected;
+    toast(`Número detectado: ${detected}`, 'success');
+  }
+
   state.ocrBusy = false;
-  // Re-render solo si hay candidato visible para sacar el "leyendo..." del label.
   if(state.scanCandidate) render();
 }
 
@@ -4795,11 +4989,11 @@ function captureStickerImage(video){
     };
   }
 
-  // V54: guardamos referencia al canvas crudo + bbox para que el OCR pueda
+  // V55: guardamos referencia al canvas crudo + bbox para que el OCR pueda
   // leer el número directamente del recorte sin re-capturar el video.
   state._lastCapture = { tmp, box };
 
-  // V54: medir nitidez (varianza de Laplaciano sobre el bbox) para avisar
+  // V55: medir nitidez (varianza de Laplaciano sobre el bbox) para avisar
   // si la foto salió borrosa. No bloquea el guardado, solo informa.
   state._lastSharpness = measureSharpness(tmp, box);
 
@@ -4819,7 +5013,7 @@ function captureStickerImage(video){
   const GOLD_BRIGHT = '#D4AF37';
   const GOLD_LIGHT = '#F4D77A';
 
-  // V54: marco Panini real. Doble línea dorada externa, doble línea interna,
+  // V55: marco Panini real. Doble línea dorada externa, doble línea interna,
   // esquinas decorativas, fondo levemente tintado para que el blanco no se sienta plano.
   // Tinte cálido sutil de fondo (estilo cromo de álbum, NO toca la figurita).
   const bgGrad = ctx.createLinearGradient(0, 0, 0, c.height);
@@ -5414,11 +5608,176 @@ function pickPlayer(text, countryName=''){
   return candidates[0] || '';
 }
 function friendsScreen(){
+  const profile = ensureProfile();
+  if(state.friendsView === 'import') return friendsImportScreen();
+  if(state.friendsView === 'detail' && state.friendsActive){
+    const friend = state.friends.find(f=>f.alias === state.friendsActive);
+    if(friend) return friendsDetailScreen(friend);
+  }
+  return friendsListScreen(profile);
+}
+
+function friendsListScreen(profile){
   return `<main class="screen">
-    ${topbar(`<button class="pill" onclick="setView('album',{filter:'repeated'})">Repetidas</button>`)}
-    <section class="hero"><div class="logo">${icons.users}</div><h1>Cambios con amigos</h1><p>Por ahora compartí tus listas por WhatsApp. La comparación automática puede sumarse después con usuarios en nube.</p></section>
-    <section class="section"><h2>Rápido y simple</h2><p class="muted">Compartí “Solo repetidas” o “Solo me faltan”. Tu amigo te responde con lo que tiene.</p><button class="btn btn-primary full" onclick="setView('share')">${icons.share} Ir a compartir</button></section>
+    ${topbar(`<button class="pill" onclick="setView('home')">Inicio</button>`)}
+    <section class="hero"><div class="logo">${icons.users}</div><h1>Mis amigos coleccionistas</h1><p>Compartí tu álbum por WhatsApp y agregá a otros para ver qué intercambiar. Sin servidor, sin ubicación, sin datos personales.</p></section>
+
+    <section class="section profile-card">
+      <div class="section-title"><h2>Mi tarjeta</h2><span class="muted">tu apodo</span></div>
+      <div class="profile-row">
+        <div class="profile-avatar" style="background:${profile.color}">${escapeHtml(profile.alias.charAt(0).toUpperCase())}</div>
+        <div class="profile-meta">
+          <input class="input profile-alias-input" id="profileAliasInput" value="${escapeHtml(profile.alias)}" maxlength="24" placeholder="Tu apodo" onchange="setProfileAlias(this.value)">
+          <small class="muted">Solo apodo. Nunca nombre real ni email.</small>
+        </div>
+      </div>
+      <div class="profile-colors">
+        ${PROFILE_COLORS.map(c=>`<button class="profile-color ${profile.color===c?'active':''}" style="background:${c}" onclick="setProfileColor('${c}')" aria-label="Color ${c}"></button>`).join('')}
+      </div>
+      <div class="profile-actions">
+        <button class="btn btn-primary full" onclick="shareMyCode()">${icons.share} Compartir mi álbum</button>
+        <button class="btn btn-gold full" onclick="state.friendsView='import'; render()">${icons.plus} Cargar amigo</button>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-title"><h2>Mis amigos</h2><span class="muted">${state.friends.length} cargados</span></div>
+      ${state.friends.length === 0 ? `
+        <div class="empty">Todavía no cargaste a nadie.<br><br><strong>¿Cómo funciona?</strong><br>1) Compartí tu código por WhatsApp.<br>2) Cuando un amigo te mande el suyo, tocá "Cargar amigo" y pegalo.<br>3) La app te muestra qué intercambiar.</div>
+      ` : `
+        <div class="friends-list">
+          ${state.friends.map(f=>friendListItem(f)).join('')}
+        </div>
+      `}
+    </section>
+
+    <section class="section privacy-note">
+      <div class="section-title"><h2>${icons.shield || '🛡'} Privacidad</h2></div>
+      <p class="muted">Pensado para que también lo usen chicos. La app <strong>no comparte tu ubicación</strong>, <strong>no usa email ni teléfono</strong>, y <strong>no guarda nada en internet</strong>. Tu álbum solo se comparte si vos mandás tu código a alguien.</p>
+    </section>
   </main>`;
+}
+
+function friendListItem(f){
+  const haveCount = (f.have||[]).length;
+  const missingCount = (f.missing||[]).length;
+  const repeatedCount = (f.repeated||[]).length;
+  const match = matchExchange(f);
+  const matches = match.heGivesMe.length + match.iGiveHim.length;
+  return `<button class="friend-item" onclick="state.friendsActive='${escapeAttr(f.alias)}'; state.friendsView='detail'; render()">
+    <div class="profile-avatar" style="background:${f.color}">${escapeHtml(f.alias.charAt(0).toUpperCase())}</div>
+    <div class="friend-info">
+      <strong>${escapeHtml(f.alias)}</strong>
+      <small>${haveCount} tiene · ${missingCount} le falta · ${repeatedCount} repe</small>
+    </div>
+    ${matches > 0 ? `<span class="friend-match-pill">${matches} ${matches===1?'match':'matches'}</span>` : ''}
+  </button>`;
+}
+
+function friendsDetailScreen(friend){
+  const match = matchExchange(friend);
+  const myAlias = ensureProfile().alias;
+  return `<main class="screen">
+    ${topbar(`<button class="pill" onclick="state.friendsView='list'; state.friendsActive=null; render()">Volver</button>`)}
+    <section class="hero">
+      <div class="profile-avatar profile-avatar-big" style="background:${friend.color}">${escapeHtml(friend.alias.charAt(0).toUpperCase())}</div>
+      <h1>${escapeHtml(friend.alias)}</h1>
+      <p>${(friend.have||[]).length} las tiene · ${(friend.missing||[]).length} le faltan · ${(friend.repeated||[]).length} repetidas</p>
+    </section>
+
+    <section class="section">
+      <div class="section-title"><h2>${icons.repeat} Posibles intercambios</h2></div>
+      ${match.heGivesMe.length === 0 && match.iGiveHim.length === 0 ? `
+        <div class="empty">Por ahora no hay coincidencias. Pueden seguir cargando figuritas y volver acá después.</div>
+      ` : `
+        <div class="exchange-grid">
+          <div class="exchange-col">
+            <h3>${icons.check} Te puede dar</h3>
+            ${match.heGivesMe.length === 0 ? '<small class="muted">Nada que te falte tiene él como repetida.</small>' :
+              `<ul class="exchange-list">${match.heGivesMe.map(x=>`<li><strong>N° ${x.number}</strong>${x.count>1?` <span class="muted">(tiene ${x.count})</span>`:''}</li>`).join('')}</ul>`
+            }
+          </div>
+          <div class="exchange-col">
+            <h3>${icons.share} Le podés dar</h3>
+            ${match.iGiveHim.length === 0 ? '<small class="muted">No tenés repetidas que él necesite.</small>' :
+              `<ul class="exchange-list">${match.iGiveHim.map(x=>`<li><strong>N° ${x.number}</strong>${x.count>1?` <span class="muted">(tenés ${x.count})</span>`:''}</li>`).join('')}</ul>`
+            }
+          </div>
+        </div>
+        ${match.heGivesMe.length > 0 || match.iGiveHim.length > 0 ? `
+          <button class="btn btn-primary full" style="margin-top:14px" onclick="shareExchangeProposal('${escapeAttr(friend.alias)}')">${icons.whatsapp || icons.share} Mandar propuesta por WhatsApp</button>
+        ` : ''}
+      `}
+    </section>
+
+    <section class="section">
+      <button class="btn btn-line full" onclick="confirmRemoveFriend('${escapeAttr(friend.alias)}')">${icons.trash} Quitar a ${escapeHtml(friend.alias)}</button>
+    </section>
+  </main>`;
+}
+
+function friendsImportScreen(){
+  return `<main class="screen">
+    ${topbar(`<button class="pill" onclick="state.friendsView='list'; render()">Volver</button>`)}
+    <section class="hero"><div class="logo">${icons.plus}</div><h1>Cargar amigo</h1><p>Pegá el código FS1 que te pasó tu amigo. La app va a comparar los álbumes y te va a mostrar qué intercambiar.</p></section>
+    <section class="section">
+      <div class="field">
+        <label>Código del amigo</label>
+        <textarea class="batch-input" id="friendCodeInput" placeholder="FS1|Pedro|#22C55E|H:1,2,3,4|M:5,6,7|R:8x2,9x3" autocomplete="off" autocorrect="off" spellcheck="false">${escapeHtml(state.friendsImportText || '')}</textarea>
+      </div>
+      <button class="btn btn-primary full" onclick="doImportFriendCode()">${icons.check} Cargar álbum</button>
+      <button class="btn btn-line full" style="margin-top:8px" onclick="state.friendsView='list'; render()">Cancelar</button>
+    </section>
+    <section class="section privacy-note">
+      <div class="section-title"><h2>¿De dónde sale el código?</h2></div>
+      <p class="muted">Tu amigo lo genera tocando <strong>"Compartir mi álbum"</strong> en su FiguScan. Lo manda por WhatsApp y vos lo pegás acá. La app NO usa servidor: el código viaja directo de un celu al otro.</p>
+    </section>
+  </main>`;
+}
+
+function doImportFriendCode(){
+  const el = document.getElementById('friendCodeInput');
+  if(!el) return;
+  const code = el.value;
+  state.friendsImportText = '';
+  importFriendCode(code);
+}
+
+function shareMyCode(){
+  ensureProfile();
+  const code = buildAlbumCode();
+  const counts = {
+    have: state.stickers.filter(s=>s.status==='have').length,
+    missing: state.stickers.filter(s=>s.status==='missing').length,
+    repeated: state.stickers.filter(s=>s.status==='repeated').length
+  };
+  const text = `🏆 *Mi álbum FiguScan Mundial*\n\nApodo: ${state.profile.alias}\nTengo: ${counts.have} · Me faltan: ${counts.missing} · Repetidas: ${counts.repeated}\n\n*Código para cargar en FiguScan:*\n${code}\n\n_Pegalo en FiguScan → Amigos → Cargar amigo. Así vemos qué podemos cambiar._`;
+  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  window.open(url, '_blank');
+}
+
+function shareExchangeProposal(friendAlias){
+  const friend = state.friends.find(f=>f.alias === friendAlias);
+  if(!friend) return;
+  const match = matchExchange(friend);
+  const myAlias = ensureProfile().alias;
+  const heGives = match.heGivesMe.map(x => `N°${x.number}${x.count>1?` (x${x.count})`:''}`).join(', ') || '—';
+  const iGive = match.iGiveHim.map(x => `N°${x.number}${x.count>1?` (x${x.count})`:''}`).join(', ') || '—';
+  const text = `🏆 *Propuesta de intercambio FiguScan*\n\nDe: ${myAlias}\nPara: ${friend.alias}\n\n*Vos me podrías dar:* ${heGives}\n*Yo te podría dar:* ${iGive}\n\n¿Hacemos el cambio? 🤝`;
+  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  window.open(url, '_blank');
+}
+
+function confirmRemoveFriend(alias){
+  state.modal = {
+    title: `¿Quitar a ${alias}?`,
+    text: 'Se borra el álbum guardado. Si después te lo vuelve a pasar, lo cargás de nuevo.',
+    cancel: 'Cancelar',
+    confirm: 'Quitar',
+    danger: true,
+    onConfirm: () => { state.modal = null; removeFriend(alias); }
+  };
+  render();
 }
 
 function shareScreen(){
@@ -5709,7 +6068,7 @@ function render(){
   app.innerHTML = `<div class="app">${screen}${bottomNav()}${stickerViewerHtml()}${modalHtml()}${toastHtml()}</div>`;
   restoreInputFocus(focus);
   if(state.toast) setTimeout(paintToast, 0);
-  // V54: actualizar badges de bandera en inputs de país pre-cargados
+  // V55: actualizar badges de bandera en inputs de país pre-cargados
   setTimeout(()=>{
     ['countryInput','detectedCountry','batchCountryInput'].forEach(id=>{
       if(document.getElementById(id)) updateCountryBadge(id);
@@ -5725,8 +6084,11 @@ function render(){
   }
 }
 
-window.fillCountryInput=fillCountryInput; window.updateCountryBadge=updateCountryBadge; window.setBatchStatus=setBatchStatus; window.changeBatchQty=changeBatchQty; window.handleAlbumTextSearch=handleAlbumTextSearch; window.handleAlbumCountrySearch=handleAlbumCountrySearch; window.clearAlbumSearch=clearAlbumSearch; window.changeDeleteQty=changeDeleteQty; window.setDeleteAllRepeated=setDeleteAllRepeated; window.confirmDeleteRepeated=confirmDeleteRepeated; window.handleScannerFrameTap=handleScannerFrameTap; window.attachCameraStream=attachCameraStream; window.openStickerViewer=openStickerViewer; window.closeStickerViewer=closeStickerViewer; window.moveViewer=moveViewer; window.removeScanPhoto=removeScanPhoto; window.stepDetectedNumber=stepDetectedNumber; window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.toggleTorch=toggleTorch; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.captureInputFocus=captureInputFocus; window.restoreInputFocus=restoreInputFocus; window.render=render; window.toggleSound=toggleSound;
+window.fillCountryInput=fillCountryInput; window.updateCountryBadge=updateCountryBadge; window.setBatchStatus=setBatchStatus; window.changeBatchQty=changeBatchQty; window.handleAlbumTextSearch=handleAlbumTextSearch; window.handleAlbumCountrySearch=handleAlbumCountrySearch; window.clearAlbumSearch=clearAlbumSearch; window.changeDeleteQty=changeDeleteQty; window.setDeleteAllRepeated=setDeleteAllRepeated; window.confirmDeleteRepeated=confirmDeleteRepeated; window.handleScannerFrameTap=handleScannerFrameTap; window.attachCameraStream=attachCameraStream; window.openStickerViewer=openStickerViewer; window.closeStickerViewer=closeStickerViewer; window.moveViewer=moveViewer; window.removeScanPhoto=removeScanPhoto; window.stepDetectedNumber=stepDetectedNumber; window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.toggleTorch=toggleTorch; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.captureInputFocus=captureInputFocus; window.restoreInputFocus=restoreInputFocus; window.render=render; window.toggleSound=toggleSound; window.setProfileAlias=setProfileAlias; window.setProfileColor=setProfileColor; window.shareMyCode=shareMyCode; window.doImportFriendCode=doImportFriendCode; window.shareExchangeProposal=shareExchangeProposal; window.confirmRemoveFriend=confirmRemoveFriend;
 
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('/service-worker.js').catch(()=>{}); }
-loadPrefs(); // V54
+loadPrefs();
+loadProfile();
+loadFriends();
+ensureProfile();
 render();

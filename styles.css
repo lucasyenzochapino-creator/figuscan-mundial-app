@@ -637,3 +637,32 @@ html,body{background:#05070D;color:#F8FAFC;}
 .country-flag-badge{position:absolute;right:10px;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;height:42px;min-width:48px;padding:0 10px;border-radius:14px;background:linear-gradient(135deg,#FFE08A,#D6A83A);color:#071126;font-weight:1000;font-size:18px;box-shadow:0 6px 16px rgba(214,168,58,.32);pointer-events:none;opacity:0;transition:opacity .15s}
 .country-flag-badge.show{opacity:1}
 .country-flag-badge .flag{font-size:22px;line-height:1}
+
+/* V55: Comunidad - perfil, amigos, intercambios */
+.profile-card{margin-top:14px}
+.profile-row{display:flex;gap:14px;align-items:center;margin-bottom:14px}
+.profile-avatar{width:56px;height:56px;border-radius:18px;display:grid;place-items:center;font-size:24px;font-weight:1000;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.3);box-shadow:0 8px 20px rgba(0,0,0,.25);flex:0 0 56px}
+.profile-avatar-big{width:84px;height:84px;font-size:38px;border-radius:24px;margin:0 auto 8px}
+.profile-meta{flex:1;min-width:0}
+.profile-alias-input{height:48px;font-size:18px}
+.profile-meta small{display:block;margin-top:6px}
+.profile-colors{display:flex;gap:10px;justify-content:center;margin-bottom:14px;flex-wrap:wrap}
+.profile-color{width:36px;height:36px;border-radius:50%;border:3px solid transparent;transition:transform .15s}
+.profile-color.active{border-color:#FFE08A;transform:scale(1.15);box-shadow:0 6px 16px rgba(0,0,0,.4)}
+.profile-actions{display:grid;gap:10px}
+.friends-list{display:grid;gap:10px}
+.friend-item{display:flex;align-items:center;gap:14px;padding:14px;border-radius:20px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);text-align:left;color:#fff;width:100%;cursor:pointer}
+.friend-item:active{transform:scale(.98)}
+.friend-info{flex:1;min-width:0}
+.friend-info strong{display:block;font-size:16px;font-weight:1000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.friend-info small{display:block;color:#94A3B8;font-weight:850;font-size:12px;margin-top:2px}
+.friend-match-pill{flex:0 0 auto;padding:5px 12px;border-radius:999px;background:linear-gradient(135deg,#22C55E,#16A34A);color:#fff;font-size:12px;font-weight:1000;box-shadow:0 4px 12px rgba(34,197,94,.4)}
+.exchange-grid{display:grid;gap:14px}
+@media(min-width:480px){.exchange-grid{grid-template-columns:1fr 1fr}}
+.exchange-col h3{margin:0 0 10px;font-size:16px;font-weight:1000;color:#FFE08A;display:flex;align-items:center;gap:8px}
+.exchange-col h3 svg{width:20px;height:20px}
+.exchange-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.exchange-list li{padding:8px 12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,224,138,.25);border-radius:14px;color:#fff;font-weight:850}
+.exchange-list li strong{color:#FFE08A;font-size:15px}
+.privacy-note{border-color:rgba(34,197,94,.35)!important;background:rgba(34,197,94,.06)!important}
+.privacy-note h2{font-size:16px!important;color:#22C55E!important}
