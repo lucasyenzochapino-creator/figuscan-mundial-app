@@ -1,4 +1,4 @@
-const CACHE_NAME = 'figuscan-v51-ocr-sonido-pais-recordado';
+const CACHE_NAME = 'figuscan-v52-trofeo-opacidad-fondo-secciones';
 
 self.addEventListener('install', event => {
   self.skipWaiting();
