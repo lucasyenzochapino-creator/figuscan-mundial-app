@@ -1,4 +1,4 @@
-/* FiguScan Mundial V52 - trofeo decorativo translúcido bajado y secciones opacas para evitar "fuera de foco" */
+/* FiguScan Mundial V53 - fix de overflow horizontal: el bug raíz que cortaba textos y elementos por la derecha */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 const APP_URL = 'https://figuscan-mundial-app.vercel.app/';
@@ -3454,7 +3454,7 @@ const COUNTRIES = [
   }
 ];
 function reinforceCountryCatalog(){
-  // V52: corregimos selecciones británicas reales del ranking FIFA y alias comunes.
+  // V53: corregimos selecciones británicas reales del ranking FIFA y alias comunes.
   // En versiones anteriores algunas aparecían como “Reino Unido”, lo que confundía la búsqueda.
   const fixes = {
     'inglaterra': { name:'Inglaterra', short:'ENG', flag:'🏴', aliases:['England','Inglaterra','ENG','English','St George'] },
@@ -3587,10 +3587,10 @@ let state = {
   batchStatus: 'have',
   viewerId: null,
   torchOn: false,
-  lastCountryId: '',     // V52: recuerda último país elegido entre cargas
-  lastCountryName: '',   // V52: idem
-  ocrBusy: false,        // V52: OCR del número en background
-  soundEnabled: true     // V52: sonido al guardar
+  lastCountryId: '',     // V53: recuerda último país elegido entre cargas
+  lastCountryName: '',   // V53: idem
+  ocrBusy: false,        // V53: OCR del número en background
+  soundEnabled: true     // V53: sonido al guardar
 };
 
 const app = document.getElementById('app');
@@ -3600,7 +3600,7 @@ function loadStickers(){
 }
 function saveStickers(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state.stickers)); }
 
-// V52: persistir último país elegido + preferencia de sonido
+// V53: persistir último país elegido + preferencia de sonido
 function loadPrefs(){
   try {
     const p = JSON.parse(localStorage.getItem('figuscan_prefs_v1') || '{}');
@@ -3633,7 +3633,7 @@ function haptic(type='tap'){
   else navigator.vibrate(12);
 }
 
-// V52: sonido de "ding" al guardar exitoso. Web Audio API, sin assets.
+// V53: sonido de "ding" al guardar exitoso. Web Audio API, sin assets.
 // Pensado para cargas en serie: que vos cambies la figurita debajo de la cámara
 // y escuches el "ding" sin tener que mirar la pantalla.
 let _audioCtx = null;
@@ -4397,7 +4397,7 @@ async function toggleTorch(e){
 
 function detectedBox(){
   const c = state.scanCandidate || { number:'', player:'', country:'general', countryName:'', image:'' };
-  // V52: si la foto venía sin país detectado, sugerimos el último elegido.
+  // V53: si la foto venía sin país detectado, sugerimos el último elegido.
   let preCountryId = c.country || 'general';
   let preCountryName = c.countryName || '';
   if((!preCountryId || preCountryId === 'general') && state.lastCountryId){
@@ -4440,13 +4440,13 @@ function saveDetected(status){
   const player = document.getElementById('detectedPlayer')?.value || c.player || '';
   const countryRaw = document.getElementById('detectedCountry')?.value || c.countryName || '';
   const parsed = countryFromInput(countryRaw);
-  rememberCountry(parsed.country, parsed.countryName); // V52
+  rememberCountry(parsed.country, parsed.countryName); // V53
   addOrUpdateSticker({number:num,status,repeatedCount:1,player,country:parsed.country,countryName:parsed.countryName,image:c.image || ''});
   state.countryFilter='all'; state.search=''; state.detectedNumber=''; state.scanCandidate=null; state.autoScanPaused=false; state.view='scanner'; render(); setTimeout(startCamera,80);
 }
 function batchQuickSection(){
   const active = state.batchStatus || 'have';
-  // V52: pre-cargar último país elegido
+  // V53: pre-cargar último país elegido
   const preCountry = state.lastCountryName || '';
   return `<section class="section batch-quick">
     <div class="section-title"><h2>Cargar varias rápido</h2><span class="muted">sin volver atrás</span></div>
@@ -4485,12 +4485,12 @@ function saveBatchQuick(){
   if(!nums.length){ toast('Escribí al menos un número.', 'warn'); return; }
   const status = state.batchStatus || 'have';
   const parsed = countryFromInput(document.getElementById('batchCountryInput')?.value || '');
-  rememberCountry(parsed.country, parsed.countryName); // V52
+  rememberCountry(parsed.country, parsed.countryName); // V53
   const repeatedCount = status === 'repeated' ? Math.max(1, Number(document.getElementById('batchQtyValue')?.textContent || 1)) : 1;
   nums.forEach(n => addOrUpdateSticker({ number:n, status, repeatedCount, country:parsed.country, countryName:parsed.countryName }));
   state.countryFilter='all'; state.search=''; state.countrySearch='';
   haptic('success');
-  playSuccessSound(); // V52
+  playSuccessSound(); // V53
   const countryText = parsed.countryName ? ` de ${parsed.countryName}` : '';
   toast(`Guardé ${nums.length} figuritas${countryText} como ${STATUS[status].label}.`, 'success');
   state.view='album'; state.albumFilter=status; render();
@@ -4596,7 +4596,7 @@ async function scanFrame(manualTap=false){
       image,
       rawText: ''
     };
-    // V52: aviso si la foto salió borrosa. No bloquea, solo informa.
+    // V53: aviso si la foto salió borrosa. No bloquea, solo informa.
     const sharp = state._lastSharpness;
     if(sharp != null && sharp < 60){
       toast('Foto algo borrosa. Si querés, sacá otra con la cámara más quieta.', 'warn');
@@ -4604,7 +4604,7 @@ async function scanFrame(manualTap=false){
       toast('Foto lista.', 'success');
     }
     haptic('success');
-    // V52: lanzar OCR en background. Si encuentra el número, lo pre-llena.
+    // V53: lanzar OCR en background. Si encuentra el número, lo pre-llena.
     state.ocrBusy = true;
     setTimeout(() => runNumberOCR(), 50);
   }catch(e){
@@ -4636,7 +4636,7 @@ function getCenteredStickerCrop(canvas){
   return { x, y, w: cropW, h: cropH };
 }
 
-// V52: varianza de Laplaciano para medir nitidez. Devuelve un score: cuanto más alto, más nítida.
+// V53: varianza de Laplaciano para medir nitidez. Devuelve un score: cuanto más alto, más nítida.
 // Por debajo de ~80 normalmente está borrosa. Es heurística, sirve para avisar al usuario.
 function measureSharpness(canvas, box){
   try {
@@ -4673,7 +4673,7 @@ function measureSharpness(canvas, box){
   } catch { return null; }
 }
 
-// V52: OCR del número de figurita usando Tesseract.js (ya cargado en index.html).
+// V53: OCR del número de figurita usando Tesseract.js (ya cargado en index.html).
 // Corre en background después de la captura. Si encuentra un número, lo pre-llena
 // en el form. Si no, deja el campo vacío para que cargues a mano (sin molestar).
 async function runNumberOCR(){
@@ -4773,11 +4773,11 @@ function captureStickerImage(video){
     };
   }
 
-  // V52: guardamos referencia al canvas crudo + bbox para que el OCR pueda
+  // V53: guardamos referencia al canvas crudo + bbox para que el OCR pueda
   // leer el número directamente del recorte sin re-capturar el video.
   state._lastCapture = { tmp, box };
 
-  // V52: medir nitidez (varianza de Laplaciano sobre el bbox) para avisar
+  // V53: medir nitidez (varianza de Laplaciano sobre el bbox) para avisar
   // si la foto salió borrosa. No bloquea el guardado, solo informa.
   state._lastSharpness = measureSharpness(tmp, box);
 
@@ -4797,7 +4797,7 @@ function captureStickerImage(video){
   const GOLD_BRIGHT = '#D4AF37';
   const GOLD_LIGHT = '#F4D77A';
 
-  // V52: marco Panini real. Doble línea dorada externa, doble línea interna,
+  // V53: marco Panini real. Doble línea dorada externa, doble línea interna,
   // esquinas decorativas, fondo levemente tintado para que el blanco no se sienta plano.
   // Tinte cálido sutil de fondo (estilo cromo de álbum, NO toca la figurita).
   const bgGrad = ctx.createLinearGradient(0, 0, 0, c.height);
@@ -5684,7 +5684,7 @@ function render(){
   if(state.view==='scanner') screen = scannerScreen();
   if(state.view==='friends') screen = friendsScreen();
   if(state.view==='share') screen = shareScreen();
-  app.innerHTML = `<div class="app">${appTrophyBg()}${screen}${bottomNav()}${stickerViewerHtml()}${modalHtml()}${toastHtml()}</div>`;
+  app.innerHTML = `<div class="app">${screen}${bottomNav()}${stickerViewerHtml()}${modalHtml()}${toastHtml()}</div>`;
   restoreInputFocus(focus);
   if(state.toast) setTimeout(paintToast, 0);
   if(state.view==='scanner') {
@@ -5700,5 +5700,5 @@ function render(){
 window.fillCountryInput=fillCountryInput; window.setBatchStatus=setBatchStatus; window.changeBatchQty=changeBatchQty; window.handleAlbumTextSearch=handleAlbumTextSearch; window.handleAlbumCountrySearch=handleAlbumCountrySearch; window.clearAlbumSearch=clearAlbumSearch; window.changeDeleteQty=changeDeleteQty; window.setDeleteAllRepeated=setDeleteAllRepeated; window.confirmDeleteRepeated=confirmDeleteRepeated; window.handleScannerFrameTap=handleScannerFrameTap; window.attachCameraStream=attachCameraStream; window.openStickerViewer=openStickerViewer; window.closeStickerViewer=closeStickerViewer; window.moveViewer=moveViewer; window.removeScanPhoto=removeScanPhoto; window.stepDetectedNumber=stepDetectedNumber; window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.toggleTorch=toggleTorch; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.captureInputFocus=captureInputFocus; window.restoreInputFocus=restoreInputFocus; window.render=render; window.toggleSound=toggleSound;
 
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('/service-worker.js').catch(()=>{}); }
-loadPrefs(); // V52
+loadPrefs(); // V53
 render();

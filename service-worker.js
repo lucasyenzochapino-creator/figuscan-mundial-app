@@ -1,4 +1,4 @@
-const CACHE_NAME = 'figuscan-v52-trofeo-opacidad-fondo-secciones';
+const CACHE_NAME = 'figuscan-v53-fix-overflow-horizontal';
 
 self.addEventListener('install', event => {
   self.skipWaiting();
