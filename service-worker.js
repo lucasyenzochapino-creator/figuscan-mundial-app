@@ -1,4 +1,4 @@
-const CACHE_NAME = 'figuscan-v53-fix-overflow-horizontal';
+const CACHE_NAME = 'figuscan-v54-chips-pais-bandera-input';
 
 self.addEventListener('install', event => {
   self.skipWaiting();

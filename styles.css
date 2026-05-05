@@ -625,3 +625,15 @@ html,body{background:#05070D;color:#F8FAFC;}
 /* V51: pill "leyendo..." al lado del label de número mientras corre OCR */
 .ocr-pill{display:inline-block;margin-left:8px;padding:2px 9px;font-size:11px;font-weight:1000;color:#071126;background:linear-gradient(135deg,#FFE08A,#D6A83A);border-radius:999px;letter-spacing:.3px;text-transform:lowercase;animation:ocrPulse 1.2s ease-in-out infinite}
 @keyframes ocrPulse{0%,100%{opacity:.7}50%{opacity:1}}
+
+/* V54: chips de país en álbum bien legibles, scroll horizontal con bandera + abreviatura */
+.toolbar.countries-toolbar{gap:8px;padding:6px 4px 10px;flex-wrap:nowrap}
+.toolbar.countries-toolbar .chip.country{flex:0 0 auto;font-size:13px;padding:10px 14px;min-height:40px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;line-height:1}
+.toolbar.countries-toolbar .chip.country.active{background:linear-gradient(135deg,#FFE08A,#D6A83A);color:#071126;border-color:transparent;box-shadow:0 8px 18px rgba(214,168,58,.32)}
+
+/* V54: badge de bandera al lado del input cuando se reconoce el país escrito */
+.country-input-wrap{position:relative}
+.country-input-wrap .input{padding-right:64px}
+.country-flag-badge{position:absolute;right:10px;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;height:42px;min-width:48px;padding:0 10px;border-radius:14px;background:linear-gradient(135deg,#FFE08A,#D6A83A);color:#071126;font-weight:1000;font-size:18px;box-shadow:0 6px 16px rgba(214,168,58,.32);pointer-events:none;opacity:0;transition:opacity .15s}
+.country-flag-badge.show{opacity:1}
+.country-flag-badge .flag{font-size:22px;line-height:1}
