@@ -1,4 +1,4 @@
-const CACHE_NAME = 'figuscan-v49-carga-rapida-fifa-teclado';
+const CACHE_NAME = 'figuscan-v50-foco-marco-panini';
 
 self.addEventListener('install', event => {
   self.skipWaiting();

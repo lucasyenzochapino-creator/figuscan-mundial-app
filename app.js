@@ -1,4 +1,4 @@
-/* FiguScan Mundial V49 - carga rápida por lote, teclado estable y catálogo FIFA reforzado */
+/* FiguScan Mundial V50 - foco arreglado (sin blurs problemáticos), marco Panini real con esquinas decorativas */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 const APP_URL = 'https://figuscan-mundial-app.vercel.app/';
@@ -3454,7 +3454,7 @@ const COUNTRIES = [
   }
 ];
 function reinforceCountryCatalog(){
-  // V49: corregimos selecciones británicas reales del ranking FIFA y alias comunes.
+  // V50: corregimos selecciones británicas reales del ranking FIFA y alias comunes.
   // En versiones anteriores algunas aparecían como “Reino Unido”, lo que confundía la búsqueda.
   const fixes = {
     'inglaterra': { name:'Inglaterra', short:'ENG', flag:'🏴', aliases:['England','Inglaterra','ENG','English','St George'] },
@@ -4583,39 +4583,74 @@ function captureStickerImage(video){
   ctx.fillRect(0, 0, c.width, c.height);
 
   const S = c.width / 760;
+  const GOLD_DEEP = '#8A6415';
+  const GOLD_BRIGHT = '#D4AF37';
+  const GOLD_LIGHT = '#F4D77A';
 
-  // Marco externo dorado (estilo álbum Panini).
-  const cardX=52*S, cardY=50*S, cardW=c.width-104*S, cardH=c.height-100*S;
-  roundRect(ctx,cardX,cardY,cardW,cardH,48*S);
-  ctx.strokeStyle='#D4AF37';
-  ctx.lineWidth=6*S;
+  // V50: marco Panini real. Doble línea dorada externa, doble línea interna,
+  // esquinas decorativas, fondo levemente tintado para que el blanco no se sienta plano.
+  // Tinte cálido sutil de fondo (estilo cromo de álbum, NO toca la figurita).
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, c.height);
+  bgGrad.addColorStop(0, '#FFFFFF');
+  bgGrad.addColorStop(0.5, '#FFFBF0');
+  bgGrad.addColorStop(1, '#FFFFFF');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, c.width, c.height);
+
+  // Marco externo grueso dorado.
+  const cardX=44*S, cardY=44*S, cardW=c.width-88*S, cardH=c.height-88*S;
+  roundRect(ctx,cardX,cardY,cardW,cardH,52*S);
+  ctx.strokeStyle=GOLD_BRIGHT;
+  ctx.lineWidth=7*S;
+  ctx.stroke();
+
+  // Línea dorada exterior fina (efecto doble borde Panini).
+  roundRect(ctx,cardX-9*S,cardY-9*S,cardW+18*S,cardH+18*S,58*S);
+  ctx.strokeStyle=GOLD_DEEP;
+  ctx.lineWidth=1.5*S;
+  ctx.stroke();
+
+  // Línea dorada interior (segundo borde).
+  roundRect(ctx,cardX+10*S,cardY+10*S,cardW-20*S,cardH-20*S,44*S);
+  ctx.strokeStyle='rgba(212,175,55,0.45)';
+  ctx.lineWidth=1.5*S;
   ctx.stroke();
 
   // Área de foto.
-  const photoX=96*S, photoY=158*S, photoW=c.width-192*S, photoH=780*S;
+  const photoX=98*S, photoY=160*S, photoW=c.width-196*S, photoH=820*S;
 
-  // Marco INTERNO dorado.
-  roundRect(ctx,photoX-10*S,photoY-10*S,photoW+20*S,photoH+20*S,42*S);
-  ctx.strokeStyle='rgba(212,175,55,.55)';
-  ctx.lineWidth=3*S;
+  // Marco INTERNO Panini: sombra interior tipo "passe-partout".
+  ctx.save();
+  roundRect(ctx,photoX-14*S,photoY-14*S,photoW+28*S,photoH+28*S,38*S);
+  ctx.fillStyle = '#FAF0D2';
+  ctx.fill();
+  ctx.restore();
+
+  roundRect(ctx,photoX-14*S,photoY-14*S,photoW+28*S,photoH+28*S,38*S);
+  ctx.strokeStyle=GOLD_BRIGHT;
+  ctx.lineWidth=2.5*S;
   ctx.stroke();
 
-  // Área de foto: BLANCO.
+  roundRect(ctx,photoX-7*S,photoY-7*S,photoW+14*S,photoH+14*S,34*S);
+  ctx.strokeStyle='rgba(212,175,55,0.55)';
+  ctx.lineWidth=1.2*S;
+  ctx.stroke();
+
+  // Área de foto: BLANCO PURO (acá va la figurita).
   ctx.save();
-  roundRect(ctx,photoX,photoY,photoW,photoH,34*S);
+  roundRect(ctx,photoX,photoY,photoW,photoH,30*S);
   ctx.clip();
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(photoX, photoY, photoW, photoH);
 
-  // Margen del 8% para que la figurita "respire".
-  const innerPad = 0.08;
+  // Margen del 6% para que la figurita "respire".
+  const innerPad = 0.06;
   const innerW = photoW * (1 - innerPad*2);
   const innerH = photoH * (1 - innerPad*2);
   const innerX = photoX + photoW * innerPad;
   const innerY = photoY + photoH * innerPad;
 
   // object-fit: contain respetando aspect ratio del bbox detectado.
-  // NO forzamos targetRatio — usamos el ratio real del bbox.
   const boxRatio = box.w / box.h;
   const innerRatio = innerW / innerH;
   let drawW, drawH;
@@ -4629,31 +4664,90 @@ function captureStickerImage(video){
   const drawX = innerX + (innerW - drawW) / 2;
   const drawY = innerY + (innerH - drawH) / 2;
 
-  // Dibujamos SOLO el bbox recortado del frame original.
-  // El resto del área queda en BLANCO. Sin filter: tonos del original 100% intactos.
+  // Sombra suave bajo la figurita para darle "cuerpo" sin tocarla.
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.18)';
+  ctx.shadowBlur = 22*S;
+  ctx.shadowOffsetY = 8*S;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(drawX-1, drawY-1, drawW+2, drawH+2);
+  ctx.restore();
+
+  // Dibujamos la figurita. Sin filter: tonos del original 100% intactos.
   ctx.drawImage(tmp, box.x, box.y, box.w, box.h, drawX, drawY, drawW, drawH);
   ctx.restore();
 
-  // Borde dorado fino del área de foto.
-  roundRect(ctx,photoX,photoY,photoW,photoH,34*S);
-  ctx.strokeStyle='rgba(212,175,55,.65)';
-  ctx.lineWidth=2*S;
+  // Esquinas decorativas doradas estilo cromo Panini.
+  ctx.fillStyle = GOLD_BRIGHT;
+  const cornerSize = 24*S;
+  const cornerInset = 30*S;
+  // Esquina superior izquierda
+  ctx.beginPath();
+  ctx.moveTo(cardX+cornerInset, cardY+cornerInset);
+  ctx.lineTo(cardX+cornerInset+cornerSize, cardY+cornerInset);
+  ctx.lineTo(cardX+cornerInset, cardY+cornerInset+cornerSize);
+  ctx.closePath(); ctx.fill();
+  // Esquina superior derecha
+  ctx.beginPath();
+  ctx.moveTo(cardX+cardW-cornerInset, cardY+cornerInset);
+  ctx.lineTo(cardX+cardW-cornerInset-cornerSize, cardY+cornerInset);
+  ctx.lineTo(cardX+cardW-cornerInset, cardY+cornerInset+cornerSize);
+  ctx.closePath(); ctx.fill();
+  // Esquina inferior izquierda
+  ctx.beginPath();
+  ctx.moveTo(cardX+cornerInset, cardY+cardH-cornerInset);
+  ctx.lineTo(cardX+cornerInset+cornerSize, cardY+cardH-cornerInset);
+  ctx.lineTo(cardX+cornerInset, cardY+cardH-cornerInset-cornerSize);
+  ctx.closePath(); ctx.fill();
+  // Esquina inferior derecha
+  ctx.beginPath();
+  ctx.moveTo(cardX+cardW-cornerInset, cardY+cardH-cornerInset);
+  ctx.lineTo(cardX+cardW-cornerInset-cornerSize, cardY+cardH-cornerInset);
+  ctx.lineTo(cardX+cardW-cornerInset, cardY+cardH-cornerInset-cornerSize);
+  ctx.closePath(); ctx.fill();
+
+  // Banda inferior tipo placa Panini.
+  const bandY = photoY + photoH + 36*S;
+  const bandH = 56*S;
+  const bandX = 130*S;
+  const bandW = c.width - bandX*2;
+
+  // Sombra de la banda.
+  ctx.save();
+  ctx.shadowColor = 'rgba(138,100,21,0.30)';
+  ctx.shadowBlur = 14*S;
+  ctx.shadowOffsetY = 4*S;
+  // Fondo dorado degradado de la banda.
+  const bandGrad = ctx.createLinearGradient(bandX, bandY, bandX, bandY+bandH);
+  bandGrad.addColorStop(0, GOLD_LIGHT);
+  bandGrad.addColorStop(0.5, GOLD_BRIGHT);
+  bandGrad.addColorStop(1, GOLD_DEEP);
+  ctx.fillStyle = bandGrad;
+  roundRect(ctx, bandX, bandY, bandW, bandH, 18*S);
+  ctx.fill();
+  ctx.restore();
+
+  // Borde fino oscuro en la banda.
+  roundRect(ctx, bandX, bandY, bandW, bandH, 18*S);
+  ctx.strokeStyle = 'rgba(94,64,13,0.55)';
+  ctx.lineWidth = 1.4*S;
   ctx.stroke();
 
-  // Banda inferior con el nombre de la app.
-  const bandY = photoY + photoH + 14*S;
-  const bandH = 30*S;
-  roundRect(ctx, 108*S, bandY, 544*S, bandH, 14*S);
-  ctx.fillStyle = 'rgba(212,175,55,.10)';
+  // Highlight superior brillante de la banda (efecto cromo).
+  ctx.save();
+  roundRect(ctx, bandX+3*S, bandY+3*S, bandW-6*S, bandH*0.42, 14*S);
+  ctx.fillStyle = 'rgba(255,255,255,0.32)';
   ctx.fill();
-  ctx.strokeStyle = 'rgba(212,175,55,.55)';
-  ctx.lineWidth = 2*S;
-  ctx.stroke();
-  ctx.fillStyle = '#8A6415';
-  ctx.font = `900 ${15*S}px Inter, Arial`;
+  ctx.restore();
+
+  // Texto en la banda.
+  ctx.fillStyle = '#3D2A05';
+  ctx.font = `1000 ${22*S}px Inter, Arial`;
   ctx.textBaseline = 'middle';
-  ctx.fillText('FiguScan Mundial', 130*S, bandY + bandH/2);
+  ctx.textAlign = 'center';
+  ctx.fillText('FIGUSCAN MUNDIAL', c.width/2, bandY + bandH/2);
   ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
 
   return c.toDataURL('image/jpeg', 0.97);
 }
