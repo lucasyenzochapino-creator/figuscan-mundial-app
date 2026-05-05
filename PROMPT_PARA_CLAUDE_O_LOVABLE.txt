@@ -1,0 +1,33 @@
+Actúa como desarrollador senior frontend/PWA. Tengo una app llamada FiguScan. En V47 ya se corrigió la detección de figuritas sobre fondo blanco, pero ahora tengo estos problemas en celular:
+
+1) La cámara se ve fuera de foco.
+2) El marco donde se saca la foto no guía bien al usuario.
+3) Algunas pantallas se salen del ancho, se cortan textos y la barra inferior tapa contenido.
+4) La PWA puede quedar cacheada en V47.
+
+Aplicá una versión V48 con estos cambios:
+
+- Forzar cámara trasera con getUserMedia usando facingMode ideal environment.
+- Pedir resolución ideal 1920x1080, fallback 1280x720.
+- Aplicar focusMode continuous, exposureMode continuous y whiteBalanceMode continuous solo si el navegador/teléfono lo soporta.
+- Agregar tap-to-focus con pointsOfInterest si está disponible, sin romper si no lo está.
+- Crear un marco de captura vertical con aspect-ratio 63/88, esquinas doradas, borde interno punteado, video con object-fit cover y sin deformar.
+- Mantener tonos originales: no filtros fuertes sobre la foto/captura.
+- Corregir mobile layout: box-sizing border-box global, overflow-x hidden, inputs max-width 100%, padding inferior para barra fija, chips con scroll horizontal limpio.
+- Cambiar cache busting a v48 en index.html, styles.css, app.js y service-worker.
+- No romper Firebase, OCR, álbum, repetidas ni carga manual.
+
+Usá los archivos incluidos en este ZIP:
+- public/figuscan-v48-camera.css
+- public/figuscan-v48-camera.js
+- public/figuscan-v48-refresh.js
+
+Cargalos en este orden en index.html:
+
+<link rel="stylesheet" href="./styles.css?v=48" />
+<link rel="stylesheet" href="./figuscan-v48-camera.css?v=48" />
+<script src="./figuscan-v48-refresh.js?v=48"></script>
+<script src="./figuscan-v48-camera.js?v=48"></script>
+<script src="./app.js?v=48"></script>
+
+Después revisá que en Android se vea bien, sin scroll horizontal, con marco claro y foco más estable.
