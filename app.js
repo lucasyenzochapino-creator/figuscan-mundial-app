@@ -1,4 +1,4 @@
-/* FiguScan Mundial V48 - recorta figurita y la pone sobre fondo blanco, sin deformar, sin cambiar tonos */
+/* FiguScan Mundial V49 - carga rápida por lote, teclado estable y catálogo FIFA reforzado */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 const APP_URL = 'https://figuscan-mundial-app.vercel.app/';
@@ -3453,7 +3453,37 @@ const COUNTRIES = [
     ]
   }
 ];
-const MAIN_COUNTRY_IDS = ["general", "argentina", "brasil", "francia", "uruguay", "espana", "inglaterra", "alemania", "italia", "portugal", "paises-bajos", "mexico", "estados-unidos", "japon", "marruecos", "belgica", "croacia", "colombia", "senegal", "suiza", "dinamarca", "iran", "turquia", "ecuador", "austria", "corea-del-sur", "nigeria", "australia", "argelia", "egipto", "canada"];
+function reinforceCountryCatalog(){
+  // V49: corregimos selecciones británicas reales del ranking FIFA y alias comunes.
+  // En versiones anteriores algunas aparecían como “Reino Unido”, lo que confundía la búsqueda.
+  const fixes = {
+    'inglaterra': { name:'Inglaterra', short:'ENG', flag:'🏴', aliases:['England','Inglaterra','ENG','English','St George'] },
+    'reino-unido': { id:'gales', name:'Gales', short:'WAL', flag:'🏴', aliases:['Wales','Gales','WAL','Cymru'] },
+    'reino-unido-2': { id:'escocia', name:'Escocia', short:'SCO', flag:'🏴', aliases:['Scotland','Escocia','SCO','Alba'] },
+    'reino-unido-3': { id:'escocia', name:'Escocia', short:'SCO', flag:'🏴', aliases:['Scotland','Escocia','SCO','Alba'] },
+    'reino-unido-4': { id:'gales', name:'Gales', short:'WAL', flag:'🏴', aliases:['Wales','Gales','WAL','Cymru'] },
+    'reino-unido-5': { id:'irlanda-del-norte', name:'Irlanda del Norte', short:'NIR', flag:'🇬🇧', aliases:['Northern Ireland','Irlanda del Norte','NIR'] },
+    'uzbekistan': { aliases:['Uzbekistan','Uzbekistán','Ubekistan','Ubekistán','UZB','UZ','Republic of Uzbekistan'] },
+    'cabo-verde': { aliases:['Cabo Verde','Cape Verde','Cabo Verde Islands','CPV','CV','Republic of Cabo Verde'] },
+    'curazao': { aliases:['Curacao','Curaçao','Curazao','CUW','CW'] }
+  };
+  for(const c of COUNTRIES){
+    const f = fixes[c.id];
+    if(!f) continue;
+    Object.assign(c, f);
+  }
+  // Quita duplicados reales por código FIFA, manteniendo el primer registro corregido.
+  const seen = new Set();
+  for(let i=COUNTRIES.length-1; i>=0; i--){
+    const c = COUNTRIES[i];
+    if(!c || c.id === 'general') continue;
+    const key = String(c.short || c.id).toUpperCase();
+    if(seen.has(key)) COUNTRIES.splice(i, 1);
+    else seen.add(key);
+  }
+}
+reinforceCountryCatalog();
+const MAIN_COUNTRY_IDS = ["general", "argentina", "brasil", "francia", "uruguay", "espana", "inglaterra", "gales", "escocia", "irlanda-del-norte", "alemania", "italia", "portugal", "paises-bajos", "mexico", "estados-unidos", "japon", "marruecos", "belgica", "croacia", "colombia", "senegal", "suiza", "dinamarca", "iran", "turquia", "ecuador", "austria", "corea-del-sur", "nigeria", "australia", "argelia", "egipto", "canada", "uzbekistan", "cabo-verde"];
 function slugifyCountry(value){
   return String(value || '')
     .trim()
@@ -3985,7 +4015,7 @@ function manualScreen(){
       <form class="form" onsubmit="submitManual(event)">
         <div class="field"><label>Número de figurita</label><input class="input" inputmode="numeric" pattern="[0-9]*" id="num" placeholder="Ej: 24" value="${editing ? escapeHtml(editing.number) : ''}" required></div>
         <div class="field"><label>Nombre del jugador</label><input class="input" id="player" placeholder="Ej: Messi" value="${editing ? escapeHtml(editing.player||'') : ''}"></div>
-        <div class="field"><label>Selección / país</label><input class="input" id="countryInput" list="countryList" placeholder="Escribí Argentina, Brasil..." value="${editing ? escapeHtml(countryInputValue(editing.country, editing.countryName)) : ''}"><datalist id="countryList">${countryOptions(editing?.country || 'general')}</datalist><small class="help">Escribí y elegí una sugerencia. Si no existe, la app agrega ese país.</small></div>
+        <div class="field"><label>Selección / país</label><input class="input" id="countryInput" placeholder="Escribí Argentina, Cabo Verde, Uzbekistán..." value="${editing ? escapeHtml(countryInputValue(editing.country, editing.countryName)) : ''}" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="words"><small class="help">Escribí el país. Si no existe, la app lo agrega. No usamos lista del navegador para que no salte el teclado.</small>${countryHintChips('countryInput', editing?.country || 'general')}</div>
         <div class="field"><label>¿Cómo la querés marcar?</label><div class="state-grid">
           ${stateButton('have', defaultStatus)}
           ${stateButton('missing', defaultStatus)}
@@ -4001,6 +4031,17 @@ function manualScreen(){
   </main>`;
 }
 function countryOptions(active='general'){ return COUNTRIES.filter(c=>c.id !== 'general').map(c=>`<option value="${escapeHtml(c.name)}">${escapeHtml(c.short || '')} ${escapeHtml(c.flag || '')}</option>`).join(''); }
+function countryHintChips(inputId, active='general'){
+  const important = ['argentina','brasil','francia','espana','inglaterra','uruguay','portugal','alemania','italia','mexico','cabo-verde','uzbekistan'];
+  const chips = important.map(id=>countryById(id)).filter(Boolean).map(c=>`<button type="button" class="country-mini-chip" onclick="fillCountryInput('${inputId}','${escapeAttr(c.name)}')"><span>${c.flag}</span>${escapeHtml(c.name)}</button>`).join('');
+  return `<div class="country-mini-list">${chips}</div>`;
+}
+function fillCountryInput(inputId, value){
+  const el = document.getElementById(inputId);
+  if(!el) return;
+  el.value = value || '';
+  try{ el.focus({ preventScroll:true }); }catch(e){ el.focus(); }
+}
 function stateButton(status, active){
   return `<button type="button" class="state-option ${status} ${active===status?'active':''}" onclick="chooseManualStatus('${status}')">${statusIcon(status)} <span>${STATUS[status].long}</span></button>`;
 }
@@ -4269,7 +4310,7 @@ function detectedBox(){
       <div class="scan-data-head"><span>${icons.edit}</span><div><strong>Datos de la figurita</strong><small>Estos son los campos que se cargan en el álbum</small></div></div>
       <div class="field number-field"><label>Número de figurita</label><div class="number-control"><button type="button" onclick="stepDetectedNumber(-1)">−</button><input class="input" id="detectedNum" inputmode="numeric" value="${escapeHtml(c.number)}" placeholder="Ej: 24"><button type="button" onclick="stepDetectedNumber(1)">+</button></div></div>
       <div class="field"><label>Nombre del jugador</label><input class="input" id="detectedPlayer" value="${escapeHtml(c.player || '')}" placeholder="Ej: Messi"></div>
-      <div class="field"><label>País / selección</label><input class="input" id="detectedCountry" list="countryListScan" value="${escapeHtml(countryInputValue(c.country, c.countryName))}" placeholder="Ej: Portugal"><datalist id="countryListScan">${countryOptions(c.country || 'general')}</datalist></div>
+      <div class="field"><label>País / selección</label><input class="input" id="detectedCountry" value="${escapeHtml(countryInputValue(c.country, c.countryName))}" placeholder="Ej: Portugal" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="words">${countryHintChips('detectedCountry', c.country || 'general')}</div>
     </section>
     <div class="state-grid luxury-state-grid" style="margin-top:12px">
       <button class="state-option have" onclick="saveDetected('have')">${icons.check} La tengo</button>
@@ -4305,18 +4346,33 @@ function batchQuickSection(){
   const active = state.batchStatus || 'have';
   return `<section class="section batch-quick">
     <div class="section-title"><h2>Cargar varias rápido</h2><span class="muted">sin volver atrás</span></div>
-    <p class="muted">Escribí varios números separados por coma, espacio o salto de línea.</p>
-    <textarea id="batchNumbers" class="batch-input" inputmode="numeric" placeholder="Ej: 4, 9, 15, 22"></textarea>
+    <p class="muted">Pegá muchos números juntos. Sirve para cargar un sobre entero o una selección completa.</p>
+    <textarea id="batchNumbers" class="batch-input" inputmode="numeric" placeholder="Ej: 4, 9, 15, 22
+31 32 33"></textarea>
+    <div class="field batch-country-field"><label>País / selección para todas</label><input class="input" id="batchCountryInput" placeholder="Ej: Argentina, Cabo Verde, Uzbekistán" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="words">${countryHintChips('batchCountryInput')}</div>
     <div class="batch-status-grid">
       ${batchStatusButton('have', active)}
       ${batchStatusButton('missing', active)}
       ${batchStatusButton('repeated', active)}
     </div>
-    <button class="btn btn-primary full" onclick="saveBatchQuick()">Guardar varias</button>
+    <div id="batchRepeatedBlock" class="${active==='repeated'?'':'hidden'}"><div class="field"><label>Cantidad de repetidas por figurita</label><div class="qty"><button type="button" onclick="changeBatchQty(-1)">−</button><strong id="batchQtyValue">1</strong><button type="button" onclick="changeBatchQty(1)">+</button></div></div></div>
+    <button class="btn btn-primary full" onclick="saveBatchQuick()">Guardar lote</button>
   </section>`;
 }
 function batchStatusButton(status, active){
-  return `<button class="batch-status ${status} ${active===status?'active':''}" onclick="state.batchStatus='${status}'; render()">${statusIcon(status)} <span>${STATUS[status].label}</span></button>`;
+  return `<button type="button" class="batch-status ${status} ${active===status?'active':''}" onclick="setBatchStatus('${status}')">${statusIcon(status)} <span>${STATUS[status].label}</span></button>`;
+}
+function setBatchStatus(status){
+  state.batchStatus = status || 'have';
+  document.querySelectorAll('.batch-status').forEach(btn=>btn.classList.remove('active'));
+  document.querySelector(`.batch-status.${state.batchStatus}`)?.classList.add('active');
+  document.getElementById('batchRepeatedBlock')?.classList.toggle('hidden', state.batchStatus !== 'repeated');
+}
+function changeBatchQty(delta){
+  const el = document.getElementById('batchQtyValue');
+  if(!el) return;
+  const next = Math.max(1, (Number(el.textContent)||1) + delta);
+  el.textContent = next;
 }
 function saveBatchQuick(){
   const input = document.getElementById('batchNumbers');
@@ -4324,10 +4380,13 @@ function saveBatchQuick(){
   const nums = Array.from(new Set(String(raw).split(/[^0-9]+/).map(normalizeNumber).filter(Boolean)));
   if(!nums.length){ toast('Escribí al menos un número.', 'warn'); return; }
   const status = state.batchStatus || 'have';
-  nums.forEach(n => addOrUpdateSticker({ number:n, status, repeatedCount:1, country:'general', countryName:'' }));
+  const parsed = countryFromInput(document.getElementById('batchCountryInput')?.value || '');
+  const repeatedCount = status === 'repeated' ? Math.max(1, Number(document.getElementById('batchQtyValue')?.textContent || 1)) : 1;
+  nums.forEach(n => addOrUpdateSticker({ number:n, status, repeatedCount, country:parsed.country, countryName:parsed.countryName }));
   state.countryFilter='all'; state.search=''; state.countrySearch='';
   haptic('success');
-  toast(`Guardé ${nums.length} figuritas como ${STATUS[status].label}.`, 'success');
+  const countryText = parsed.countryName ? ` de ${parsed.countryName}` : '';
+  toast(`Guardé ${nums.length} figuritas${countryText} como ${STATUS[status].label}.`, 'success');
   state.view='album'; state.albumFilter=status; render();
 }
 
@@ -5283,6 +5342,7 @@ function modalHtml(){
 }
 function confirmModal(){ const fn = state.modal?.onConfirm; if(fn) fn(); }
 function toastHtml(){ return ''; }
+function escapeAttr(value){ return String(value || '').replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function escapeHtml(str){ return String(str||'').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 
 function captureInputFocus(){
@@ -5333,7 +5393,7 @@ function render(){
   }
 }
 
-window.handleAlbumTextSearch=handleAlbumTextSearch; window.handleAlbumCountrySearch=handleAlbumCountrySearch; window.clearAlbumSearch=clearAlbumSearch; window.changeDeleteQty=changeDeleteQty; window.setDeleteAllRepeated=setDeleteAllRepeated; window.confirmDeleteRepeated=confirmDeleteRepeated; window.handleScannerFrameTap=handleScannerFrameTap; window.attachCameraStream=attachCameraStream; window.openStickerViewer=openStickerViewer; window.closeStickerViewer=closeStickerViewer; window.moveViewer=moveViewer; window.removeScanPhoto=removeScanPhoto; window.stepDetectedNumber=stepDetectedNumber; window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.toggleTorch=toggleTorch; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.captureInputFocus=captureInputFocus; window.restoreInputFocus=restoreInputFocus; window.render=render;
+window.fillCountryInput=fillCountryInput; window.setBatchStatus=setBatchStatus; window.changeBatchQty=changeBatchQty; window.handleAlbumTextSearch=handleAlbumTextSearch; window.handleAlbumCountrySearch=handleAlbumCountrySearch; window.clearAlbumSearch=clearAlbumSearch; window.changeDeleteQty=changeDeleteQty; window.setDeleteAllRepeated=setDeleteAllRepeated; window.confirmDeleteRepeated=confirmDeleteRepeated; window.handleScannerFrameTap=handleScannerFrameTap; window.attachCameraStream=attachCameraStream; window.openStickerViewer=openStickerViewer; window.closeStickerViewer=closeStickerViewer; window.moveViewer=moveViewer; window.removeScanPhoto=removeScanPhoto; window.stepDetectedNumber=stepDetectedNumber; window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.toggleTorch=toggleTorch; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.captureInputFocus=captureInputFocus; window.restoreInputFocus=restoreInputFocus; window.render=render;
 
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('/service-worker.js').catch(()=>{}); }
 render();

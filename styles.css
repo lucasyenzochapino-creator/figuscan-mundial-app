@@ -610,3 +610,15 @@ html,body{background:#05070D;color:#F8FAFC;}
 .album-country-title i{display:none!important;}
 .country-tile{padding-right:13px;}
 .country-search-wrap .search{touch-action:manipulation;}
+
+
+/* V49: chips de país sin datalist para evitar saltos del teclado en Android/iPhone */
+.country-mini-list{display:flex;gap:8px;overflow-x:auto;padding:8px 2px 2px;margin-top:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.country-mini-list::-webkit-scrollbar{display:none}
+.country-mini-chip{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:6px 10px;border-radius:999px;background:#F8FBFF;border:1px solid rgba(212,175,55,.34);color:#071A4B;font-weight:950;font-size:12px;box-shadow:0 5px 12px rgba(6,25,71,.06)}
+.country-mini-chip:active{transform:translateY(1px) scale(.99)}
+.scan-data-panel .country-mini-chip{background:rgba(255,255,255,.08);color:#FFE08A;border-color:rgba(212,175,55,.42)}
+.batch-country-field{margin-top:12px}
+.batch-quick .input{height:56px;border-radius:18px;font-weight:850}
+.batch-quick .qty{margin-bottom:12px}
+.batch-status{touch-action:manipulation}

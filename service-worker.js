@@ -1,4 +1,4 @@
-const CACHE_NAME = 'figuscan-v48-bbox-saturacion-sin-floodfill';
+const CACHE_NAME = 'figuscan-v49-carga-rapida-fifa-teclado';
 
 self.addEventListener('install', event => {
   self.skipWaiting();
