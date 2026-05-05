@@ -1,4 +1,4 @@
-const CACHE_NAME = 'figuscan-v50-foco-marco-panini';
+const CACHE_NAME = 'figuscan-v51-ocr-sonido-pais-recordado';
 
 self.addEventListener('install', event => {
   self.skipWaiting();

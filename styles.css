@@ -619,3 +619,7 @@ html,body{background:#05070D;color:#F8FAFC;}
 .batch-quick .input{height:56px;border-radius:18px;font-weight:850}
 .batch-quick .qty{margin-bottom:12px}
 .batch-status{touch-action:manipulation}
+
+/* V51: pill "leyendo..." al lado del label de número mientras corre OCR */
+.ocr-pill{display:inline-block;margin-left:8px;padding:2px 9px;font-size:11px;font-weight:1000;color:#071126;background:linear-gradient(135deg,#FFE08A,#D6A83A);border-radius:999px;letter-spacing:.3px;text-transform:lowercase;animation:ocrPulse 1.2s ease-in-out infinite}
+@keyframes ocrPulse{0%,100%{opacity:.7}50%{opacity:1}}

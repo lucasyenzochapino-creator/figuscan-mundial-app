@@ -1,4 +1,4 @@
-/* FiguScan Mundial V50 - foco arreglado (sin blurs problemáticos), marco Panini real con esquinas decorativas */
+/* FiguScan Mundial V51 - OCR del número, sonido al guardar, último país recordado, indicador de nitidez */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 const APP_URL = 'https://figuscan-mundial-app.vercel.app/';
@@ -3454,7 +3454,7 @@ const COUNTRIES = [
   }
 ];
 function reinforceCountryCatalog(){
-  // V50: corregimos selecciones británicas reales del ranking FIFA y alias comunes.
+  // V51: corregimos selecciones británicas reales del ranking FIFA y alias comunes.
   // En versiones anteriores algunas aparecían como “Reino Unido”, lo que confundía la búsqueda.
   const fixes = {
     'inglaterra': { name:'Inglaterra', short:'ENG', flag:'🏴', aliases:['England','Inglaterra','ENG','English','St George'] },
@@ -3586,7 +3586,11 @@ let state = {
   shareMode: 'summary',
   batchStatus: 'have',
   viewerId: null,
-  torchOn: false
+  torchOn: false,
+  lastCountryId: '',     // V51: recuerda último país elegido entre cargas
+  lastCountryName: '',   // V51: idem
+  ocrBusy: false,        // V51: OCR del número en background
+  soundEnabled: true     // V51: sonido al guardar
 };
 
 const app = document.getElementById('app');
@@ -3595,6 +3599,31 @@ function loadStickers(){
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
 }
 function saveStickers(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state.stickers)); }
+
+// V51: persistir último país elegido + preferencia de sonido
+function loadPrefs(){
+  try {
+    const p = JSON.parse(localStorage.getItem('figuscan_prefs_v1') || '{}');
+    if(p.lastCountryId) state.lastCountryId = p.lastCountryId;
+    if(p.lastCountryName) state.lastCountryName = p.lastCountryName;
+    if(typeof p.soundEnabled === 'boolean') state.soundEnabled = p.soundEnabled;
+  } catch {}
+}
+function savePrefs(){
+  try {
+    localStorage.setItem('figuscan_prefs_v1', JSON.stringify({
+      lastCountryId: state.lastCountryId,
+      lastCountryName: state.lastCountryName,
+      soundEnabled: state.soundEnabled
+    }));
+  } catch {}
+}
+function rememberCountry(id, name){
+  if(!id || id === 'general') return;
+  state.lastCountryId = id;
+  state.lastCountryName = name || '';
+  savePrefs();
+}
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 function now(){ return new Date().toISOString(); }
 function haptic(type='tap'){
@@ -3602,6 +3631,69 @@ function haptic(type='tap'){
   if(type === 'success') navigator.vibrate([18, 35, 18]);
   else if(type === 'warn') navigator.vibrate([35]);
   else navigator.vibrate(12);
+}
+
+// V51: sonido de "ding" al guardar exitoso. Web Audio API, sin assets.
+// Pensado para cargas en serie: que vos cambies la figurita debajo de la cámara
+// y escuches el "ding" sin tener que mirar la pantalla.
+let _audioCtx = null;
+function playSuccessSound(){
+  if(!state.soundEnabled) return;
+  try {
+    if(!_audioCtx){
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if(!Ctx) return;
+      _audioCtx = new Ctx();
+    }
+    if(_audioCtx.state === 'suspended') _audioCtx.resume();
+    const t = _audioCtx.currentTime;
+    // Acorde corto: dos notas (Do agudo + Mi agudo) en pulso rápido = sensación de "✓"
+    [
+      { freq: 880, start: 0,    dur: 0.08 },  // A5
+      { freq: 1318.5, start: 0.05, dur: 0.12 } // E6
+    ].forEach(n => {
+      const osc = _audioCtx.createOscillator();
+      const gain = _audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = n.freq;
+      gain.gain.value = 0;
+      gain.gain.linearRampToValueAtTime(0.18, t + n.start + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + n.start + n.dur);
+      osc.connect(gain).connect(_audioCtx.destination);
+      osc.start(t + n.start);
+      osc.stop(t + n.start + n.dur + 0.02);
+    });
+  } catch {}
+}
+function playErrorSound(){
+  if(!state.soundEnabled) return;
+  try {
+    if(!_audioCtx){
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if(!Ctx) return;
+      _audioCtx = new Ctx();
+    }
+    if(_audioCtx.state === 'suspended') _audioCtx.resume();
+    const t = _audioCtx.currentTime;
+    const osc = _audioCtx.createOscillator();
+    const gain = _audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(330, t);
+    osc.frequency.exponentialRampToValueAtTime(180, t + 0.18);
+    gain.gain.value = 0;
+    gain.gain.linearRampToValueAtTime(0.16, t + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+    osc.connect(gain).connect(_audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + 0.24);
+  } catch {}
+}
+function toggleSound(){
+  state.soundEnabled = !state.soundEnabled;
+  savePrefs();
+  if(state.soundEnabled) playSuccessSound();
+  toast(state.soundEnabled ? 'Sonido activado.' : 'Sonido silenciado.', state.soundEnabled ? 'success' : 'warn');
+  render();
 }
 function normalizeNumber(value){
   const v = String(value || '').replace(/[^0-9]/g,'').replace(/^0+(?=\d)/,'');
@@ -3777,6 +3869,8 @@ function addOrUpdateSticker({ number, status, repeatedCount=1, player='', countr
   state.stickers.sort(byNumber);
   saveStickers();
   toast(`Figurita N° ${number} guardada como ${STATUS[status].label}.`, 'success');
+  haptic('success');
+  playSuccessSound();
   render();
   return true;
 }
@@ -4303,14 +4397,21 @@ async function toggleTorch(e){
 
 function detectedBox(){
   const c = state.scanCandidate || { number:'', player:'', country:'general', countryName:'', image:'' };
+  // V51: si la foto venía sin país detectado, sugerimos el último elegido.
+  let preCountryId = c.country || 'general';
+  let preCountryName = c.countryName || '';
+  if((!preCountryId || preCountryId === 'general') && state.lastCountryId){
+    preCountryId = state.lastCountryId;
+    preCountryName = state.lastCountryName;
+  }
   return `<div class="detected scan-success scan-card-save lux-save-panel"><div class="particles"><i></i><i></i><i></i><i></i><i></i></div>
     <div class="figu-capture-title"><strong>Foto lista</strong><span>Completá los datos y elegí el estado</span></div>
     ${c.image ? `<div class="figu-stage"><div class="figu-world-bg"></div><img class="scan-preview" src="${c.image}" alt="Vista de figurita"><button class="remove-photo-btn" onclick="removeScanPhoto(event)" type="button">${icons.trash} Eliminar foto</button></div>` : `<div class="figu-stage empty-photo"><div class="figu-world-bg"></div><button class="btn btn-gold full" onclick="state.scanCandidate=null; render(); setTimeout(startCamera,50)" type="button">Sacar foto</button></div>`}
     <section class="scan-data-panel">
       <div class="scan-data-head"><span>${icons.edit}</span><div><strong>Datos de la figurita</strong><small>Estos son los campos que se cargan en el álbum</small></div></div>
-      <div class="field number-field"><label>Número de figurita</label><div class="number-control"><button type="button" onclick="stepDetectedNumber(-1)">−</button><input class="input" id="detectedNum" inputmode="numeric" value="${escapeHtml(c.number)}" placeholder="Ej: 24"><button type="button" onclick="stepDetectedNumber(1)">+</button></div></div>
+      <div class="field number-field"><label>Número de figurita ${state.ocrBusy ? '<span class="ocr-pill">leyendo…</span>' : ''}</label><div class="number-control"><button type="button" onclick="stepDetectedNumber(-1)">−</button><input class="input" id="detectedNum" inputmode="numeric" value="${escapeHtml(c.number)}" placeholder="Ej: 24"><button type="button" onclick="stepDetectedNumber(1)">+</button></div></div>
       <div class="field"><label>Nombre del jugador</label><input class="input" id="detectedPlayer" value="${escapeHtml(c.player || '')}" placeholder="Ej: Messi"></div>
-      <div class="field"><label>País / selección</label><input class="input" id="detectedCountry" value="${escapeHtml(countryInputValue(c.country, c.countryName))}" placeholder="Ej: Portugal" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="words">${countryHintChips('detectedCountry', c.country || 'general')}</div>
+      <div class="field"><label>País / selección</label><input class="input" id="detectedCountry" value="${escapeHtml(countryInputValue(preCountryId, preCountryName))}" placeholder="Ej: Portugal" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="words">${countryHintChips('detectedCountry', preCountryId)}</div>
     </section>
     <div class="state-grid luxury-state-grid" style="margin-top:12px">
       <button class="state-option have" onclick="saveDetected('have')">${icons.check} La tengo</button>
@@ -4339,17 +4440,20 @@ function saveDetected(status){
   const player = document.getElementById('detectedPlayer')?.value || c.player || '';
   const countryRaw = document.getElementById('detectedCountry')?.value || c.countryName || '';
   const parsed = countryFromInput(countryRaw);
+  rememberCountry(parsed.country, parsed.countryName); // V51
   addOrUpdateSticker({number:num,status,repeatedCount:1,player,country:parsed.country,countryName:parsed.countryName,image:c.image || ''});
   state.countryFilter='all'; state.search=''; state.detectedNumber=''; state.scanCandidate=null; state.autoScanPaused=false; state.view='scanner'; render(); setTimeout(startCamera,80);
 }
 function batchQuickSection(){
   const active = state.batchStatus || 'have';
+  // V51: pre-cargar último país elegido
+  const preCountry = state.lastCountryName || '';
   return `<section class="section batch-quick">
     <div class="section-title"><h2>Cargar varias rápido</h2><span class="muted">sin volver atrás</span></div>
     <p class="muted">Pegá muchos números juntos. Sirve para cargar un sobre entero o una selección completa.</p>
     <textarea id="batchNumbers" class="batch-input" inputmode="numeric" placeholder="Ej: 4, 9, 15, 22
 31 32 33"></textarea>
-    <div class="field batch-country-field"><label>País / selección para todas</label><input class="input" id="batchCountryInput" placeholder="Ej: Argentina, Cabo Verde, Uzbekistán" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="words">${countryHintChips('batchCountryInput')}</div>
+    <div class="field batch-country-field"><label>País / selección para todas</label><input class="input" id="batchCountryInput" value="${escapeHtml(preCountry)}" placeholder="Ej: Argentina, Cabo Verde, Uzbekistán" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="words">${countryHintChips('batchCountryInput', state.lastCountryId || 'general')}</div>
     <div class="batch-status-grid">
       ${batchStatusButton('have', active)}
       ${batchStatusButton('missing', active)}
@@ -4381,10 +4485,12 @@ function saveBatchQuick(){
   if(!nums.length){ toast('Escribí al menos un número.', 'warn'); return; }
   const status = state.batchStatus || 'have';
   const parsed = countryFromInput(document.getElementById('batchCountryInput')?.value || '');
+  rememberCountry(parsed.country, parsed.countryName); // V51
   const repeatedCount = status === 'repeated' ? Math.max(1, Number(document.getElementById('batchQtyValue')?.textContent || 1)) : 1;
   nums.forEach(n => addOrUpdateSticker({ number:n, status, repeatedCount, country:parsed.country, countryName:parsed.countryName }));
   state.countryFilter='all'; state.search=''; state.countrySearch='';
   haptic('success');
+  playSuccessSound(); // V51
   const countryText = parsed.countryName ? ` de ${parsed.countryName}` : '';
   toast(`Guardé ${nums.length} figuritas${countryText} como ${STATUS[status].label}.`, 'success');
   state.view='album'; state.albumFilter=status; render();
@@ -4490,8 +4596,17 @@ async function scanFrame(manualTap=false){
       image,
       rawText: ''
     };
-    toast('Foto lista.', 'success');
+    // V51: aviso si la foto salió borrosa. No bloquea, solo informa.
+    const sharp = state._lastSharpness;
+    if(sharp != null && sharp < 60){
+      toast('Foto algo borrosa. Si querés, sacá otra con la cámara más quieta.', 'warn');
+    } else {
+      toast('Foto lista.', 'success');
+    }
     haptic('success');
+    // V51: lanzar OCR en background. Si encuentra el número, lo pre-llena.
+    state.ocrBusy = true;
+    setTimeout(() => runNumberOCR(), 50);
   }catch(e){
     toast('No pude sacar la foto. Probá de nuevo o cargá manual.', 'warn');
   }
@@ -4519,6 +4634,93 @@ function getCenteredStickerCrop(canvas){
   const x = Math.max(0, Math.floor((w - cropW) / 2));
   const y = Math.max(0, Math.floor((h - cropH) / 2));
   return { x, y, w: cropW, h: cropH };
+}
+
+// V51: varianza de Laplaciano para medir nitidez. Devuelve un score: cuanto más alto, más nítida.
+// Por debajo de ~80 normalmente está borrosa. Es heurística, sirve para avisar al usuario.
+function measureSharpness(canvas, box){
+  try {
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    // Tomamos un crop del centro del bbox (donde está el cuerpo de la figurita).
+    const sx = Math.floor(box.x + box.w * 0.20);
+    const sy = Math.floor(box.y + box.h * 0.30);
+    const sw = Math.floor(box.w * 0.60);
+    const sh = Math.floor(box.h * 0.40);
+    if(sw < 20 || sh < 20) return null;
+    const img = ctx.getImageData(sx, sy, sw, sh);
+    const data = img.data;
+    const w = sw;
+    // Convertimos a luma y aplicamos kernel laplaciano 3x3.
+    const luma = new Float32Array(sw * sh);
+    for(let i=0; i<luma.length; i++){
+      const j = i*4;
+      luma[i] = 0.299*data[j] + 0.587*data[j+1] + 0.114*data[j+2];
+    }
+    let sum = 0, sumSq = 0, count = 0;
+    for(let y=1; y<sh-1; y++){
+      for(let x=1; x<w-1; x++){
+        const i = y*w + x;
+        const lap = 4*luma[i] - luma[i-1] - luma[i+1] - luma[i-w] - luma[i+w];
+        sum += lap;
+        sumSq += lap * lap;
+        count++;
+      }
+    }
+    if(!count) return null;
+    const mean = sum / count;
+    const variance = sumSq / count - mean*mean;
+    return variance;
+  } catch { return null; }
+}
+
+// V51: OCR del número de figurita usando Tesseract.js (ya cargado en index.html).
+// Corre en background después de la captura. Si encuentra un número, lo pre-llena
+// en el form. Si no, deja el campo vacío para que cargues a mano (sin molestar).
+async function runNumberOCR(){
+  if(typeof Tesseract === 'undefined') return; // librería no cargada → no hacer nada
+  if(state.ocrBusy) return;
+  if(!state._lastCapture) return;
+  const { tmp, box } = state._lastCapture;
+  if(!tmp || !box) return;
+
+  state.ocrBusy = true;
+  try {
+    // Recortamos la franja inferior derecha de la figurita (donde está el número en Panini Mundial).
+    // Probamos esa zona primero porque es donde aparece el "546", "24", etc.
+    const ocrCanvas = document.createElement('canvas');
+    const ow = Math.floor(box.w * 0.32);
+    const oh = Math.floor(box.h * 0.13);
+    const ox = Math.floor(box.x + box.w - ow - box.w*0.02);
+    const oy = Math.floor(box.y + box.h - oh - box.h*0.02);
+    ocrCanvas.width = ow * 2;
+    ocrCanvas.height = oh * 2;
+    const octx = ocrCanvas.getContext('2d', { willReadFrequently: true });
+    // Reescalamos 2x para que Tesseract tenga más píxeles. Aumentamos contraste.
+    octx.imageSmoothingEnabled = true;
+    octx.imageSmoothingQuality = 'high';
+    octx.filter = 'grayscale(1) contrast(1.6) brightness(1.05)';
+    octx.drawImage(tmp, ox, oy, ow, oh, 0, 0, ocrCanvas.width, ocrCanvas.height);
+    octx.filter = 'none';
+
+    const result = await Tesseract.recognize(ocrCanvas, 'eng', {
+      tessedit_char_whitelist: '0123456789'
+    });
+    const text = String(result?.data?.text || '').replace(/[^0-9]/g, '');
+    if(text && text.length >= 1 && text.length <= 4){
+      // Pre-llenar input si todavía está vacío
+      if(state.scanCandidate && !state.scanCandidate.number){
+        state.scanCandidate.number = text;
+        const inp = document.getElementById('detectedNum');
+        if(inp && !inp.value) inp.value = text;
+        toast(`Número detectado: ${text}`, 'success');
+      }
+    }
+  } catch(e) {
+    // Silencio. OCR es opcional: si falla, no rompe nada.
+  }
+  state.ocrBusy = false;
+  // Re-render solo si hay candidato visible para sacar el "leyendo..." del label.
+  if(state.scanCandidate) render();
 }
 
 function captureStickerImage(video){
@@ -4571,6 +4773,14 @@ function captureStickerImage(video){
     };
   }
 
+  // V51: guardamos referencia al canvas crudo + bbox para que el OCR pueda
+  // leer el número directamente del recorte sin re-capturar el video.
+  state._lastCapture = { tmp, box };
+
+  // V51: medir nitidez (varianza de Laplaciano sobre el bbox) para avisar
+  // si la foto salió borrosa. No bloquea el guardado, solo informa.
+  state._lastSharpness = measureSharpness(tmp, box);
+
   const c=document.createElement('canvas');
   c.width=1080;
   c.height=1480;
@@ -4587,7 +4797,7 @@ function captureStickerImage(video){
   const GOLD_BRIGHT = '#D4AF37';
   const GOLD_LIGHT = '#F4D77A';
 
-  // V50: marco Panini real. Doble línea dorada externa, doble línea interna,
+  // V51: marco Panini real. Doble línea dorada externa, doble línea interna,
   // esquinas decorativas, fondo levemente tintado para que el blanco no se sienta plano.
   // Tinte cálido sutil de fondo (estilo cromo de álbum, NO toca la figurita).
   const bgGrad = ctx.createLinearGradient(0, 0, 0, c.height);
@@ -5487,7 +5697,8 @@ function render(){
   }
 }
 
-window.fillCountryInput=fillCountryInput; window.setBatchStatus=setBatchStatus; window.changeBatchQty=changeBatchQty; window.handleAlbumTextSearch=handleAlbumTextSearch; window.handleAlbumCountrySearch=handleAlbumCountrySearch; window.clearAlbumSearch=clearAlbumSearch; window.changeDeleteQty=changeDeleteQty; window.setDeleteAllRepeated=setDeleteAllRepeated; window.confirmDeleteRepeated=confirmDeleteRepeated; window.handleScannerFrameTap=handleScannerFrameTap; window.attachCameraStream=attachCameraStream; window.openStickerViewer=openStickerViewer; window.closeStickerViewer=closeStickerViewer; window.moveViewer=moveViewer; window.removeScanPhoto=removeScanPhoto; window.stepDetectedNumber=stepDetectedNumber; window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.toggleTorch=toggleTorch; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.captureInputFocus=captureInputFocus; window.restoreInputFocus=restoreInputFocus; window.render=render;
+window.fillCountryInput=fillCountryInput; window.setBatchStatus=setBatchStatus; window.changeBatchQty=changeBatchQty; window.handleAlbumTextSearch=handleAlbumTextSearch; window.handleAlbumCountrySearch=handleAlbumCountrySearch; window.clearAlbumSearch=clearAlbumSearch; window.changeDeleteQty=changeDeleteQty; window.setDeleteAllRepeated=setDeleteAllRepeated; window.confirmDeleteRepeated=confirmDeleteRepeated; window.handleScannerFrameTap=handleScannerFrameTap; window.attachCameraStream=attachCameraStream; window.openStickerViewer=openStickerViewer; window.closeStickerViewer=closeStickerViewer; window.moveViewer=moveViewer; window.removeScanPhoto=removeScanPhoto; window.stepDetectedNumber=stepDetectedNumber; window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.toggleTorch=toggleTorch; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.captureInputFocus=captureInputFocus; window.restoreInputFocus=restoreInputFocus; window.render=render; window.toggleSound=toggleSound;
 
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('/service-worker.js').catch(()=>{}); }
+loadPrefs(); // V51
 render();
