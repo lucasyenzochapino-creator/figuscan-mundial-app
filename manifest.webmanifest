@@ -2,11 +2,15 @@
   "name": "FiguScan Mundial",
   "short_name": "FiguScan",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#05070D",
-  "theme_color": "#7A1230",
+  "theme_color": "#D4AF37",
+  "description": "Tu álbum del Mundial 2026 en el celu. Carga, intercambia y compartí con amigos.",
   "icons": [
-    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
