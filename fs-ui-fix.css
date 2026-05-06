@@ -1,13 +1,16 @@
-/* FiguScan ajustes seguros V63 */
+/* FiguScan ajustes seguros V65 */
 .fs-code-help{display:block!important;margin:8px 0 0!important;color:#FFD96A!important;font-weight:1000!important;font-size:14px!important;line-height:1.25!important}
 input[type="text"],input.fs-code-input{text-transform:uppercase!important}
 .state-grid{gap:14px!important;margin-top:12px!important}
-.state-option{min-height:86px!important;border-width:4px!important;border-radius:26px!important;font-size:22px!important;box-shadow:0 10px 26px rgba(0,0,0,.18)!important;position:relative!important;overflow:hidden!important}
+.state-option{min-height:88px!important;border-width:4px!important;border-radius:26px!important;font-size:22px!important;box-shadow:0 10px 26px rgba(0,0,0,.18)!important;position:relative!important;overflow:hidden!important}
 .state-option.have{background:#DCFCE7!important;color:#064E3B!important;border-color:#22C55E!important}
 .state-option.missing{background:#FEE2E2!important;color:#7F1D1D!important;border-color:#EF4444!important}
 .state-option.repeated{background:#FFEDD5!important;color:#7C2D12!important;border-color:#F97316!important}
-.state-option.active{transform:scale(1.02)!important;outline:5px solid rgba(255,217,106,.7)!important;box-shadow:0 0 0 5px rgba(255,217,106,.35),0 14px 30px rgba(0,0,0,.25)!important}
+.state-option.active{transform:scale(1.02)!important;outline:5px solid rgba(255,217,106,.75)!important;box-shadow:0 0 0 5px rgba(255,217,106,.35),0 14px 30px rgba(0,0,0,.25)!important}
 .state-option.active:after{content:"SELECCIONADO";position:absolute;right:12px;top:10px;background:#061947;color:#fff;border-radius:999px;padding:6px 9px;font-size:11px;font-weight:1000;letter-spacing:.3px}
 .form .btn-primary,.form .btn-gold,.form button[type="submit"]{position:sticky!important;bottom:92px!important;z-index:18!important;min-height:66px!important;border-radius:24px!important;font-size:20px!important;font-weight:1000!important;box-shadow:0 16px 34px rgba(0,0,0,.32)!important}
+.fs-country-priority{grid-column:1/-1;background:linear-gradient(135deg,#061947,#0B2E78)!important;color:white!important;border:2px solid #FFD96A!important;border-radius:20px!important;padding:13px 15px!important;font-weight:1000!important;text-align:center!important;box-shadow:0 10px 26px rgba(0,0,0,.25)!important;margin-bottom:4px!important}
+.sticker-card.fs-card-priority{outline:4px solid #FFD96A!important;box-shadow:0 0 0 6px rgba(255,217,106,.28),0 14px 30px rgba(0,0,0,.18)!important;transform:scale(1.015)!important}
+.fs-hidden-debug-have{display:none!important;visibility:hidden!important}
 @media(max-width:420px){.state-option{font-size:20px!important}.form .btn-primary,.form .btn-gold,.form button[type="submit"]{bottom:86px!important}}
 [data-vercel-toolbar],iframe[src*="vercel"],iframe[title*="Vercel"],[id*="vercel-toolbar"],[class*="vercel-toolbar"]{display:none!important;visibility:hidden!important;pointer-events:none!important;opacity:0!important;width:0!important;height:0!important}
