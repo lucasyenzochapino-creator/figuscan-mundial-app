@@ -1,5 +1,10 @@
 
-;(() => {
-  const old = document.querySelectorAll('.fs-shutter-hotspot');
-  old.forEach(x => x.remove());
+(function(){
+function txt(x){return String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
+function isField(i){var s=txt((i.name||'')+' '+(i.id||'')+' '+(i.placeholder||''));return i.type==='number'||s.indexOf('numero')>-1||s.indexOf('figurita')>-1;}
+function code(){var all='';document.querySelectorAll('select,.active,[aria-selected=true]').forEach(function(x){all+=' '+(x.textContent||'')+' '+(x.value||'');});var u=all.match(/\b[A-Z]{3}\b/);if(u)return u[0];all=txt(all);if(all.indexOf('argentina')>-1)return'ARG';if(all.indexOf('brasil')>-1)return'BRA';if(all.indexOf('sudafrica')>-1)return'RSA';if(all.indexOf('espana')>-1)return'ESP';if(all.indexOf('francia')>-1)return'FRA';if(all.indexOf('alemania')>-1)return'GER';if(all.indexOf('italia')>-1)return'ITA';return'';}
+function fix(){document.querySelectorAll('.fs-shutter-hotspot').forEach(function(x){x.remove();});document.querySelectorAll('input').forEach(function(i){if(!isField(i))return;i.type='text';i.inputMode='text';i.autocapitalize='characters';i.placeholder='Ej: ARG 10';i.style.textTransform='uppercase';i.oninput=function(){i.value=String(i.value).toUpperCase();};});}
+function beforeSave(){var i=[].slice.call(document.querySelectorAll('input')).find(isField);if(!i)return;var v=String(i.value||'').trim().toUpperCase();if(/^[A-Z]{3}\s*\d+$/.test(v))i.value=v.replace(/\s+/,' ');else if(/^\d+$/.test(v)){var c=code();if(c)i.value=c+' '+v;}i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new Event('change',{bubbles:true}));}
+document.addEventListener('click',function(e){var b=e.target.closest('button,.btn,[role=button]');if(!b)return;var t=txt(b.textContent);if(t.indexOf('guardar')>-1||t.indexOf('agregar')>-1||t.indexOf('confirmar')>-1)beforeSave();},true);
+document.addEventListener('submit',beforeSave,true);new MutationObserver(fix).observe(document.documentElement,{childList:true,subtree:true});if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fix);else fix();
 })();
