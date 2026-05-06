@@ -1,1 +1,98 @@
-console.log('hotfix txt');
+
+;(() => {
+  const COUNTRY_CODES = {
+    argentina: 'ARG', brasil: 'BRA', brazil: 'BRA', sudafrica: 'RSA', 'sudáfrica': 'RSA', 'south africa': 'RSA', francia: 'FRA', france: 'FRA', espana: 'ESP', 'españa': 'ESP', spain: 'ESP', alemania: 'GER', germany: 'GER', italia: 'ITA', italy: 'ITA', uruguay: 'URU', mexico: 'MEX', 'méxico': 'MEX', portugal: 'POR', inglaterra: 'ENG', england: 'ENG', estadosunidos: 'USA', 'estados unidos': 'USA', usa: 'USA', colombia: 'COL', japon: 'JPN', 'japón': 'JPN', senegal: 'SEN', marruecos: 'MAR', belgica: 'BEL', 'bélgica': 'BEL', croacia: 'CRO', suiza: 'SUI', dinamarca: 'DEN', iran: 'IRN', 'irán': 'IRN', turquia: 'TUR', 'turquía': 'TUR', ecuador: 'ECU', austria: 'AUT', nigeria: 'NGA', australia: 'AUS', argelia: 'ALG', egipto: 'EGY', canada: 'CAN', 'canadá': 'CAN', noruega: 'NOR', ucrania: 'UKR', panama: 'PAN', 'panamá': 'PAN'
+  };
+  const norm = v => String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  const isNumberField = input => {
+    const txt = norm([input.name, input.id, input.placeholder, input.getAttribute('aria-label')].join(' '));
+    let label = '';
+    if (input.id) {
+      const l = document.querySelector('label[for="' + CSS.escape(input.id) + '"]');
+      if (l) label = norm(l.textContent);
+    }
+    return input.type === 'number' || txt.includes('numero') || txt.includes('figurita') || label.includes('numero') || label.includes('figurita');
+  };
+  const getCode = () => {
+    const selects = Array.from(document.querySelectorAll('select'));
+    for (const sel of selects) {
+      const opt = sel.options && sel.options[sel.selectedIndex];
+      const raw = ((opt && opt.textContent) || '') + ' ' + (sel.value || '');
+      const upper = raw.match(/\b[A-Z]{3}\b/);
+      if (upper) return upper[0];
+      const clean = norm(raw);
+      for (const [key, code] of Object.entries(COUNTRY_CODES)) if (clean.includes(norm(key))) return code;
+    }
+    const active = Array.from(document.querySelectorAll('.active,[aria-selected="true"],button')).map(x => x.textContent || '').join(' ');
+    const clean = norm(active);
+    for (const [key, code] of Object.entries(COUNTRY_CODES)) if (clean.includes(norm(key))) return code;
+    return '';
+  };
+  const fixInputs = () => {
+    document.querySelectorAll('input').forEach(input => {
+      if (!isNumberField(input)) return;
+      input.type = 'text';
+      input.inputMode = 'text';
+      input.autocapitalize = 'characters';
+      input.placeholder = 'Ej: ARG 10 o BRA 4';
+    });
+  };
+  const prefixNumber = () => {
+    const input = Array.from(document.querySelectorAll('input')).find(isNumberField);
+    if (!input) return;
+    let v = String(input.value || '').trim().toUpperCase();
+    if (/^[A-Z]{3}\s*\d+$/.test(v)) {
+      input.value = v.replace(/\s+/, ' ');
+    } else if (/^\d+$/.test(v)) {
+      const code = getCode();
+      if (code) input.value = code + ' ' + v;
+    }
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('button,.btn,[role="button"]');
+    if (!btn) return;
+    const t = norm(btn.textContent);
+    if (t.includes('guardar') || t.includes('agregar') || t.includes('sumar') || t.includes('confirmar')) prefixNumber();
+  }, true);
+  document.addEventListener('submit', prefixNumber, true);
+
+  let soundOn = true;
+  let lastShot = 0;
+  const beep = () => {
+    if (!soundOn) return;
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new Ctx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = 1000;
+      gain.gain.value = 0.12;
+      osc.connect(gain); gain.connect(ctx.destination); osc.start();
+      setTimeout(() => { try { osc.stop(); ctx.close(); } catch(e){} }, 90);
+    } catch(e) {}
+  };
+  const captureButton = () => Array.from(document.querySelectorAll('button,.btn,[role="button"]')).find(b => /foto|captur|sacar|escane|scan|detectar|leer/i.test(b.textContent || ''));
+  const triggerShot = wrap => {
+    const now = Date.now();
+    if (now - lastShot < 900) return;
+    lastShot = now; beep();
+    const flash = document.createElement('div'); flash.className = 'fs-camera-flash'; wrap.appendChild(flash); setTimeout(() => flash.remove(), 280);
+    const b = captureButton(); if (b) b.click();
+  };
+  const enhanceCamera = () => {
+    const wrap = document.querySelector('.scanner-wrap');
+    if (!wrap || wrap.dataset.fsHotfix) return;
+    wrap.dataset.fsHotfix = '1';
+    const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'fs-sound-toggle'; toggle.textContent = 'Sonido ON';
+    toggle.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); soundOn = !soundOn; toggle.textContent = soundOn ? 'Sonido ON' : 'Sonido OFF'; };
+    const hot = document.createElement('button'); hot.type = 'button'; hot.className = 'fs-shutter-hotspot'; hot.textContent = 'Tocar recuadro';
+    hot.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); triggerShot(wrap); };
+    wrap.append(toggle, hot);
+    wrap.addEventListener('click', ev => { if (!ev.target.closest('button') && (ev.target.closest('.scan-frame') || ev.target.closest('.video'))) triggerShot(wrap); }, true);
+  };
+  const run = () => { fixInputs(); enhanceCamera(); };
+  new MutationObserver(run).observe(document.documentElement, { childList: true, subtree: true });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
+})();
