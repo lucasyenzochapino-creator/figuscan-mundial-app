@@ -1,0 +1,21 @@
+Pegá esto dentro del objeto `metadata` de tu `app/layout.tsx` o `src/app/layout.tsx`.
+
+manifest: "/manifest.webmanifest",
+icons: {
+  icon: "/favicon.ico",
+  apple: "/apple-touch-icon.png",
+},
+themeColor: "#003B8F",
+
+Ejemplo completo:
+
+export const metadata = {
+  title: "FiguScan Mundial",
+  description: "App para escanear y organizar figuritas del Mundial.",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
+  themeColor: "#003B8F",
+};
