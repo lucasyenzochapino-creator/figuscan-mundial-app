@@ -1,15 +1,15 @@
-const CACHE_NAME = 'figuscan-v56-icono-figurita-pwa';
+const CACHE_NAME = 'figuscan-v57-link-directo-amigos-vercel-fix';
 const PRECACHE = [
   '/',
   '/index.html',
-  '/styles.css?v=55',
-  '/app.js?v=55',
+  '/styles.css?v=57',
+  '/app.js?v=57',
   '/manifest.webmanifest',
-  '/assets/icon-192.png?v=55',
-  '/assets/icon-512.png?v=55',
-  '/assets/icon-512-maskable.png?v=55',
-  '/assets/apple-touch-icon.png?v=55',
-  '/assets/favicon-32.png?v=55'
+  '/assets/icon-192.png?v=57',
+  '/assets/icon-512.png?v=57',
+  '/assets/icon-512-maskable.png?v=57',
+  '/assets/apple-touch-icon.png?v=57',
+  '/assets/favicon-32.png?v=57'
 ];
 
 self.addEventListener('install', event => {

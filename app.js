@@ -1,4 +1,4 @@
-/* FiguScan Mundial V55 - comunidad de intercambios sin servidor + OCR mejorado (4 zonas) */
+/* FiguScan Mundial V57 - link directo para invitar amigos + fix vercel.json (íconos PWA) */
 const STORAGE_KEY = 'figuscan_v12_stickers';
 const USER_KEY = 'figuscan_v12_user';
 const APP_URL = 'https://figuscan-mundial-app.vercel.app/';
@@ -5637,6 +5637,7 @@ function friendsListScreen(profile){
       <div class="profile-actions">
         <button class="btn btn-primary full" onclick="shareMyCode()">${icons.share} Compartir mi álbum</button>
         <button class="btn btn-gold full" onclick="state.friendsView='import'; render()">${icons.plus} Cargar amigo</button>
+        <button class="btn btn-line full" onclick="inviteToApp()">${icons.users} Invitar amigo a usar la app</button>
       </div>
     </section>
 
@@ -5751,7 +5752,37 @@ function shareMyCode(){
     missing: state.stickers.filter(s=>s.status==='missing').length,
     repeated: state.stickers.filter(s=>s.status==='repeated').length
   };
-  const text = `🏆 *Mi álbum FiguScan Mundial*\n\nApodo: ${state.profile.alias}\nTengo: ${counts.have} · Me faltan: ${counts.missing} · Repetidas: ${counts.repeated}\n\n*Código para cargar en FiguScan:*\n${code}\n\n_Pegalo en FiguScan → Amigos → Cargar amigo. Así vemos qué podemos cambiar._`;
+  // V57: link directo. Al tocarlo desde WhatsApp se abre la app y carga el amigo solo.
+  // Si el amigo todavía no la tiene instalada, abre la web y le da la opción de instalar.
+  const appUrl = 'https://figuscan-mundial-app.vercel.app/';
+  const directLink = `${appUrl}?amigo=${encodeURIComponent(code)}`;
+  const text = `🏆 ¡Te invito a FiguScan Mundial!\n\nApp gratis para llevar tu álbum del Mundial 2026 en el celu y hacer cambios conmigo.\n\nMi apodo: ${state.profile.alias}\nTengo: ${counts.have} · Me faltan: ${counts.missing} · Repetidas: ${counts.repeated}\n\n👉 Tocá este link y se carga mi álbum solo:\n${directLink}\n\n(Si todavía no tenés la app, el link te lleva a instalarla. Es gratis y se baja como cualquier app.)`;
+  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  window.open(url, '_blank');
+}
+
+// V57: detectar ?amigo= en la URL al iniciar y cargar al amigo automáticamente
+function checkUrlForFriend(){
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const amigoCode = params.get('amigo') || params.get('friend');
+    if(amigoCode){
+      // Limpiar la URL para que si refresca no vuelva a importar
+      const cleanUrl = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+      // Importar después de un toque para que la UI ya esté lista
+      setTimeout(()=>{
+        const ok = importFriendCode(amigoCode);
+        if(ok){ state.view = 'friends'; state.friendsView = 'detail'; render(); }
+      }, 400);
+    }
+  } catch(e) {}
+}
+
+// V57: invitar a otra persona a usar la app (sin compartir álbum, solo el link de instalación)
+function inviteToApp(){
+  const appUrl = 'https://figuscan-mundial-app.vercel.app/';
+  const text = `🏆 *FiguScan Mundial* — la app para tu álbum del Mundial 2026\n\n👉 ${appUrl}\n\n*Cómo instalarla (es gratis):*\n\n📱 *Android:*\n1) Abrí el link\n2) Tocá los 3 puntitos arriba a la derecha\n3) Tocá "Instalar app" o "Agregar a pantalla principal"\n\n📱 *iPhone:*\n1) Abrí el link en Safari\n2) Tocá el botón compartir (cuadrado con flechita ⬆)\n3) Tocá "Agregar a pantalla de inicio"\n\nDespués podemos comparar nuestros álbumes y hacer cambios. 🤝`;
   const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
   window.open(url, '_blank');
 }
@@ -6084,7 +6115,7 @@ function render(){
   }
 }
 
-window.fillCountryInput=fillCountryInput; window.updateCountryBadge=updateCountryBadge; window.setBatchStatus=setBatchStatus; window.changeBatchQty=changeBatchQty; window.handleAlbumTextSearch=handleAlbumTextSearch; window.handleAlbumCountrySearch=handleAlbumCountrySearch; window.clearAlbumSearch=clearAlbumSearch; window.changeDeleteQty=changeDeleteQty; window.setDeleteAllRepeated=setDeleteAllRepeated; window.confirmDeleteRepeated=confirmDeleteRepeated; window.handleScannerFrameTap=handleScannerFrameTap; window.attachCameraStream=attachCameraStream; window.openStickerViewer=openStickerViewer; window.closeStickerViewer=closeStickerViewer; window.moveViewer=moveViewer; window.removeScanPhoto=removeScanPhoto; window.stepDetectedNumber=stepDetectedNumber; window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.toggleTorch=toggleTorch; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.captureInputFocus=captureInputFocus; window.restoreInputFocus=restoreInputFocus; window.render=render; window.toggleSound=toggleSound; window.setProfileAlias=setProfileAlias; window.setProfileColor=setProfileColor; window.shareMyCode=shareMyCode; window.doImportFriendCode=doImportFriendCode; window.shareExchangeProposal=shareExchangeProposal; window.confirmRemoveFriend=confirmRemoveFriend;
+window.fillCountryInput=fillCountryInput; window.updateCountryBadge=updateCountryBadge; window.setBatchStatus=setBatchStatus; window.changeBatchQty=changeBatchQty; window.handleAlbumTextSearch=handleAlbumTextSearch; window.handleAlbumCountrySearch=handleAlbumCountrySearch; window.clearAlbumSearch=clearAlbumSearch; window.changeDeleteQty=changeDeleteQty; window.setDeleteAllRepeated=setDeleteAllRepeated; window.confirmDeleteRepeated=confirmDeleteRepeated; window.handleScannerFrameTap=handleScannerFrameTap; window.attachCameraStream=attachCameraStream; window.openStickerViewer=openStickerViewer; window.closeStickerViewer=closeStickerViewer; window.moveViewer=moveViewer; window.removeScanPhoto=removeScanPhoto; window.stepDetectedNumber=stepDetectedNumber; window.selectCountry=selectCountry; window.haptic=haptic; window.setView=setView; window.chooseManualStatus=chooseManualStatus; window.changeQty=changeQty; window.submitManual=submitManual; window.toggleSelect=toggleSelect; window.bulkStatus=bulkStatus; window.bulkDelete=bulkDelete; window.deleteSticker=deleteSticker; window.quickCycle=quickCycle; window.shareSingle=shareSingle; window.openWhatsApp=openWhatsApp; window.copyMessage=copyMessage; window.shareImage=shareImage; window.scanFrame=scanFrame; window.saveDetected=saveDetected; window.saveBatchQuick=saveBatchQuick; window.toggleTorch=toggleTorch; window.startCamera=startCamera; window.retryCamera=retryCamera; window.confirmModal=confirmModal; window.state=state; window.captureInputFocus=captureInputFocus; window.restoreInputFocus=restoreInputFocus; window.render=render; window.toggleSound=toggleSound; window.setProfileAlias=setProfileAlias; window.setProfileColor=setProfileColor; window.shareMyCode=shareMyCode; window.doImportFriendCode=doImportFriendCode; window.shareExchangeProposal=shareExchangeProposal; window.confirmRemoveFriend=confirmRemoveFriend; window.inviteToApp=inviteToApp;
 
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('/service-worker.js').catch(()=>{}); }
 loadPrefs();
@@ -6092,3 +6123,4 @@ loadProfile();
 loadFriends();
 ensureProfile();
 render();
+checkUrlForFriend();
