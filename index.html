@@ -15,13 +15,53 @@
   <meta name="apple-mobile-web-app-title" content="FiguScan" />
   <link rel="stylesheet" href="styles.css?v=57" />
   <link rel="stylesheet" href="scanner-fix.css?v=60" />
+  <style>
+    .fs-shutter-hotspot{display:none!important;visibility:hidden!important;pointer-events:none!important}
+    iframe[src*="vercel"],iframe[title*="Vercel"],[data-vercel-toolbar],[class*="vercel-toolbar"],[id*="vercel-toolbar"]{display:none!important;visibility:hidden!important;pointer-events:none!important;opacity:0!important;width:0!important;height:0!important}
+    input.fs-code-input{text-transform:uppercase!important}
+  </style>
 </head>
 <body>
   <div id="app"></div>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@6/dist/tesseract.min.js" defer></script>
   <script src="app.js?v=57" defer></script>
+  <script>
+    (function(){
+      function clean(v){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
+      function isNumberInput(i){
+        var t=clean((i.name||'')+' '+(i.id||'')+' '+(i.placeholder||'')+' '+(i.getAttribute('aria-label')||''));
+        var label='';
+        if(i.id){var l=document.querySelector('label[for="'+CSS.escape(i.id)+'"]'); if(l) label=clean(l.textContent);}
+        return i.type==='number'||t.indexOf('numero')>-1||t.indexOf('número')>-1||t.indexOf('figurita')>-1||label.indexOf('numero')>-1||label.indexOf('figurita')>-1;
+      }
+      function countryCode(){
+        var txt=''; document.querySelectorAll('select,.active,[aria-selected="true"]').forEach(function(x){txt+=' '+(x.textContent||'')+' '+(x.value||'');});
+        var m=txt.match(/\b[A-Z]{3}\b/); if(m) return m[0]; txt=clean(txt);
+        if(txt.indexOf('argentina')>-1)return'ARG'; if(txt.indexOf('brasil')>-1)return'BRA'; if(txt.indexOf('sudafrica')>-1)return'RSA'; if(txt.indexOf('espana')>-1)return'ESP'; if(txt.indexOf('francia')>-1)return'FRA'; if(txt.indexOf('alemania')>-1)return'GER'; if(txt.indexOf('italia')>-1)return'ITA'; if(txt.indexOf('uruguay')>-1)return'URU'; if(txt.indexOf('mexico')>-1)return'MEX'; if(txt.indexOf('portugal')>-1)return'POR'; return'';
+      }
+      function fixInputs(){
+        document.querySelectorAll('.fs-shutter-hotspot').forEach(function(x){x.remove();});
+        document.querySelectorAll('input').forEach(function(i){
+          if(!isNumberInput(i)) return;
+          if(i.type!=='text') i.type='text';
+          i.inputMode='text'; i.autocapitalize='characters'; i.placeholder='Ej: ARG 10'; i.classList.add('fs-code-input');
+          i.addEventListener('input',function(){var p=i.selectionStart; i.value=String(i.value).toUpperCase(); try{i.setSelectionRange(p,p)}catch(e){};},{passive:true});
+        });
+      }
+      function beforeSave(){
+        var i=Array.from(document.querySelectorAll('input')).find(isNumberInput); if(!i) return;
+        var v=String(i.value||'').trim().toUpperCase();
+        if(/^[A-Z]{3}\s*\d+$/.test(v)){i.value=v.replace(/\s+/,' ');} else if(/^\d+$/.test(v)){var c=countryCode(); if(c) i.value=c+' '+v;}
+        i.dispatchEvent(new Event('input',{bubbles:true})); i.dispatchEvent(new Event('change',{bubbles:true}));
+      }
+      function beep(){try{var C=window.AudioContext||window.webkitAudioContext;var a=new C();var o=a.createOscillator();var g=a.createGain();o.frequency.value=1100;g.gain.value=.16;o.connect(g);g.connect(a.destination);o.start();setTimeout(function(){try{o.stop();a.close()}catch(e){}},90)}catch(e){}}
+      document.addEventListener('click',function(e){var b=e.target.closest('button,.btn,[role="button"]'); if(!b)return; var t=clean(b.textContent); if(t.indexOf('guardar')>-1||t.indexOf('agregar')>-1||t.indexOf('confirmar')>-1) beforeSave(); if(t.indexOf('sacar foto')>-1||t.indexOf('guardar imagen')>-1||t.indexOf('capturar')>-1) beep();},true);
+      document.addEventListener('submit',beforeSave,true);
+      new MutationObserver(fixInputs).observe(document.documentElement,{childList:true,subtree:true});
+      if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fixInputs);else fixInputs();
+    })();
+  </script>
   <script src="hotfix.txt?v=60" defer></script>
-
   <script>
     window.addEventListener('error', function(){
       setTimeout(function(){
