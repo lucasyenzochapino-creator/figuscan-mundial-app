@@ -1,0 +1,9 @@
+{
+  "name": "FiguScan Mundial",
+  "short_name": "FiguScan",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#003B8F",
+  "icons": []
+}
